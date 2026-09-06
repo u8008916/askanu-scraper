@@ -16,6 +16,11 @@ def courses_fixture_path() -> Path:
 
 
 @pytest.fixture
+def bacct_fixture_path() -> Path:
+    return FIXTURES_DIR / "courses" / "bacct_program_sample.html"
+
+
+@pytest.fixture
 def scholarships_fixture_path() -> Path:
     return FIXTURES_DIR / "scholarships" / "anu_humanitarian_scholarship_sample.html"
 
@@ -23,6 +28,11 @@ def scholarships_fixture_path() -> Path:
 @pytest.fixture
 def courses_fixture_html(courses_fixture_path: Path) -> str:
     return courses_fixture_path.read_text(encoding="utf-8")
+
+
+@pytest.fixture
+def bacct_fixture_html(bacct_fixture_path: Path) -> str:
+    return bacct_fixture_path.read_text(encoding="utf-8")
 
 
 @pytest.fixture

@@ -239,6 +239,7 @@ class TestCoursesParserScaffold:
         self, courses_fixture_path: Path
     ) -> None:
         """Re-parsing the same fixture twice produces the same result (idempotent)."""
+        """Re-parsing the same fixture twice produces identical IDs, hash, and content."""
         from askanu_scraper.sources.courses.parser import CoursesParser
 
         url = "https://programsandcourses.anu.edu.au/2026/course/COMP1100"
@@ -248,3 +249,9 @@ class TestCoursesParserScaffold:
         result_1 = parser.parse(raw, url)
         result_2 = parser.parse(raw, url)
         assert result_1 == result_2
+        rec1 = parser.parse(raw, url)[0]
+        rec2 = parser.parse(raw, url)[0]
+        assert rec1.record_id == rec2.record_id
+        assert rec1.entity_id == rec2.entity_id
+        assert rec1.content_hash == rec2.content_hash
+        assert rec1.content == rec2.content
