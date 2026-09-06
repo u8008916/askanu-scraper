@@ -8,7 +8,7 @@ Source: https://programsandcourses.anu.edu.au/
 Rules:
 - Capture identifiers, academic year, title, career, units, delivery mode, and canonical URL.
 - Capture sessions/offerings, prerequisites, incompatibilities, and assumed knowledge when present.
-- Never invent missing fields; leave them None or empty.
+- Never invent missing fields; represent missing optional values as None.
 - Generate deterministic content_hash (SHA-256) and stable record IDs.
 """
 from __future__ import annotations
@@ -71,9 +71,9 @@ class CoursesParser(BaseParser):
 
         return []
 
-    def _extract_table_data(self, table: Any) -> dict[str, str]:
+    def _extract_table_data(self, table: Any) -> dict[str, str | None]:
         """Helper to extract key-value pairs from standard summary tables."""
-        data: dict[str, str] = {}
+        data: dict[str, str | None] = {}
         if not table:
             return data
 
@@ -81,8 +81,8 @@ class CoursesParser(BaseParser):
             th = row.find("th")
             td = row.find("td")
             if th and td:
-                key = normalize_text(th.get_text()) or ""
-                val = normalize_text(td.get_text()) or ""
+                key = normalize_text(th.get_text())
+                val = normalize_text(td.get_text()) or None
                 if key:
                     data[key] = val
         return data

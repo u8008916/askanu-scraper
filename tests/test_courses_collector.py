@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import pytest
+from pydantic import ValidationError
 
 from askanu_scraper.common.fetcher import MockFetcher
 from askanu_scraper.common.models import IngestionRunStatus, RecordStatus
@@ -217,3 +218,95 @@ class TestCoursesCollector:
         assert run.status == IngestionRunStatus.FAILED
         assert "schema-v1" in run.error
         assert records == []
+
+    def test_2026_and_2027_records_coexist(
+        self, tmp_path: Path, courses_fixture_path: Path
+    ) -> None:
+        """Different academic years must remain separate stored records."""
+        url_2026 = (
+            "https://programsandcourses.anu.edu.au/"
+            "2026/course/COMP1100"
+        )
+        url_2027 = (
+            "https://programsandcourses.anu.edu.au/"
+            "2027/course/COMP1100"
+        )
+
+        html_2026 = courses_fixture_path.read_text(encoding="utf-8")
+        html_2027 = html_2026.replace("2026", "2027")
+
+        fixture_2027 = tmp_path / "comp1100_2027.html"
+        fixture_2027.write_text(html_2027, encoding="utf-8")
+
+        store = LocalDataStore(base_dir=tmp_path / "store")
+
+        collector_2026 = CoursesCollector(
+            fetcher=MockFetcher({url_2026: courses_fixture_path}),
+            store=store,
+        )
+        run_2026, records_2026 = collector_2026.run_single(url_2026)
+
+        collector_2027 = CoursesCollector(
+            fetcher=MockFetcher({url_2027: fixture_2027}),
+            store=store,
+        )
+        run_2027, records_2027 = collector_2027.run_single(url_2027)
+
+        assert run_2026.status == IngestionRunStatus.SUCCESS
+        assert run_2027.status == IngestionRunStatus.SUCCESS
+        assert run_2026.records_added == 1
+        assert run_2027.records_added == 1
+
+        assert records_2026[0].entity_id == "COMP1100_2026"
+        assert records_2027[0].entity_id == "COMP1100_2027"
+
+        assert (
+            records_2026[0].record_id
+            == "courses:course:COMP1100_2026"
+        )
+        assert (
+            records_2027[0].record_id
+            == "courses:course:COMP1100_2027"
+        )
+
+        stored_2026 = store.get_record(
+            "courses:course:COMP1100_2026"
+        )
+        stored_2027 = store.get_record(
+            "courses:course:COMP1100_2027"
+        )
+
+        assert stored_2026 is not None
+        assert stored_2027 is not None
+        assert stored_2026.record_id != stored_2027.record_id
+        assert stored_2026.metadata_json["academic_year"] == "2026"
+        assert stored_2027.metadata_json["academic_year"] == "2027"
+
+    def test_storage_rejects_mutated_invalid_record(
+        self, tmp_path: Path, courses_fixture_path: Path
+    ) -> None:
+        """Storage handoff must revalidate mutable CommonRecord objects."""
+        url = (
+            "https://programsandcourses.anu.edu.au/"
+            "2026/course/COMP1100"
+        )
+
+        store = LocalDataStore(base_dir=tmp_path / "store")
+        collector = CoursesCollector(
+            fetcher=MockFetcher({url: courses_fixture_path}),
+            store=store,
+        )
+
+        run, records = collector.run_single(url)
+
+        assert run.status == IngestionRunStatus.SUCCESS
+        assert len(records) == 1
+
+        record = records[0]
+
+        # Pydantic models are mutable, so simulate corruption after the
+        # record was originally validated.
+        record.content_hash = "0" * 64
+
+        with pytest.raises(ValidationError):
+            store.save_record(record)

@@ -161,3 +161,29 @@ class TestCoursesParser:
         assert rec.entity_id == "BIOL9001P_2026"
         assert rec.record_id == "courses:course:BIOL9001P_2026"
 
+    def test_present_but_empty_optional_field_becomes_none(self) -> None:
+        html = """
+        <div class="course-detail">
+            <h1 class="intro-title">COMP1100 Programming as Problem Solving</h1>
+            <table class="course-data">
+                <tr><th>Course Code</th><td>COMP1100</td></tr>
+                <tr><th>Academic Year</th><td>2026</td></tr>
+                <tr><th>Career</th><td></td></tr>
+                <tr><th>Units</th><td>   </td></tr>
+                <tr><th>Mode of Delivery</th><td></td></tr>
+            </table>
+        </div>
+        """
+
+        parser = CoursesParser()
+        records = parser.parse(
+            html,
+            "https://programsandcourses.anu.edu.au/2026/course/COMP1100",
+        )
+
+        assert len(records) == 1
+
+        metadata = records[0].metadata_json
+        assert metadata["career"] is None
+        assert metadata["units"] is None
+        assert metadata["delivery_mode"] is None

@@ -3,7 +3,7 @@ Support parser — ANUSA Student Assistance.
 
 Day 1: Scaffold only. Full implementation in Day 11.
 Must collect: categories, service descriptions, contact/action URLs,
-and only EXPLICIT hours (never infer). 
+and only EXPLICIT hours (never infer).
 """
 from __future__ import annotations
 

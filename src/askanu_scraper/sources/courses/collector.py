@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 import uuid
+from pydantic import ValidationError
 from askanu_scraper.common.fetcher import BaseFetcher, FetchError, HttpFetcher
 from askanu_scraper.common.models import (
     CommonRecord,
@@ -80,6 +81,12 @@ class CoursesCollector:
         # 3. Parse
         try:
             records = self._parser.parse(raw_html, url)
+        except ValidationError as exc:
+            run.status = IngestionRunStatus.FAILED
+            run.error = f"schema-v1 validation failed: {exc}"
+            run.completed_at = now_canberra()
+            self._store.save_run(run)
+            return run, []
         except Exception as exc:
             run.status = IngestionRunStatus.FAILED
             run.error = f"Parser failed: {exc}"

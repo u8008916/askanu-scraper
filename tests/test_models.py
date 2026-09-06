@@ -9,6 +9,8 @@ Key invariants:
 """
 from __future__ import annotations
 
+from datetime import datetime
+
 import pytest
 from pydantic import ValidationError
 
@@ -56,8 +58,8 @@ def test_content_hash_is_hex_string() -> None:
 # ---------------------------------------------------------------------------
 
 def test_make_record_id_format() -> None:
-    record_id = make_record_id("courses", "COMP1100_2026")
-    assert record_id == "courses:COMP1100_2026"
+    record_id = make_record_id("courses", "course:COMP1100_2026")
+    assert record_id == "courses:course:COMP1100_2026"
 
 
 def test_make_record_id_is_stable() -> None:
@@ -114,54 +116,157 @@ def test_source_registry_entry_authority_rank_ge_1() -> None:
 
 def test_common_record_valid() -> None:
     content = "Test course content"
+
     record = CommonRecord(
-        record_id=make_record_id("courses", "COMP1100_2026"),
+        record_id="courses:course:COMP1100_2026",
         source_id="courses_programs_and_courses",
         entity_id="COMP1100_2026",
         domain=Domain.COURSES,
-        title="COMP1100 Programming as Problem Solving",
+        title="Programming as Problem Solving",
         content=content,
-        canonical_url="https://programsandcourses.anu.edu.au/2026/course/COMP1100",
+        canonical_url=(
+            "https://programsandcourses.anu.edu.au/"
+            "2026/course/COMP1100"
+        ),
         content_hash=make_content_hash(content),
+        metadata_json={
+            "entity_type": "course",
+            "course_code": "COMP1100",
+            "academic_year": "2026",
+            "career": None,
+            "units": None,
+            "delivery_mode": None,
+            "prerequisites": None,
+            "incompatibilities": None,
+            "assumed_knowledge": None,
+            "offerings": None,
+        },
     )
+
     assert record.domain == Domain.COURSES
+    assert record.entity_id == "COMP1100_2026"
+    assert record.record_id == "courses:course:COMP1100_2026"
     assert record.index_status == IndexStatus.PENDING
     assert record.status == RecordStatus.NEW
-    assert record.metadata_json == {}
-
+    assert record.metadata_json["entity_type"] == "course"
 
 def test_common_record_hash_matches_content() -> None:
-    """Re-computing the hash on the same content matches the stored hash."""
+    """Stored content_hash matches canonical content."""
     content = "Stable content for COMP1100"
+
     record = CommonRecord(
-        record_id="courses:COMP1100_2026",
+        record_id="courses:course:COMP1100_2026",
         source_id="courses_programs_and_courses",
         entity_id="COMP1100_2026",
         domain=Domain.COURSES,
         title="COMP1100",
         content=content,
-        canonical_url="https://programsandcourses.anu.edu.au/2026/course/COMP1100",
+        canonical_url=(
+            "https://programsandcourses.anu.edu.au/"
+            "2026/course/COMP1100"
+        ),
         content_hash=make_content_hash(content),
+        metadata_json={
+            "entity_type": "course",
+            "course_code": "COMP1100",
+            "academic_year": "2026",
+        },
     )
+
     assert record.content_hash == make_content_hash(content)
 
-
 def test_common_record_optional_fields_default_none() -> None:
-    """Optional date fields default to None — never invented."""
-    content = "test"
+    """Nullable top-level schema-v1 fields default to None."""
+    content = "Test course content"
+
     record = CommonRecord(
-        record_id="courses:X",
+        record_id="courses:course:COMP1100_2026",
         source_id="courses_programs_and_courses",
-        entity_id="X",
+        entity_id="COMP1100_2026",
         domain=Domain.COURSES,
-        title="X",
+        title="COMP1100",
         content=content,
-        canonical_url="https://example.com",
+        canonical_url=(
+            "https://programsandcourses.anu.edu.au/"
+            "2026/course/COMP1100"
+        ),
         content_hash=make_content_hash(content),
+        metadata_json={
+            "entity_type": "course",
+            "course_code": "COMP1100",
+            "academic_year": "2026",
+        },
     )
+
     assert record.effective_from is None
     assert record.effective_to is None
     assert record.embedding_version is None
+
+
+def _valid_course_record_kwargs() -> dict:
+    """Return one valid schema-v1 course record for negative tests."""
+    content = "Valid COMP1100 content"
+
+    return {
+        "record_id": "courses:course:COMP1100_2026",
+        "source_id": "courses_programs_and_courses",
+        "entity_id": "COMP1100_2026",
+        "domain": Domain.COURSES,
+        "title": "Programming as Problem Solving",
+        "content": content,
+        "canonical_url": (
+            "https://programsandcourses.anu.edu.au/"
+            "2026/course/COMP1100"
+        ),
+        "content_hash": make_content_hash(content),
+        "metadata_json": {
+            "entity_type": "course",
+            "course_code": "COMP1100",
+            "academic_year": "2026",
+        },
+    }
+
+
+def test_common_record_rejects_legacy_record_id() -> None:
+    values = _valid_course_record_kwargs()
+    values["record_id"] = "courses:COMP1100_2026"
+
+    with pytest.raises(ValidationError):
+        CommonRecord(**values)
+
+
+def test_common_record_rejects_invalid_content_hash() -> None:
+    values = _valid_course_record_kwargs()
+    values["content_hash"] = "0" * 64
+
+    with pytest.raises(ValidationError):
+        CommonRecord(**values)
+
+
+def test_common_record_rejects_invalid_canonical_url() -> None:
+    values = _valid_course_record_kwargs()
+    values["canonical_url"] = "not-a-valid-url"
+
+    with pytest.raises(ValidationError):
+        CommonRecord(**values)
+
+
+def test_common_record_rejects_naive_collected_at() -> None:
+    values = _valid_course_record_kwargs()
+    values["collected_at"] = datetime(2026, 9, 6, 12, 0, 0)
+
+    with pytest.raises(ValidationError):
+        CommonRecord(**values)
+
+
+def test_common_record_rejects_missing_course_code() -> None:
+    values = _valid_course_record_kwargs()
+    metadata = dict(values["metadata_json"])
+    metadata.pop("course_code")
+    values["metadata_json"] = metadata
+
+    with pytest.raises(ValidationError):
+        CommonRecord(**values)
 
 
 # ---------------------------------------------------------------------------

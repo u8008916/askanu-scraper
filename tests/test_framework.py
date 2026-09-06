@@ -103,19 +103,27 @@ class TestBaseParserSafeParse:
     def test_safe_parse_returns_records_on_success(self) -> None:
         content = "test"
         record = CommonRecord(
-            record_id="courses:TEST",
+            record_id="courses:course:COMP1100_2026",
             source_id="courses_programs_and_courses",
-            entity_id="TEST",
+            entity_id="COMP1100_2026",
             domain=Domain.COURSES,
             title="Test Course",
             content=content,
-            canonical_url="https://example.com/course/TEST",
+            canonical_url=(
+                "https://programsandcourses.anu.edu.au/"
+                "2026/course/COMP1100"
+            ),
             content_hash=make_content_hash(content),
+            metadata_json={
+                "entity_type": "course",
+                "course_code": "COMP1100",
+                "academic_year": "2026",
+            },
         )
         parser = _SucceedParser([record])
         result = parser.safe_parse("<html>good</html>", "https://example.com")
         assert len(result) == 1
-        assert result[0].entity_id == "TEST"
+        assert result[0].entity_id == "COMP1100_2026"
 
     def test_parse_raises_on_parse_error(self) -> None:
         """parse() itself propagates ParseError for tests."""

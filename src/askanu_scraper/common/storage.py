@@ -56,6 +56,12 @@ class LocalDataStore:
         Returns:
             (status, updated_record)
         """
+        # Revalidate at the storage boundary so mutated or externally
+        # constructed CommonRecord objects cannot bypass schema v1.
+        record = CommonRecord.model_validate(
+            record.model_dump(mode="python")
+        )
+
         existing = self.get_record(record.record_id)
         current_time = now_canberra()
 
@@ -81,6 +87,12 @@ class LocalDataStore:
             existing.last_seen_at = current_time
             final_record = existing
             action_status = RecordStatus.UNCHANGED
+
+        # Validate once more after status/timestamp mutations and before
+        # anything crosses the serialized storage handoff.
+        final_record = CommonRecord.model_validate(
+            final_record.model_dump(mode="python")
+        )
 
         file_path = self._record_file_path(final_record.record_id)
         with open(file_path, "w", encoding="utf-8") as f:
