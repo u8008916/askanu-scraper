@@ -44,10 +44,7 @@ class CoursesParser(BaseParser):
         if not raw_content or not raw_content.strip():
             return []
 
-        Day 1: Returns empty list — full field extraction implemented in Day 2.
-        Must capture: identifier, academic year, title, career, units,
-        delivery mode, canonical URL, prerequisites/requirements where present.
-        """
+
         # Day 2: Implement BeautifulSoup parsing here.
         # Do NOT invent fields not present in the HTML.
         try:

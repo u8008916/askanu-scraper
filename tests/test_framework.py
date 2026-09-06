@@ -238,7 +238,6 @@ class TestCoursesParserScaffold:
     def test_reruns_scaffold_produce_identical_results(
         self, courses_fixture_path: Path
     ) -> None:
-        """Re-parsing the same fixture twice produces the same result (idempotent)."""
         """Re-parsing the same fixture twice produces identical IDs, hash, and content."""
         from askanu_scraper.sources.courses.parser import CoursesParser
 
@@ -246,9 +245,6 @@ class TestCoursesParserScaffold:
         fetcher = MockFetcher({url: courses_fixture_path})
         parser = CoursesParser()
         raw = fetcher.fetch(url)
-        result_1 = parser.parse(raw, url)
-        result_2 = parser.parse(raw, url)
-        assert result_1 == result_2
         rec1 = parser.parse(raw, url)[0]
         rec2 = parser.parse(raw, url)[0]
         assert rec1.record_id == rec2.record_id
