@@ -155,7 +155,7 @@ class CoursesParser(BaseParser):
         # The official course URL itself is also a valid source of the code.
         if not course_code:
             code_match = re.search(
-                r"/course/([A-Za-z]{4}\d{4})(?:[/?#]|$)",
+                r"/course/([A-Za-z]{4}\d{4}[A-Za-z]?)(?:[/?#]|$)",
                 url,
                 re.IGNORECASE,
             )
@@ -164,9 +164,14 @@ class CoursesParser(BaseParser):
 
         # Final fixture-compatible fallback: code at the start of the title.
         if not course_code:
-            match = re.match(r"^([A-Z]{4}\d{4})\b", raw_title)
+            match = re.match(r"^([A-Z]{4}\d{4}[A-Z]?)\b", raw_title)
             if match:
                 course_code = match.group(1)
+
+        if course_code:
+            course_code = re.sub(r"\s+", "", course_code).upper()
+            if not re.fullmatch(r"[A-Z]{4}\d{4}[A-Z]?", course_code):
+                course_code = None
 
         if not academic_year:
             year_el = soup.select_one(".current-academic-year__toggle")
@@ -237,9 +242,10 @@ class CoursesParser(BaseParser):
                 assumed_knowledge = normalize_text(p.get_text()) if p else normalize_text(assumed_block.get_text())
 
         # Offerings
-        offerings: list[dict[str, str]] = []
+        offerings: list[dict[str, str]] | None = None
         offerings_table = soup.find("table", class_="offering-data")
         if offerings_table:
+            offerings = []
             for row in offerings_table.find_all("tr")[1:]:  # skip header
                 cols = [normalize_text(td.get_text()) or "" for td in row.find_all("td")]
                 if len(cols) >= 3:
@@ -309,6 +315,9 @@ class CoursesParser(BaseParser):
         program_code = summary_data.get("Program Code")
         academic_year = summary_data.get("Academic Year")
         career = summary_data.get("Career")
+
+        if program_code:
+            program_code = program_code.strip().upper()
         units = summary_data.get("Units")
         duration = summary_data.get("Duration")
         delivery_mode = summary_data.get("Mode of Delivery")
@@ -332,8 +341,9 @@ class CoursesParser(BaseParser):
 
         # Learning outcomes
         outcomes_el = soup.find("div", class_="learning-outcomes")
-        outcomes: list[str] = []
+        outcomes: list[str] | None = None
         if outcomes_el:
+            outcomes = []
             for li in outcomes_el.find_all("li"):
                 item = normalize_text(li.get_text())
                 if item:

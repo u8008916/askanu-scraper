@@ -137,5 +137,27 @@ class TestCoursesParser:
         assert meta["prerequisites"] is None
         assert meta["incompatibilities"] is None
         assert meta["assumed_knowledge"] is None
-        assert meta["offerings"] == []
+        assert meta["offerings"] is None
+
+    def test_course_code_with_trailing_letter_is_supported(self) -> None:
+        html = """
+        <div class="course-detail">
+            <h1 class="intro-title">Advanced Biology</h1>
+            <table class="course-data">
+                <tr><th>Academic Year</th><td>2026</td></tr>
+            </table>
+        </div>
+        """
+
+        parser = CoursesParser()
+        records = parser.parse(
+            html,
+            "https://programsandcourses.anu.edu.au/2026/course/BIOL9001P",
+        )
+
+        assert len(records) == 1
+        rec = records[0]
+        assert rec.metadata_json["course_code"] == "BIOL9001P"
+        assert rec.entity_id == "BIOL9001P_2026"
+        assert rec.record_id == "courses:course:BIOL9001P_2026"
 

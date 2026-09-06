@@ -163,6 +163,57 @@ class TestCoursesCollector:
         run, records = collector.run_single(url)
 
         assert run.status == IngestionRunStatus.FAILED
-        assert "academic year" in run.error
+        assert "schema-v1" in run.error
         assert records == []
         assert store.get_record("courses:course:ENGN1200") is None
+
+    def test_missing_course_code_is_rejected(self, tmp_path: Path) -> None:
+        url = "https://programsandcourses.anu.edu.au/2026/course/not-a-code"
+
+        html = """
+        <div class="course-detail">
+            <h1 class="intro-title">Generic Course Page</h1>
+            <table class="course-data">
+                <tr><th>Academic Year</th><td>2026</td></tr>
+            </table>
+        </div>
+        """
+
+        fixture = tmp_path / "missing_code.html"
+        fixture.write_text(html, encoding="utf-8")
+
+        fetcher = MockFetcher({url: fixture})
+        store = LocalDataStore(base_dir=tmp_path / "store")
+        collector = CoursesCollector(fetcher=fetcher, store=store)
+
+        run, records = collector.run_single(url)
+
+        assert run.status == IngestionRunStatus.FAILED
+        assert "schema-v1" in run.error
+        assert records == []
+
+    def test_invalid_academic_year_is_rejected(self, tmp_path: Path) -> None:
+        url = "https://programsandcourses.anu.edu.au/course/COMP1100"
+
+        html = """
+        <div class="course-detail">
+            <h1 class="intro-title">COMP1100 Programming as Problem Solving</h1>
+            <table class="course-data">
+                <tr><th>Course Code</th><td>COMP1100</td></tr>
+                <tr><th>Academic Year</th><td>20XX</td></tr>
+            </table>
+        </div>
+        """
+
+        fixture = tmp_path / "invalid_year.html"
+        fixture.write_text(html, encoding="utf-8")
+
+        fetcher = MockFetcher({url: fixture})
+        store = LocalDataStore(base_dir=tmp_path / "store")
+        collector = CoursesCollector(fetcher=fetcher, store=store)
+
+        run, records = collector.run_single(url)
+
+        assert run.status == IngestionRunStatus.FAILED
+        assert "schema-v1" in run.error
+        assert records == []

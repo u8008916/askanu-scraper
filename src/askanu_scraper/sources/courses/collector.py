@@ -6,6 +6,7 @@ FETCH -> PARSE -> VALIDATE -> COMPARE -> LOCAL STORAGE UPDATE -> INGESTION RUN
 """
 from __future__ import annotations
 
+import re
 import uuid
 from askanu_scraper.common.fetcher import BaseFetcher, FetchError, HttpFetcher
 from askanu_scraper.common.models import (
@@ -98,18 +99,56 @@ class CoursesCollector:
 
         # 4. Validate and save with hash comparison
         for record in records:
-            # Validate required identity fields and academic year
-            academic_year = record.metadata_json.get("academic_year")
+            metadata = record.metadata_json
+            entity_type = metadata.get("entity_type")
+            academic_year = metadata.get("academic_year")
+
+            code: str | None = None
+            if entity_type == "course":
+                raw_code = metadata.get("course_code")
+                if isinstance(raw_code, str):
+                    normalized_code = re.sub(r"\s+", "", raw_code).upper()
+                    if re.fullmatch(r"[A-Z]{4}\d{4}[A-Z]?", normalized_code):
+                        code = normalized_code
+            elif entity_type == "program":
+                raw_code = metadata.get("program_code")
+                if isinstance(raw_code, str):
+                    normalized_code = raw_code.strip().upper()
+                    if normalized_code:
+                        code = normalized_code
+
+            year_valid = (
+                isinstance(academic_year, str)
+                and re.fullmatch(r"\d{4}", academic_year) is not None
+            )
+
+            expected_entity_id = (
+                f"{code}_{academic_year}"
+                if code is not None and year_valid
+                else None
+            )
+            expected_record_id = (
+                f"courses:{entity_type}:{expected_entity_id}"
+                if expected_entity_id is not None
+                and entity_type in {"course", "program"}
+                else None
+            )
+
             if (
-                not record.entity_id
-                or not record.canonical_url
+                not record.canonical_url
                 or not record.title
-                or not academic_year
+                or not record.content
+                or not record.content_hash
+                or not code
+                or not year_valid
+                or record.entity_id != expected_entity_id
+                or record.record_id != expected_record_id
+                or record.source_id != SOURCE_ID
             ):
                 run.status = IngestionRunStatus.FAILED
                 run.error = (
-                    f"Record {record.record_id} missing mandatory "
-                    "identity fields or academic year"
+                    f"Record {record.record_id} failed schema-v1 "
+                    "identity/provenance validation"
                 )
                 run.completed_at = now_canberra()
                 self._store.save_run(run)
