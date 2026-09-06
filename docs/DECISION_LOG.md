@@ -4,7 +4,7 @@ Record only decisions that change V3 contracts, architecture, source policy, sco
 
 | Date | Decision | Why | Affected repos/docs | Owner | Approved by |
 |---|---|---|---|---|---|
-| | | | | | |
+| 2026-09-06 | Freeze Courses/Programs schema v1: full 16-field normalized Scraper -> DB -> RAG record; year-scoped `entity_id`; namespaced stable `record_id`; explicit four-digit academic year; SHA-256 `content_hash` of canonical `content`; stored canonical URLs; strict no-invented-value/null policy; multi-year-safe RAG lookup; and first DB/migration ownership. | Unblock Will -> Carmen integration using one implementation-ready shared boundary based on the verified scraper output and Carmen's Day 2 exact-retrieval requirements. | RAG `docs/DATA_SCHEMA.md` and `docs/DECISION_LOG.md`; Scraper `docs/DATA_SCHEMA.md` and implementation require synchronisation before PR #5 merge. | Qasim (contracts/integration) | Qasim after Will/Carmen implementation review |
 
 If a decision changes a shared contract, update every affected repo in the same work cycle.
 
