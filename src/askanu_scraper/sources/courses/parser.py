@@ -102,7 +102,11 @@ class CoursesParser(BaseParser):
         return normalize_url(default_url) or default_url
 
     def _parse_course(self, soup: BeautifulSoup, url: str) -> CommonRecord | None:
-        title_el = soup.find("h1", class_="intro-title") or soup.find("h1")
+        title_el = (
+            soup.find("h1", class_="intro-title")
+            or soup.find("h1", class_="intro__degree-title")
+            or soup.find("h1")
+        )
         raw_title = normalize_text(title_el.get_text()) if title_el else None
         if not raw_title:
             return None
@@ -115,17 +119,89 @@ class CoursesParser(BaseParser):
         units = summary_data.get("Units")
         delivery_mode = summary_data.get("Mode of Delivery")
 
-        # If code not in summary, extract from title (e.g. 'COMP1100 Programming as Problem Solving')
+        # Real ANU Programs & Courses layout.
+        # Keep the fixture/table layout above as the first preference.
+        live_summary = (
+            soup.select_one(".degree-summary.hide-mobile")
+            or soup.select_one(".degree-summary")
+        )
+
+        def live_summary_value(label: str) -> str | None:
+            if live_summary is None:
+                return None
+
+            for item in live_summary.select("li.degree-summary__code"):
+                heading = item.select_one(".degree-summary__code-heading")
+                if heading is None:
+                    continue
+
+                heading_text = normalize_text(heading.get_text(" ", strip=True))
+                if not heading_text or heading_text.casefold() != label.casefold():
+                    continue
+
+                value = item.select_one(".degree-summary__code-text")
+                if value is not None:
+                    return normalize_text(value.get_text(" ", strip=True))
+
+            return None
+
+        if not course_code and live_summary is not None:
+            code_link = live_summary.select_one(
+                ".degree-summary__requirements-length a"
+            )
+            if code_link is not None:
+                course_code = normalize_text(code_link.get_text(" ", strip=True))
+
+        # The official course URL itself is also a valid source of the code.
+        if not course_code:
+            code_match = re.search(
+                r"/course/([A-Za-z]{4}\d{4})(?:[/?#]|$)",
+                url,
+                re.IGNORECASE,
+            )
+            if code_match:
+                course_code = code_match.group(1).upper()
+
+        # Final fixture-compatible fallback: code at the start of the title.
         if not course_code:
             match = re.match(r"^([A-Z]{4}\d{4})\b", raw_title)
             if match:
                 course_code = match.group(1)
 
-        # Fallback year from URL
+        if not academic_year:
+            year_el = soup.select_one(".current-academic-year__toggle")
+            if year_el is not None:
+                year_match = re.search(
+                    r"\b(20\d{2})\b",
+                    year_el.get_text(" ", strip=True),
+                )
+                if year_match:
+                    academic_year = year_match.group(1)
+
+        # Official URL fallback for academic year.
         if not academic_year:
             year_match = re.search(r"/(\d{4})/", url)
             if year_match:
                 academic_year = year_match.group(1)
+
+        if not units and live_summary is not None:
+            units_el = live_summary.select_one(
+                ".degree-summary__requirements-units"
+            )
+            if units_el is not None:
+                units_match = re.search(
+                    r"(\d+(?:\.\d+)?)\s*units?",
+                    units_el.get_text(" ", strip=True),
+                    re.IGNORECASE,
+                )
+                if units_match:
+                    units = units_match.group(1)
+
+        if not career:
+            career = live_summary_value("Academic career")
+
+        if not delivery_mode:
+            delivery_mode = live_summary_value("Mode of delivery")
 
         entity_id = f"{course_code}_{academic_year}" if (course_code and academic_year) else (course_code or raw_title)
         record_id = make_record_id(Domain.COURSES.value, f"course:{entity_id}")

@@ -98,10 +98,19 @@ class CoursesCollector:
 
         # 4. Validate and save with hash comparison
         for record in records:
-            # Validate required identity fields
-            if not record.entity_id or not record.canonical_url or not record.title:
+            # Validate required identity fields and academic year
+            academic_year = record.metadata_json.get("academic_year")
+            if (
+                not record.entity_id
+                or not record.canonical_url
+                or not record.title
+                or not academic_year
+            ):
                 run.status = IngestionRunStatus.FAILED
-                run.error = f"Record {record.record_id} missing mandatory identity fields"
+                run.error = (
+                    f"Record {record.record_id} missing mandatory "
+                    "identity fields or academic year"
+                )
                 run.completed_at = now_canberra()
                 self._store.save_run(run)
                 return run, []

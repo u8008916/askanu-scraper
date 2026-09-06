@@ -135,3 +135,34 @@ class TestCoursesCollector:
         assert run.status == IngestionRunStatus.FAILED
         assert "does not belong to approved canonical root" in run.error
         assert recs == []
+
+    def test_missing_academic_year_is_rejected(self, tmp_path: Path) -> None:
+        url = "https://programsandcourses.anu.edu.au/course/ENGN1200"
+
+        html = """
+        <div class="course-detail">
+            <h1 class="intro-title">ENGN1200 Introduction to Engineering</h1>
+            <table class="course-data">
+                <tr><th>Course Code</th><td>ENGN1200</td></tr>
+            </table>
+            <div class="canonical-url">
+                <a href="https://programsandcourses.anu.edu.au/course/ENGN1200">
+                    https://programsandcourses.anu.edu.au/course/ENGN1200
+                </a>
+            </div>
+        </div>
+        """
+
+        fixture = tmp_path / "engn1200_no_year.html"
+        fixture.write_text(html, encoding="utf-8")
+
+        fetcher = MockFetcher({url: fixture})
+        store = LocalDataStore(base_dir=tmp_path / "store")
+        collector = CoursesCollector(fetcher=fetcher, store=store)
+
+        run, records = collector.run_single(url)
+
+        assert run.status == IngestionRunStatus.FAILED
+        assert "academic year" in run.error
+        assert records == []
+        assert store.get_record("courses:course:ENGN1200") is None
