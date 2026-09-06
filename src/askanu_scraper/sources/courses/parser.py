@@ -255,6 +255,9 @@ class CoursesParser(BaseParser):
                         "mode": cols[2],
                     })
 
+            if not offerings:
+                offerings = None
+
         metadata: dict[str, Any] = {
             "entity_type": "course",
             "course_code": course_code,
@@ -348,6 +351,9 @@ class CoursesParser(BaseParser):
                 item = normalize_text(li.get_text())
                 if item:
                     outcomes.append(item)
+
+            if not outcomes:
+                outcomes = None
 
         metadata: dict[str, Any] = {
             "entity_type": "program",

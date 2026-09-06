@@ -187,3 +187,49 @@ class TestCoursesParser:
         assert metadata["career"] is None
         assert metadata["units"] is None
         assert metadata["delivery_mode"] is None
+
+    def test_empty_offerings_section_becomes_none(self) -> None:
+        html = """
+        <div class="course-detail">
+            <h1 class="intro-title">COMP1100 Programming as Problem Solving</h1>
+            <table class="course-data">
+                <tr><th>Course Code</th><td>COMP1100</td></tr>
+                <tr><th>Academic Year</th><td>2026</td></tr>
+            </table>
+            <table class="offering-data">
+                <tr>
+                    <th>Session</th>
+                    <th>Campus</th>
+                    <th>Mode</th>
+                </tr>
+            </table>
+        </div>
+        """
+
+        parser = CoursesParser()
+        record = parser.parse(
+            html,
+            "https://programsandcourses.anu.edu.au/2026/course/COMP1100",
+        )[0]
+
+        assert record.metadata_json["offerings"] is None
+
+    def test_empty_learning_outcomes_section_becomes_none(self) -> None:
+        html = """
+        <div class="program-detail">
+            <h1 class="intro-title">Bachelor of Accounting</h1>
+            <table class="program-data">
+                <tr><th>Program Code</th><td>BACCT</td></tr>
+                <tr><th>Academic Year</th><td>2026</td></tr>
+            </table>
+            <div class="learning-outcomes"></div>
+        </div>
+        """
+
+        parser = CoursesParser()
+        record = parser.parse(
+            html,
+            "https://programsandcourses.anu.edu.au/2026/program/BACCT",
+        )[0]
+
+        assert record.metadata_json["learning_outcomes"] is None

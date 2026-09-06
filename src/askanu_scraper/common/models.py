@@ -170,15 +170,28 @@ class CommonRecord(BaseModel):
             raise ValueError("content_hash must match content")
 
         # Courses/Programs have extra schema-v1 identity requirements.
-        if self.domain == Domain.COURSES:
+        metadata = self.metadata_json
+        entity_type = metadata.get("entity_type")
+
+        is_courses_program_record = (
+            self.domain == Domain.COURSES
+            or self.source_id == "courses_programs_and_courses"
+            or self.record_id.startswith("courses:")
+            or entity_type in {"course", "program"}
+        )
+
+        if is_courses_program_record:
+            if self.domain != Domain.COURSES:
+                raise ValueError(
+                    "Courses/Programs records require domain 'courses'"
+                )
+
             if self.source_id != "courses_programs_and_courses":
                 raise ValueError(
                     "Courses/Programs records require source_id "
                     "'courses_programs_and_courses'"
                 )
 
-            metadata = self.metadata_json
-            entity_type = metadata.get("entity_type")
             academic_year = metadata.get("academic_year")
 
             # Normalize documented optional blank scalar values to null.
@@ -207,8 +220,46 @@ class CommonRecord(BaseModel):
 
             for key in optional_fields:
                 value = metadata.get(key)
-                if isinstance(value, str) and not value.strip():
+
+                if value is None:
+                    continue
+
+                if not isinstance(value, str):
+                    raise ValueError(
+                        f"metadata_json.{key} must be a string or null"
+                    )
+
+                if not value.strip():
                     metadata[key] = None
+
+            if entity_type == "course":
+                offerings = metadata.get("offerings")
+
+                if offerings is not None:
+                    if (
+                        not isinstance(offerings, list)
+                        or not all(isinstance(item, dict) for item in offerings)
+                    ):
+                        raise ValueError(
+                            "metadata_json.offerings must be "
+                            "an array of objects or null"
+                        )
+
+            if entity_type == "program":
+                learning_outcomes = metadata.get("learning_outcomes")
+
+                if learning_outcomes is not None:
+                    if (
+                        not isinstance(learning_outcomes, list)
+                        or not all(
+                            isinstance(item, str)
+                            for item in learning_outcomes
+                        )
+                    ):
+                        raise ValueError(
+                            "metadata_json.learning_outcomes must be "
+                            "an array of strings or null"
+                        )
 
             if entity_type not in {"course", "program"}:
                 raise ValueError(

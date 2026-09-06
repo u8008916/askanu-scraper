@@ -301,3 +301,88 @@ def test_ingestion_run_suspicious_zero_status() -> None:
         error="Saw 0 records from a source that previously had >100",
     )
     assert run.status == IngestionRunStatus.SUSPICIOUS_ZERO
+
+def test_course_record_cannot_bypass_validation_with_wrong_domain() -> None:
+    """A course-shaped record cannot escape schema-v1 checks via another domain."""
+    values = _valid_course_record_kwargs()
+    values["domain"] = Domain.JOBS
+
+    with pytest.raises(ValidationError):
+        CommonRecord(**values)
+
+def test_course_rejects_invalid_offerings_type() -> None:
+    """Course offerings must be an array of objects or null."""
+    values = _valid_course_record_kwargs()
+    metadata = dict(values["metadata_json"])
+    metadata["offerings"] = ""
+    values["metadata_json"] = metadata
+
+    with pytest.raises(ValidationError):
+        CommonRecord(**values)
+
+
+def test_course_rejects_invalid_optional_scalar_type() -> None:
+    """Course scalar optional metadata must be a string or null."""
+    values = _valid_course_record_kwargs()
+    metadata = dict(values["metadata_json"])
+    metadata["units"] = 6
+    values["metadata_json"] = metadata
+
+    with pytest.raises(ValidationError):
+        CommonRecord(**values)
+
+
+def test_program_rejects_invalid_learning_outcomes_type() -> None:
+    """Program learning outcomes must be an array of strings or null."""
+    content = "Bachelor of Accounting content"
+
+    values = {
+        "record_id": "courses:program:BACCT_2026",
+        "source_id": "courses_programs_and_courses",
+        "entity_id": "BACCT_2026",
+        "domain": Domain.COURSES,
+        "title": "Bachelor of Accounting",
+        "content": content,
+        "canonical_url": (
+            "https://programsandcourses.anu.edu.au/"
+            "2026/program/BACCT"
+        ),
+        "content_hash": make_content_hash(content),
+        "metadata_json": {
+            "entity_type": "program",
+            "program_code": "BACCT",
+            "academic_year": "2026",
+            "learning_outcomes": "",
+        },
+    }
+
+    with pytest.raises(ValidationError):
+        CommonRecord(**values)
+
+
+def test_program_rejects_invalid_optional_scalar_type() -> None:
+    """Program scalar optional metadata must be a string or null."""
+    content = "Bachelor of Accounting content"
+
+    values = {
+        "record_id": "courses:program:BACCT_2026",
+        "source_id": "courses_programs_and_courses",
+        "entity_id": "BACCT_2026",
+        "domain": Domain.COURSES,
+        "title": "Bachelor of Accounting",
+        "content": content,
+        "canonical_url": (
+            "https://programsandcourses.anu.edu.au/"
+            "2026/program/BACCT"
+        ),
+        "content_hash": make_content_hash(content),
+        "metadata_json": {
+            "entity_type": "program",
+            "program_code": "BACCT",
+            "academic_year": "2026",
+            "duration": 3,
+        },
+    }
+
+    with pytest.raises(ValidationError):
+        CommonRecord(**values)
