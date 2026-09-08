@@ -241,6 +241,74 @@ class CoursesParser(BaseParser):
                 p = assumed_block.find("p")
                 assumed_knowledge = normalize_text(p.get_text()) if p else normalize_text(assumed_block.get_text())
 
+        # Live ANU Programs & Courses layout.
+        # Current course pages expose a combined "Requisite and Incompatibility"
+        # section instead of the older nested div.requirements fixture shape.
+        # Preserve the old extraction above as first preference, then use this
+        # source-backed fallback only for fields that are still missing.
+        if prerequisites is None or incompatibilities is None:
+            for heading in soup.find_all(["h2", "h3"]):
+                heading_text = normalize_text(
+                    heading.get_text(" ", strip=True)
+                )
+                if (
+                    not heading_text
+                    or heading_text.casefold()
+                    != "requisite and incompatibility"
+                ):
+                    continue
+
+                section_parts: list[str] = []
+                for sibling in heading.next_siblings:
+                    sibling_name = getattr(sibling, "name", None)
+
+                    # A new H2 starts the next top-level course section.
+                    if sibling_name == "h2":
+                        break
+
+                    if hasattr(sibling, "get_text"):
+                        sibling_text = normalize_text(
+                            sibling.get_text(" ", strip=True)
+                        )
+                    else:
+                        sibling_text = normalize_text(str(sibling))
+
+                    if sibling_text:
+                        section_parts.append(sibling_text)
+
+                section_text = normalize_text(" ".join(section_parts)) or ""
+
+                if prerequisites is None:
+                    prereq_match = re.search(
+                        r"To enrol in this course you must have "
+                        r"(?:successfully )?completed:?\s*(.+?)"
+                        r"(?=\.\s*You are not able to enrol|\.$|$)",
+                        section_text,
+                        re.IGNORECASE,
+                    )
+                    if prereq_match:
+                        prerequisites = (
+                            normalize_text(prereq_match.group(1).rstrip("."))
+                            or None
+                        )
+
+                if incompatibilities is None:
+                    incompat_match = re.search(
+                        r"You are not able to enrol in this course if you have "
+                        r"(?:successfully )?completed"
+                        r"(?: one of the following courses:)?\s*(.+?)"
+                        r"(?:\.\s*$|$)",
+                        section_text,
+                        re.IGNORECASE,
+                    )
+                    if incompat_match:
+                        incompatibilities = (
+                            normalize_text(incompat_match.group(1).rstrip("."))
+                            or None
+                        )
+
+                break
+
         # Offerings
         offerings: list[dict[str, str]] | None = None
         offerings_table = soup.find("table", class_="offering-data")
