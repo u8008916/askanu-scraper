@@ -222,6 +222,7 @@ class CoursesParser(BaseParser):
         # Requirements
         req_el = soup.find("div", class_="requirements")
         prerequisites = None
+        corequisites = None
         incompatibilities = None
         assumed_knowledge = None
 
@@ -230,6 +231,11 @@ class CoursesParser(BaseParser):
             if prereq_block:
                 p = prereq_block.find("p")
                 prerequisites = normalize_text(p.get_text()) if p else normalize_text(prereq_block.get_text())
+
+            coreq_block = req_el.find("div", class_="corequisites")
+            if coreq_block:
+                p = coreq_block.find("p")
+                corequisites = normalize_text(p.get_text()) if p else normalize_text(coreq_block.get_text())
 
             incomp_block = req_el.find("div", class_="incompatibilities")
             if incomp_block:
@@ -311,17 +317,42 @@ class CoursesParser(BaseParser):
 
         # Offerings
         offerings: list[dict[str, str]] | None = None
+        offering_evidence: list[str] = []
         offerings_table = soup.find("table", class_="offering-data")
         if offerings_table:
             offerings = []
-            for row in offerings_table.find_all("tr")[1:]:  # skip header
-                cols = [normalize_text(td.get_text()) or "" for td in row.find_all("td")]
-                if len(cols) >= 3:
+            rows = offerings_table.find_all("tr")
+            headers = [
+                normalize_text(cell.get_text(" ", strip=True)) or ""
+                for cell in rows[0].find_all(["th", "td"])
+            ] if rows else []
+
+            for row in rows[1:]:
+                values = [
+                    normalize_text(cell.get_text(" ", strip=True)) or ""
+                    for cell in row.find_all("td")
+                ]
+                if not any(values):
+                    continue
+
+                row_data = dict(zip(headers, values))
+                session = row_data.get("Session", "")
+                campus = row_data.get("Campus", "")
+                mode = row_data.get("Mode", "")
+                if session or campus or mode:
                     offerings.append({
-                        "session": cols[0],
-                        "campus": cols[1],
-                        "mode": cols[2],
+                        "session": session,
+                        "campus": campus,
+                        "mode": mode,
                     })
+
+                evidence = "; ".join(
+                    f"{heading}: {value}"
+                    for heading, value in zip(headers, values)
+                    if heading and value
+                )
+                if evidence:
+                    offering_evidence.append(evidence)
 
             if not offerings:
                 offerings = None
@@ -349,12 +380,12 @@ class CoursesParser(BaseParser):
             f"Mode of Delivery: {delivery_mode}" if delivery_mode else None,
             f"Description: {description}" if description else None,
             f"Prerequisites: {prerequisites}" if prerequisites else None,
+            f"Corequisites: {corequisites}" if corequisites else None,
             f"Incompatibilities: {incompatibilities}" if incompatibilities else None,
             f"Assumed Knowledge: {assumed_knowledge}" if assumed_knowledge else None,
         ]
-        if offerings:
-            offerings_str = "; ".join(f"{o['session']} ({o['campus']}, {o['mode']})" for o in offerings)
-            content_parts.append(f"Offerings: {offerings_str}")
+        if offering_evidence:
+            content_parts.append("Offerings: " + " | ".join(offering_evidence))
 
         content = "\n".join([p for p in content_parts if p is not None])
         content_hash = make_content_hash(content)

@@ -21,6 +21,91 @@ from askanu_scraper.sources.courses.parser import CoursesParser
 
 
 class TestCoursesParser:
+    def test_parse_rich_course_evidence_without_schema_drift(
+        self, rich_course_fixture_path: Path
+    ) -> None:
+        url = "https://programsandcourses.anu.edu.au/2026/course/COMP1110"
+        html = rich_course_fixture_path.read_text(encoding="utf-8")
+        parser = CoursesParser()
+        record = parser.parse(html, url)[0]
+        repeated_record = parser.parse(html, url)[0]
+
+        metadata = record.metadata_json
+        assert metadata["prerequisites"] == "COMP1100 or COMP1130"
+        assert metadata["incompatibilities"] == "COMP1140"
+        assert metadata["assumed_knowledge"] == "Basic discrete mathematics."
+        assert metadata["offerings"] == [{
+            "session": "Semester 1, 2026",
+            "campus": "Canberra",
+            "mode": "In Person",
+        }]
+        assert "corequisites" not in metadata
+        assert "Corequisites: MATH1005" in record.content
+        assert "Enrolment Date: 16 February 2026" in record.content
+        assert "Census Date: 31 March 2026" in record.content
+        assert record.metadata_json["academic_year"] == "2026"
+        assert record.canonical_url == url
+        assert record.source_id == "courses_programs_and_courses"
+        assert record.entity_id == "COMP1110_2026"
+        assert record.record_id == "courses:course:COMP1110_2026"
+        assert record.content == repeated_record.content
+        assert record.content_hash == repeated_record.content_hash
+
+    def test_file_fixture_missing_fields_remain_null(
+        self, missing_course_fixture_path: Path
+    ) -> None:
+        url = "https://programsandcourses.anu.edu.au/2026/course/COMP1110"
+        record = CoursesParser().parse(
+            missing_course_fixture_path.read_text(encoding="utf-8"), url
+        )[0]
+
+        metadata = record.metadata_json
+        for field in (
+            "career", "units", "delivery_mode", "prerequisites",
+            "incompatibilities", "assumed_knowledge", "offerings",
+        ):
+            assert metadata[field] is None
+        assert "Corequisites:" not in record.content
+        assert "Census Date:" not in record.content
+
+    def test_incompatibility_only_does_not_invent_prerequisites(
+        self, incompatibility_only_course_fixture_path: Path
+    ) -> None:
+        url = "https://programsandcourses.anu.edu.au/2026/course/COMP1110"
+        record = CoursesParser().parse(
+            incompatibility_only_course_fixture_path.read_text(
+                encoding="utf-8"
+            ),
+            url,
+        )[0]
+
+        metadata = record.metadata_json
+        assert metadata["prerequisites"] is None
+        assert metadata["incompatibilities"] == "COMP1140"
+        assert metadata["assumed_knowledge"] is None
+        assert "Prerequisites:" not in record.content
+        assert "Corequisites:" not in record.content
+        assert "Incompatibilities: COMP1140" in record.content
+
+    def test_malformed_optional_sections_do_not_invent_values(
+        self, malformed_course_fixture_path: Path
+    ) -> None:
+        url = "https://programsandcourses.anu.edu.au/2026/course/COMP1110"
+        record = CoursesParser().parse(
+            malformed_course_fixture_path.read_text(encoding="utf-8"), url
+        )[0]
+
+        metadata = record.metadata_json
+        assert metadata["prerequisites"] is None
+        assert metadata["incompatibilities"] is None
+        assert metadata["assumed_knowledge"] is None
+        assert metadata["offerings"] == [{
+            "session": "Semester 2, 2026", "campus": "", "mode": ""
+        }]
+        assert "Corequisites:" not in record.content
+        assert "Census Date:" not in record.content
+        assert "Enrolment Date:" not in record.content
+
     def test_parse_comp1100_course(self, courses_fixture_path: Path) -> None:
         url = "https://programsandcourses.anu.edu.au/2026/course/COMP1100"
         fetcher = MockFetcher({url: courses_fixture_path})
