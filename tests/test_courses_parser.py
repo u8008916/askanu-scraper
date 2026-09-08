@@ -106,6 +106,66 @@ class TestCoursesParser:
         assert "Census Date:" not in record.content
         assert "Enrolment Date:" not in record.content
 
+    def test_live_layout_extracts_assumed_knowledge_and_record_year_offerings(
+        self,
+    ) -> None:
+        url = "https://programsandcourses.anu.edu.au/2026/course/COMP1110"
+        fixture = (
+            Path(__file__).resolve().parents[1]
+            / "fixtures"
+            / "courses"
+            / "comp1110_live_layout_sample.html"
+        )
+        html = fixture.read_text(encoding="utf-8")
+
+        parser = CoursesParser()
+        record = parser.parse(html, url)[0]
+        repeated_record = parser.parse(html, url)[0]
+
+        metadata = record.metadata_json
+
+        assert metadata["academic_year"] == "2026"
+        assert metadata["assumed_knowledge"] == (
+            "MCOMP students from 2026 onwards must enrol in "
+            "COMP7710 Programming Fundamentals."
+        )
+
+        assert metadata["offerings"] == [
+            {
+                "session": "First Semester, 2026",
+                "campus": "",
+                "mode": "In Person",
+            },
+            {
+                "session": "Second Semester, 2026",
+                "campus": "",
+                "mode": "In Person",
+            },
+        ]
+
+        # Source-backed 2026 offering evidence is retained in canonical content.
+        assert "Class start date: 23 Feb 2026" in record.content
+        assert "Last day to enrol: 02 Mar 2026" in record.content
+        assert "Census date: 31 Mar 2026" in record.content
+        assert "Class end date: 29 May 2026" in record.content
+
+        assert "Class start date: 27 Jul 2026" in record.content
+        assert "Last day to enrol: 03 Aug 2026" in record.content
+        assert "Census date: 31 Aug 2026" in record.content
+        assert "Class end date: 30 Oct 2026" in record.content
+
+        # A 2026 normalized record must not absorb indicative future-year rows.
+        assert "22 Feb 2027" not in record.content
+        assert "01 Mar 2027" not in record.content
+        assert "28 May 2027" not in record.content
+
+        # Day 4 preserves the frozen metadata shape.
+        assert "corequisites" not in metadata
+
+        # Normalized evidence and its hash remain deterministic.
+        assert record.content == repeated_record.content
+        assert record.content_hash == repeated_record.content_hash
+
     def test_parse_comp1100_course(self, courses_fixture_path: Path) -> None:
         url = "https://programsandcourses.anu.edu.au/2026/course/COMP1100"
         fetcher = MockFetcher({url: courses_fixture_path})

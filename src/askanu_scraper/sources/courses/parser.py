@@ -315,13 +315,49 @@ class CoursesParser(BaseParser):
 
                 break
 
+        # Live ANU Programs & Courses exposes Assumed Knowledge as its own
+        # heading-based section. Preserve the older fixture extraction above
+        # as first preference, then use this source-backed fallback.
+        if assumed_knowledge is None:
+            assumed_heading = soup.find(
+                ["h2", "h3"], id="assumed-knowledge"
+            )
+            if assumed_heading is not None:
+                assumed_parts: list[str] = []
+
+                for sibling in assumed_heading.next_siblings:
+                    sibling_name = getattr(sibling, "name", None)
+
+                    # A new H2 starts the next top-level course section.
+                    if sibling_name == "h2":
+                        break
+
+                    if hasattr(sibling, "get_text"):
+                        sibling_text = normalize_text(
+                            sibling.get_text(" ", strip=True)
+                        )
+                    else:
+                        sibling_text = normalize_text(str(sibling))
+
+                    if sibling_text:
+                        assumed_parts.append(sibling_text)
+
+                assumed_knowledge = (
+                    normalize_text(" ".join(assumed_parts)) or None
+                )
+
         # Offerings
+        #
+        # First preserve the older fixture/table layout. If it is absent,
+        # fall back to the live ANU tabbed offerings layout.
         offerings: list[dict[str, str]] | None = None
         offering_evidence: list[str] = []
+
         offerings_table = soup.find("table", class_="offering-data")
         if offerings_table:
             offerings = []
             rows = offerings_table.find_all("tr")
+
             headers = [
                 normalize_text(cell.get_text(" ", strip=True)) or ""
                 for cell in rows[0].find_all(["th", "td"])
@@ -332,13 +368,18 @@ class CoursesParser(BaseParser):
                     normalize_text(cell.get_text(" ", strip=True)) or ""
                     for cell in row.find_all("td")
                 ]
+
                 if not any(values):
                     continue
 
                 row_data = dict(zip(headers, values))
                 session = row_data.get("Session", "")
                 campus = row_data.get("Campus", "")
-                mode = row_data.get("Mode", "")
+                mode = (
+                    row_data.get("Mode", "")
+                    or row_data.get("Mode Of Delivery", "")
+                )
+
                 if session or campus or mode:
                     offerings.append({
                         "session": session,
@@ -351,11 +392,176 @@ class CoursesParser(BaseParser):
                     for heading, value in zip(headers, values)
                     if heading and value
                 )
+
                 if evidence:
                     offering_evidence.append(evidence)
 
             if not offerings:
                 offerings = None
+
+        # Live ANU Programs & Courses layout:
+        #
+        # h2#terms
+        #   -> div#tabs-container
+        #        course-tabs-menu: 2026, 2027, 2028
+        #        course-tab-content panels:
+        #          course-tab-1 -> 2026
+        #          course-tab-2 -> 2027
+        #          course-tab-3 -> 2028
+        #
+        # Select only the panel corresponding to this normalized record's
+        # explicit academic year. Never mix future-year offerings into the
+        # current record.
+        if offerings is None and academic_year:
+            tabs_container = soup.find("div", id="tabs-container")
+
+            if tabs_container is not None:
+                tabs_menu = tabs_container.find(
+                    "div", class_="course-tabs-menu"
+                )
+
+                if tabs_menu is not None:
+                    menu_text = (
+                        normalize_text(
+                            tabs_menu.get_text(" ", strip=True)
+                        )
+                        or ""
+                    )
+
+                    available_years = re.findall(
+                        r"\b20\d{2}\b", menu_text
+                    )
+
+                    if academic_year in available_years:
+                        panel_number = (
+                            available_years.index(academic_year) + 1
+                        )
+
+                        year_panel = tabs_container.find(
+                            "div",
+                            id=f"course-tab-{panel_number}",
+                        )
+
+                        if year_panel is not None:
+                            live_offerings: list[dict[str, str]] = []
+                            live_evidence: list[str] = []
+
+                            for table in year_panel.find_all(
+                                "table",
+                                class_="table-terms",
+                                recursive=False,
+                            ):
+                                session = None
+
+                                # On the live page each table is preceded by
+                                # its source session heading, e.g.
+                                # "First Semester" or "Second Semester".
+                                for sibling in table.previous_siblings:
+                                    if getattr(sibling, "name", None) is None:
+                                        continue
+
+                                    candidate = normalize_text(
+                                        sibling.get_text(
+                                            " ", strip=True
+                                        )
+                                    )
+
+                                    if (
+                                        candidate
+                                        and re.search(
+                                            r"\b(semester|session)\b",
+                                            candidate,
+                                            re.IGNORECASE,
+                                        )
+                                    ):
+                                        session = candidate
+                                        break
+
+                                if session:
+                                    session_value = (
+                                        f"{session}, {academic_year}"
+                                    )
+                                else:
+                                    session_value = academic_year
+
+                                rows = table.find_all("tr")
+                                headers = [
+                                    normalize_text(
+                                        cell.get_text(
+                                            " ", strip=True
+                                        )
+                                    )
+                                    or ""
+                                    for cell in (
+                                        rows[0].find_all(
+                                            ["th", "td"]
+                                        )
+                                        if rows
+                                        else []
+                                    )
+                                ]
+
+                                for row in rows[1:]:
+                                    values = [
+                                        normalize_text(
+                                            cell.get_text(
+                                                " ", strip=True
+                                            )
+                                        )
+                                        or ""
+                                        for cell in row.find_all("td")
+                                    ]
+
+                                    if not any(values):
+                                        continue
+
+                                    row_data = dict(
+                                        zip(headers, values)
+                                    )
+
+                                    campus = row_data.get(
+                                        "Campus", ""
+                                    )
+
+                                    mode = (
+                                        row_data.get(
+                                            "Mode Of Delivery", ""
+                                        )
+                                        or row_data.get("Mode", "")
+                                    )
+
+                                    live_offerings.append({
+                                        "session": session_value,
+                                        "campus": campus,
+                                        "mode": mode,
+                                    })
+
+                                    evidence_parts = [
+                                        f"Session: {session_value}"
+                                    ]
+
+                                    evidence_parts.extend(
+                                        f"{heading}: {value}"
+                                        for heading, value in zip(
+                                            headers, values
+                                        )
+                                        if (
+                                            heading
+                                            and value
+                                            and heading
+                                            != "Class Summary"
+                                        )
+                                    )
+
+                                    live_evidence.append(
+                                        "; ".join(evidence_parts)
+                                    )
+
+                            if live_offerings:
+                                offerings = live_offerings
+
+                            if live_evidence:
+                                offering_evidence = live_evidence
 
         metadata: dict[str, Any] = {
             "entity_type": "course",
