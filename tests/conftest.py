@@ -21,6 +21,26 @@ def bacct_fixture_path() -> Path:
 
 
 @pytest.fixture
+def rich_course_fixture_path() -> Path:
+    return FIXTURES_DIR / "courses" / "comp1110_rich_course_sample.html"
+
+
+@pytest.fixture
+def missing_course_fixture_path() -> Path:
+    return FIXTURES_DIR / "courses" / "comp1110_missing_fields_sample.html"
+
+
+@pytest.fixture
+def malformed_course_fixture_path() -> Path:
+    return FIXTURES_DIR / "courses" / "comp1110_malformed_optional_sample.html"
+
+
+@pytest.fixture
+def incompatibility_only_course_fixture_path() -> Path:
+    return FIXTURES_DIR / "courses" / "comp1110_incompatibility_only_sample.html"
+
+
+@pytest.fixture
 def scholarships_fixture_path() -> Path:
     return FIXTURES_DIR / "scholarships" / "anu_humanitarian_scholarship_sample.html"
 
