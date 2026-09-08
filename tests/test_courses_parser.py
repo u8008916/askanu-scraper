@@ -233,3 +233,49 @@ class TestCoursesParser:
         )[0]
 
         assert record.metadata_json["learning_outcomes"] is None
+
+    def test_live_requisite_and_incompatibility_section_is_extracted(self) -> None:
+        html = """
+        <html>
+        <body>
+            <h1 class="intro-title">Structured Programming</h1>
+
+            <h2>Requisite and Incompatibility</h2>
+            <p>
+                To enrol in this course you must have completed:
+                COMP1100 OR COMP1130 OR COMP1730.
+                You are not able to enrol in this course if you have completed
+                COMP1140 or COMP6710 or COMP7710.
+            </p>
+
+            <h2>Prescribed Texts</h2>
+            <p>Example next section.</p>
+        </body>
+        </html>
+        """
+
+        parser = CoursesParser()
+        record = parser.parse(
+            html,
+            "https://programsandcourses.anu.edu.au/2026/course/COMP1110",
+        )[0]
+
+        metadata = record.metadata_json
+
+        assert metadata["course_code"] == "COMP1110"
+        assert metadata["academic_year"] == "2026"
+        assert metadata["prerequisites"] == (
+            "COMP1100 OR COMP1130 OR COMP1730"
+        )
+        assert metadata["incompatibilities"] == (
+            "COMP1140 or COMP6710 or COMP7710"
+        )
+
+        assert (
+            "Prerequisites: COMP1100 OR COMP1130 OR COMP1730"
+            in record.content
+        )
+        assert (
+            "Incompatibilities: COMP1140 or COMP6710 or COMP7710"
+            in record.content
+        )
