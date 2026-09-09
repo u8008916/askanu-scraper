@@ -424,3 +424,80 @@ class TestCoursesParser:
             "Incompatibilities: COMP1140 or COMP6710 or COMP7710"
             in record.content
         )
+
+
+def test_live_program_meta_tags_supply_identity_when_table_is_absent() -> None:
+    html = """
+    <html>
+    <head>
+        <meta name="program-name" content="Bachelor of Accounting" />
+        <meta name="program-code" content="BACCT" />
+        <meta name="program-year" content="2026" />
+        <link
+            rel="canonical"
+            href="https://programsandcourses.anu.edu.au/2026/program/bacct"
+        />
+    </head>
+    <body>
+        <h1 class="intro__degree-title">
+            <span class="intro__degree-title__component">
+                Bachelor of Accounting
+            </span>
+        </h1>
+    </body>
+    </html>
+    """
+
+    parser = CoursesParser()
+
+    records = parser.parse(
+        html,
+        "https://programsandcourses.anu.edu.au/2026/program/BACCT",
+    )
+
+    assert len(records) == 1
+
+    record = records[0]
+
+    assert record.entity_id == "BACCT_2026"
+    assert record.record_id == "courses:program:BACCT_2026"
+    assert record.title == "Bachelor of Accounting"
+    assert record.metadata_json["entity_type"] == "program"
+    assert record.metadata_json["program_code"] == "BACCT"
+    assert record.metadata_json["academic_year"] == "2026"
+
+
+def test_live_program_ignores_site_heading_for_program_title() -> None:
+    html = """
+    <html>
+    <head>
+        <meta name="program-name" content="Bachelor of Accounting" />
+        <meta name="program-code" content="BACCT" />
+        <meta name="program-year" content="2026" />
+        <link
+            rel="canonical"
+            href="https://programsandcourses.anu.edu.au/2026/program/bacct"
+        />
+    </head>
+    <body>
+        <h1>Programs and Courses</h1>
+
+        <div class="intro">
+            <h1 class="intro__degree-title">
+                <span class="intro__degree-title__component">
+                    Bachelor of Accounting
+                </span>
+            </h1>
+        </div>
+    </body>
+    </html>
+    """
+
+    parser = CoursesParser()
+
+    record = parser.parse(
+        html,
+        "https://programsandcourses.anu.edu.au/2026/program/BACCT",
+    )[0]
+
+    assert record.title == "Bachelor of Accounting"

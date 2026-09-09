@@ -21,6 +21,16 @@ def bacct_fixture_path() -> Path:
 
 
 @pytest.fixture
+def bfin_fixture_path() -> Path:
+    return FIXTURES_DIR / "courses" / "bfin_program_sample.html"
+
+
+@pytest.fixture
+def catalogue_fixture_path() -> Path:
+    return FIXTURES_DIR / "courses" / "catalogue_multi_entity_sample.html"
+
+
+@pytest.fixture
 def rich_course_fixture_path() -> Path:
     return FIXTURES_DIR / "courses" / "comp1110_rich_course_sample.html"
 

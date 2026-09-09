@@ -613,8 +613,30 @@ class CoursesParser(BaseParser):
         )
 
     def _parse_program(self, soup: BeautifulSoup, url: str) -> CommonRecord | None:
-        title_el = soup.find("h1", class_="intro-title") or soup.find("h1")
-        raw_title = normalize_text(title_el.get_text()) if title_el else None
+        program_name_meta = soup.find(
+            "meta",
+            attrs={"name": "program-name"},
+        )
+
+        raw_title = None
+
+        if program_name_meta:
+            meta_title = program_name_meta.get("content")
+            if isinstance(meta_title, str):
+                raw_title = normalize_text(meta_title)
+
+        if not raw_title:
+            title_el = (
+                soup.find("h1", class_="intro-title")
+                or soup.find("h1", class_="intro__degree-title")
+                or soup.find("h1")
+            )
+            raw_title = (
+                normalize_text(title_el.get_text())
+                if title_el
+                else None
+            )
+
         if not raw_title:
             return None
 
@@ -623,6 +645,24 @@ class CoursesParser(BaseParser):
         program_code = summary_data.get("Program Code")
         academic_year = summary_data.get("Academic Year")
         career = summary_data.get("Career")
+
+        # Current live ANU program pages expose identity in meta tags
+        # rather than the legacy program-data table.
+        if not program_code:
+            program_code_meta = soup.find(
+                "meta",
+                attrs={"name": "program-code"},
+            )
+            if program_code_meta:
+                program_code = program_code_meta.get("content")
+
+        if not academic_year:
+            program_year_meta = soup.find(
+                "meta",
+                attrs={"name": "program-year"},
+            )
+            if program_year_meta:
+                academic_year = program_year_meta.get("content")
 
         if program_code:
             program_code = program_code.strip().upper()
