@@ -260,3 +260,237 @@ def test_lookalike_domain_is_rejected(tmp_path: Path) -> None:
     assert run.status == IngestionRunStatus.FAILED
     assert records == []
     assert discovery.items == ()
+
+
+def test_live_course_api_items_become_catalogue_candidates() -> None:
+    payload = {
+        "Items": [
+            {
+                "CourseCode": "ARCH8046",
+                "Name": " Microanalysis in Archaeological Science",
+                "Session": "",
+                "Career": "Postgraduate",
+                "Units": 6.0,
+                "ModeOfDelivery": "In Person",
+                "Year": 2026,
+            },
+            {
+                "CourseCode": "COMP1110",
+                "Name": "Structured Programming",
+                "Session": "",
+                "Career": "Undergraduate",
+                "Units": 6.0,
+                "ModeOfDelivery": "In Person",
+                "Year": 2026,
+            },
+        ],
+        "Suggestion": None,
+        "TotalCount": 500,
+    }
+
+    result = CoursesCatalogueDiscovery().discover_api_payload(
+        payload,
+        entity_type="course",
+        canonical_root=CANONICAL_ROOT,
+    )
+
+    assert result.counts_by_type["course"] == 2
+    assert [item.discovery_id for item in result.persisted_candidates] == [
+        "course:ARCH8046_2026",
+        "course:COMP1110_2026",
+    ]
+    assert [item.url for item in result.persisted_candidates] == [
+        "https://programsandcourses.anu.edu.au/2026/course/ARCH8046",
+        "https://programsandcourses.anu.edu.au/2026/course/COMP1110",
+    ]
+
+
+def test_live_program_api_items_become_catalogue_candidates() -> None:
+    payload = {
+        "Items": [
+            {
+                "AcademicPlanCode": "BACCT",
+                "ProgramName": "Bachelor of Accounting",
+                "ProgramAcademicYear": "2026",
+                "AcademicCareer": "Undergraduate",
+            },
+            {
+                "AcademicPlanCode": "BFIN",
+                "ProgramName": "Bachelor of Finance",
+                "ProgramAcademicYear": "2026",
+                "AcademicCareer": "Undergraduate",
+            },
+        ],
+        "Suggestion": None,
+        "TotalCount": 95,
+    }
+
+    result = CoursesCatalogueDiscovery().discover_api_payload(
+        payload,
+        entity_type="program",
+        canonical_root=CANONICAL_ROOT,
+    )
+
+    assert result.counts_by_type["program"] == 2
+    assert [item.discovery_id for item in result.persisted_candidates] == [
+        "program:BACCT_2026",
+        "program:BFIN_2026",
+    ]
+    assert [item.url for item in result.persisted_candidates] == [
+        "https://programsandcourses.anu.edu.au/2026/program/BACCT",
+        "https://programsandcourses.anu.edu.au/2026/program/BFIN",
+    ]
+
+
+def test_catalogue_run_spaces_requests_without_real_sleep(
+    tmp_path: Path,
+    catalogue_fixture_path: Path,
+    courses_fixture_path: Path,
+    bacct_fixture_path: Path,
+) -> None:
+    sleeps: list[float] = []
+
+    collector = CoursesCollector(
+        fetcher=MockFetcher({
+            CATALOGUE_URL: catalogue_fixture_path,
+            COURSE_URL: courses_fixture_path,
+            PROGRAM_URL: bacct_fixture_path,
+        }),
+        store=LocalDataStore(tmp_path / "store"),
+        min_request_interval_seconds=1.0,
+        sleep_func=sleeps.append,
+    )
+
+    run, records, _ = collector.run_catalogue(
+        CATALOGUE_URL,
+        max_records=2,
+    )
+
+    assert run.status == IngestionRunStatus.SUCCESS
+    assert len(records) == 2
+
+    # catalogue request + 2 detail requests = 3 requests,
+    # therefore 2 waits between requests.
+    assert sleeps == [1.0, 1.0]
+
+
+def test_live_catalogue_run_uses_api_results_and_ingests_courses_and_programs(
+    tmp_path: Path,
+    courses_fixture_path: Path,
+    rich_course_fixture_path: Path,
+    bacct_fixture_path: Path,
+    bfin_fixture_path: Path,
+) -> None:
+    import json
+
+    course_endpoint = (
+        "https://programsandcourses.anu.edu.au/"
+        "data/CourseSearch/GetCourses"
+    )
+    program_endpoint = (
+        "https://programsandcourses.anu.edu.au/"
+        "data/ProgramSearch/GetProgramsUnderGraduate"
+    )
+
+    responses = {
+        course_endpoint: json.dumps({
+            "Items": [
+                {
+                    "CourseCode": "COMP1100",
+                    "Name": "Programming as Problem Solving",
+                    "Year": 2026,
+                },
+                {
+                    "CourseCode": "COMP1110",
+                    "Name": "Structured Programming",
+                    "Year": 2026,
+                },
+            ],
+            "Suggestion": None,
+            "TotalCount": 500,
+        }),
+        program_endpoint: json.dumps({
+            "Items": [
+                {
+                    "AcademicPlanCode": "BACCT",
+                    "ProgramName": "Bachelor of Accounting",
+                    "ProgramAcademicYear": "2026",
+                },
+                {
+                    "AcademicPlanCode": "BFIN",
+                    "ProgramName": "Bachelor of Finance",
+                    "ProgramAcademicYear": "2026",
+                },
+            ],
+            "Suggestion": None,
+            "TotalCount": 95,
+        }),
+        COURSE_URL: courses_fixture_path.read_text(encoding="utf-8"),
+        SECOND_COURSE_URL: rich_course_fixture_path.read_text(encoding="utf-8"),
+        PROGRAM_URL: bacct_fixture_path.read_text(encoding="utf-8"),
+        SECOND_PROGRAM_URL: bfin_fixture_path.read_text(encoding="utf-8"),
+    }
+
+    class LiveApiFixtureFetcher:
+        def __init__(self) -> None:
+            self.requested_urls: list[str] = []
+
+        def fetch(self, url: str) -> str:
+            self.requested_urls.append(url)
+
+            # Ignore query-string ordering for the two API requests.
+            base_url = url.split("?", 1)[0]
+
+            if base_url in responses:
+                return responses[base_url]
+
+            if url in responses:
+                return responses[url]
+
+            raise AssertionError(f"Unexpected fetch: {url}")
+
+    fetcher = LiveApiFixtureFetcher()
+
+    collector = CoursesCollector(
+        fetcher=fetcher,
+        store=LocalDataStore(tmp_path / "store"),
+    )
+
+    run, records, discovery = collector.run_live_catalogue(
+        academic_year="2026",
+        max_courses=2,
+        max_programs=2,
+    )
+
+    assert run.status == IngestionRunStatus.SUCCESS
+
+    assert [record.record_id for record in records] == [
+        "courses:course:COMP1100_2026",
+        "courses:course:COMP1110_2026",
+        "courses:program:BACCT_2026",
+        "courses:program:BFIN_2026",
+    ]
+
+    assert discovery.counts_by_type["course"] == 2
+    assert discovery.counts_by_type["program"] == 2
+
+    assert len(fetcher.requested_urls) == 6
+
+
+def test_request_spacing_defaults_safe_for_live_and_fast_for_mock(
+    tmp_path: Path,
+) -> None:
+    from askanu_scraper.common.fetcher import HttpFetcher
+
+    live_collector = CoursesCollector(
+        fetcher=HttpFetcher(),
+        store=LocalDataStore(tmp_path / "live"),
+    )
+
+    mock_collector = CoursesCollector(
+        fetcher=MockFetcher({}),
+        store=LocalDataStore(tmp_path / "mock"),
+    )
+
+    assert live_collector._min_request_interval_seconds == 1.0
+    assert mock_collector._min_request_interval_seconds == 0.0

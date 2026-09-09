@@ -134,3 +134,112 @@ class CoursesCatalogueDiscovery:
             duplicate_identities=tuple(duplicates),
             rejected_links=tuple(rejected),
         )
+
+    def discover_api_payload(
+        self,
+        payload: dict[str, object],
+        *,
+        entity_type: str,
+        canonical_root: str,
+    ) -> CatalogueDiscoveryResult:
+        """Convert one bounded live catalogue API payload into discovery items."""
+        try:
+            requested_type = CatalogueEntityType(entity_type.lower())
+        except ValueError as exc:
+            raise ValueError(
+                f"Unsupported catalogue API entity type: {entity_type!r}"
+            ) from exc
+
+        if requested_type not in PERSISTED_ENTITY_TYPES:
+            raise ValueError(
+                "Live API persistence is only supported for course/program"
+            )
+
+        raw_items = payload.get("Items")
+        if not isinstance(raw_items, list):
+            raise ValueError("Catalogue API payload must contain an Items list")
+
+        seen: set[str] = set()
+        items: list[CatalogueItem] = []
+        duplicates: list[str] = []
+        rejected: list[str] = []
+
+        for index, raw_item in enumerate(raw_items):
+            if not isinstance(raw_item, dict):
+                rejected.append(f"api-item:{index}")
+                continue
+
+            if requested_type == CatalogueEntityType.COURSE:
+                raw_identifier = raw_item.get("CourseCode")
+                raw_year = raw_item.get("Year")
+
+                if not isinstance(raw_identifier, str):
+                    rejected.append(f"api-item:{index}")
+                    continue
+
+                identifier = re.sub(r"\s+", "", raw_identifier).upper()
+
+                if re.fullmatch(r"[A-Z]{4}\d{4}[A-Z]?", identifier) is None:
+                    rejected.append(f"api-item:{index}")
+                    continue
+
+            else:
+                raw_identifier = raw_item.get("AcademicPlanCode")
+                raw_year = raw_item.get("ProgramAcademicYear")
+
+                if not isinstance(raw_identifier, str):
+                    rejected.append(f"api-item:{index}")
+                    continue
+
+                identifier = raw_identifier.strip().upper()
+
+                if (
+                    not identifier
+                    or "/" in identifier
+                    or "\\" in identifier
+                ):
+                    rejected.append(f"api-item:{index}")
+                    continue
+
+            year = str(raw_year).strip()
+
+            if re.fullmatch(r"\d{4}", year) is None:
+                rejected.append(f"api-item:{index}")
+                continue
+
+            canonical_url = normalize_url(
+                urljoin(
+                    canonical_root,
+                    f"{year}/{requested_type.value}/{identifier}",
+                )
+            )
+
+            if canonical_url is None:
+                rejected.append(f"api-item:{index}")
+                continue
+
+            item = CatalogueItem(
+                entity_type=requested_type,
+                identifier=identifier,
+                academic_year=year,
+                url=canonical_url,
+            )
+
+            if item.discovery_id in seen:
+                duplicates.append(item.discovery_id)
+                continue
+
+            seen.add(item.discovery_id)
+            items.append(item)
+
+        counts = Counter(item.entity_type.value for item in items)
+
+        return CatalogueDiscoveryResult(
+            items=tuple(items),
+            counts_by_type={
+                known_type.value: counts[known_type.value]
+                for known_type in CatalogueEntityType
+            },
+            duplicate_identities=tuple(duplicates),
+            rejected_links=tuple(rejected),
+        )
