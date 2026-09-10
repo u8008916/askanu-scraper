@@ -34,6 +34,13 @@ included in that summary.
 Dry-run mode fetches, parses, validates, and compares against existing local
 records, but writes neither records nor ingestion-run files.
 
+The Day 6 container image defaults `SCRAPER_DRY_RUN=true`: Cloud Run executions
+must stay dry-run while `LocalDataStore` is the active persistence adapter,
+because its `/data` filesystem is not durable. Enable
+`SCRAPER_DRY_RUN=false` in Cloud Run only after the durable Cloud SQL
+persistence path is connected. Local development can explicitly set it to
+`false` when local JSON persistence is intended.
+
 To verify the failure path without making a network request:
 
 ```powershell

@@ -48,7 +48,7 @@ implemented. Rubric stays inactive and cannot be selected.
 | `SCRAPER_DOMAIN` | `courses` | Must match the selected registry entry. |
 | `SCRAPER_MAX_COURSES` | `2` | Bounded course count; minimum 1. |
 | `SCRAPER_MAX_PROGRAMS` | `2` | Bounded program count; minimum 1. |
-| `SCRAPER_DRY_RUN` | `false` | Compare normally but suppress all local writes. |
+| `SCRAPER_DRY_RUN` | `true` in the Day 6 container (`false` application default) | Compare normally but suppress all local writes. |
 | `SCRAPER_STORAGE_PATH` | `local-data` (`/data` in container) | Existing local JSON handoff. |
 | `SCRAPER_TIMEOUT_SECONDS` | `30` | Per-request timeout, 1–300 seconds. |
 | `SCRAPER_MIN_REQUEST_INTERVAL_SECONDS` | `1` | Live request spacing, 1–60 seconds. |
@@ -98,6 +98,14 @@ Cloud SQL write boundary is ready, the job deliberately uses the existing
 `LocalDataStore` adapter. It does not invent a second database contract.
 Cloud SQL credentials and a durable cloud adapter are therefore a deployment
 dependency, not silently simulated by this Day 6 package.
+
+**Cloud Run executions must remain dry-run while `LocalDataStore` is the active
+persistence adapter.** Cloud Run Job container filesystems, including `/data`,
+are not durable after an execution completes. The Day 6 image consequently
+sets `SCRAPER_DRY_RUN=true` so a job cannot report transient local writes as a
+durable ingestion success. Set `SCRAPER_DRY_RUN=false` only after the durable
+Cloud SQL persistence path is connected. Local development may explicitly set
+`SCRAPER_DRY_RUN=false` when local JSON persistence is intended.
 
 Failure or suspicious-zero outcomes do not delete or mark existing records
 missing. Dry-run mode does not create or modify record/run files. Scheduler
