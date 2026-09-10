@@ -24,15 +24,27 @@ from askanu_scraper.common.normalizer import now_canberra
 
 
 class LocalDataStore:
-    """Local JSON-based store for development data handoff."""
+    """Local JSON-based store for development data handoff.
 
-    def __init__(self, base_dir: Path | str = "local-data") -> None:
+    ``dry_run=True`` preserves the normal comparison behaviour while making
+    both record and ingestion-run writes no-ops.  This lets the one-shot job
+    report accurate NEW/CHANGED/UNCHANGED counts without creating files.
+    """
+
+    def __init__(
+        self,
+        base_dir: Path | str = "local-data",
+        *,
+        dry_run: bool = False,
+    ) -> None:
         self.base_dir = Path(base_dir)
         self.records_dir = self.base_dir / "records"
         self.runs_dir = self.base_dir / "runs"
+        self.dry_run = dry_run
 
-        self.records_dir.mkdir(parents=True, exist_ok=True)
-        self.runs_dir.mkdir(parents=True, exist_ok=True)
+        if not self.dry_run:
+            self.records_dir.mkdir(parents=True, exist_ok=True)
+            self.runs_dir.mkdir(parents=True, exist_ok=True)
 
     def _record_file_path(self, record_id: str) -> Path:
         safe_name = record_id.replace(":", "__").replace("/", "_")
@@ -94,13 +106,17 @@ class LocalDataStore:
             final_record.model_dump(mode="python")
         )
 
-        file_path = self._record_file_path(final_record.record_id)
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(final_record.model_dump_json(indent=2))
+        if not self.dry_run:
+            file_path = self._record_file_path(final_record.record_id)
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(final_record.model_dump_json(indent=2))
 
         return action_status, final_record
 
     def save_run(self, run: IngestionRun) -> None:
+        if self.dry_run:
+            return
+
         file_path = self._run_file_path(run.run_id)
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(run.model_dump_json(indent=2))
