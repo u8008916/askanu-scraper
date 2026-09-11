@@ -1,17 +1,21 @@
 """Day 7 PostgreSQL persistence contract tests without a live database."""
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import hashlib
 from pathlib import Path
 
 import pytest
 
 from askanu_scraper.common.models import (
+    IngestionRun,
+    IngestionRunStatus,
     IndexStatus,
     RecordStatus,
 )
 from askanu_scraper.common.postgres_storage import (
     RECORD_COLUMNS,
+    RUN_COLUMNS,
     PostgresConfigurationError,
     PostgresConnectionConfig,
     PostgresDataStore,
@@ -53,6 +57,9 @@ class FakeCursor:
             self.records[record_id].update(
                 dict(zip(RECORD_COLUMNS[1:], map(_plain, parameters[:-1])))
             )
+        elif normalized.startswith("INSERT INTO ingestion_runs"):
+            row = dict(zip(RUN_COLUMNS, parameters))
+            self.runs[row["run_id"]] = row
         else:
             raise AssertionError(f"Unexpected SQL: {normalized}")
 
@@ -138,6 +145,30 @@ def test_dry_run_compares_without_writes(
     action, _record = store.save_record(_comp1110(rich_course_fixture_path))
     assert action == RecordStatus.NEW
     assert records == {}
+
+
+def test_ingestion_run_is_durably_upserted() -> None:
+    store, _records, runs, calls = _store()
+    observed = datetime(2026, 9, 11, tzinfo=timezone.utc)
+    run = IngestionRun(
+        run_id="run_day7",
+        source_id="courses_programs_and_courses",
+        started_at=observed,
+        completed_at=observed,
+        records_seen=1,
+        records_added=1,
+        status=IngestionRunStatus.SUCCESS,
+    )
+
+    store.save_run(run)
+    run.records_added = 0
+    run.records_unchanged = 1
+    store.save_run(run)
+
+    assert len(runs) == 1
+    assert runs["run_day7"]["records_unchanged"] == 1
+    query, _parameters = calls[-1]
+    assert "ON CONFLICT (run_id) DO UPDATE" in query
 
 
 def test_incomplete_connection_configuration_fails_without_secret_echo() -> None:

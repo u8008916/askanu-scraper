@@ -38,12 +38,12 @@ role and access to the database-password secret. Bind secret version 1 to the
 runtime `DB_PASSWORD` environment variable; never place its payload in files,
 image layers, command arguments or documentation.
 
-The scraper-side implementation follows the shared ownership boundary:
+The scraper-side implementation follows Qasim's approved ownership boundary:
 NEW/CHANGED records become `PENDING` with no embedding version; UNCHANGED
-records preserve their index status and embedding version. For Day 7,
-ingestion-run evidence is the existing structured Cloud Run JSON summary, so no
-unapproved database table is required. The adapter still requires review before
-real writes.
+records preserve their index status and embedding version. Day 7 requires a
+durable `ingestion_runs` row, with structured Cloud Run JSON as supplementary
+evidence. Carmen owns adding the minimal table to the shared migration; Will
+owns writing/updating it. The adapter requires review before real writes.
 
 Do not wait until final week. V3 requires an early real vertical slice:
 `Firebase -> App -> RAG -> Cloud SQL -> one real course answer -> real source card`.

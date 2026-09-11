@@ -109,6 +109,13 @@ RECORD_COLUMNS = (
     "collected_at", "last_seen_at", "content_hash", "embedding_version",
     "index_status", "metadata_json",
 )
+RUN_COLUMNS = (
+    "run_id", "source_id", "started_at", "completed_at", "records_seen",
+    "records_added", "records_changed", "records_unchanged",
+    "records_missing", "status", "error",
+)
+
+
 class PostgresDataStore:
     """Compare and persist records using the RAG-owned PostgreSQL tables."""
 
@@ -240,10 +247,25 @@ class PostgresDataStore:
             raise PostgresPersistenceError() from None
 
     def save_run(self, run: IngestionRun) -> None:
-        """Leave Day 7 run evidence to the job's structured stdout summary.
-
-        The approved RAG migration owns only ``course_program_records``.
-        Structured Cloud Run output records the complete frozen ingestion-run
-        fields without introducing a second database schema.
-        """
-        del run
+        """Durably upsert a run; structured stdout remains supplementary."""
+        if self.dry_run:
+            return
+        values = run.model_dump(mode="python")
+        values["status"] = run.status.value
+        placeholders = ", ".join(["%s"] * len(RUN_COLUMNS))
+        updates = ", ".join(
+            f"{column} = EXCLUDED.{column}" for column in RUN_COLUMNS[1:]
+        )
+        query = (
+            f"INSERT INTO ingestion_runs ({', '.join(RUN_COLUMNS)}) "
+            f"VALUES ({placeholders}) ON CONFLICT (run_id) DO UPDATE SET {updates}"
+        )
+        try:
+            with self._connection_factory() as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        query,
+                        tuple(values[column] for column in RUN_COLUMNS),
+                    )
+        except Exception:
+            raise PostgresPersistenceError() from None

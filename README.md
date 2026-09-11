@@ -54,8 +54,8 @@ persistence path is connected. Local development can explicitly set it to
 The reviewed Day 7 image can select the shared PostgreSQL boundary with
 `SCRAPER_STORAGE_BACKEND=postgres`. Keep `SCRAPER_DRY_RUN=true` while reviewing
 the connection and comparison path. Real writes require Carmen's migration to
-contain `course_program_records`. Day 7 ingestion-run evidence remains the
-structured JSON summary written to Cloud Run logs.
+contain both `course_program_records` and `ingestion_runs`. Structured JSON logs
+remain supplementary to the durable run record.
 
 To verify the failure path without making a network request:
 

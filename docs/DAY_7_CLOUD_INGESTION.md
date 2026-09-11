@@ -2,7 +2,7 @@
 
 Owner: Will  
 Date: 2026-09-11  
-Current gate: **READY FOR PERSISTENCE REVIEW AND CLOUD EXECUTION**
+Current gate: **READY FOR PERSISTENCE REVIEW — awaiting shared run migration**
 
 This file is the handoff and evidence location for the first bounded COMP1110
 cloud ingestion. Do not mark the gate successful until the persisted cloud
@@ -35,7 +35,7 @@ Password binding: DB_PASSWORD=askanu-db-password:1
 The deployed job is running as the scraper runtime identity on the merged Day 6
 image. Its Cloud SQL Client and password-secret access are confirmed.
 
-## Shared handoff selected for Day 7
+## Qasim-approved shared handoff
 
 - The scraper owns parameterised upsert, hash comparison and
   NEW/CHANGED/UNCHANGED detection against `course_program_records`.
@@ -43,8 +43,9 @@ image. Its Cloud SQL Client and password-secret access are confirmed.
   their prior `embedding_version` is cleared.
 - UNCHANGED updates observation/status only, preserves index state/version and
   emits no separate embedding signal.
-- The structured job JSON summary is the Day 7 ingestion-run evidence. No
-  additional database table is introduced.
+- A durable `ingestion_runs` row is required for Day 7; structured job JSON
+  remains supplementary evidence. Carmen owns its minimal shared migration and
+  Will owns the upsert.
 
 Do not add a second schema or write directly to guessed table names while these
 items are unresolved. Cloud Run must remain in dry-run mode while
@@ -92,9 +93,10 @@ while the previously persisted COMP1110 record remains current.
 
 - The local shell still has no `gcloud` CLI or Docker daemon access, but the
   deployed job and GCP runtime path have been independently verified.
-- Carmen's RAG Day 7 branch supplies `course_program_records` and its reader.
-  The scraper persistence diff must be reviewed before enabling real writes.
+- Carmen's RAG Day 7 branch supplies `course_program_records` and its reader but
+  is still at `b3cb871` without `ingestion_runs`. The minimal run-table migration
+  and scraper persistence review are required before enabling real writes.
 
-Local verification completed with the project test environment: **128 passed**.
-The direct Windows Python launcher remains inaccessible, so use `uv` for local
-verification in this environment.
+Local verification completed with the project test environment: **129 passed**.
+Use `.venv\\Scripts\\python.exe -m pytest` for local verification in this
+environment.
