@@ -78,7 +78,7 @@ Inspect the persisted record and record only non-secret evidence for:
 record_id= courses:course:COMP1110_2026
 entity_id= COMP1110_2026
 academic_year= 2026
-canonical_url= https://programsandcourses.anu.edu.au/2026/course/COMP1110
+canonical_url= https://programsandcourses.anu.edu.au/2026/course/comp1110
 content_hash= <observed lowercase SHA-256>
 prerequisites= <observed source-derived value>
 ```
@@ -114,6 +114,37 @@ COMP1110 acceptance criteria.
 Application-log retrieval using Will's account was denied because it lacks
 `serviceusage.services.use` on `askanu-dev-gdg`. The execution-level success
 status remains visible. No secret value was requested or exposed.
+
+## Disposable cross-repository persistence verification
+
+The Day 7 scraper image was built successfully from commit `6b53b73`. Carmen's
+exact migration from merged RAG PR #16 was then applied to an isolated local
+PostgreSQL 18 container. Two live, approved-source COMP1110 executions through
+the real `PostgresDataStore` produced:
+
+```text
+run 1: run_aa8a9c8df565 | SUCCESS | seen=1 added=1 changed=0 unchanged=0
+run 2: run_1a883d19d6ab | SUCCESS | seen=1 added=0 changed=0 unchanged=1
+logical record count: 1
+record_id: courses:course:COMP1110_2026
+entity_id: COMP1110_2026
+academic_year: 2026
+canonical_url: https://programsandcourses.anu.edu.au/2026/course/comp1110
+content_hash: 37356e7de031c3abc98fd3f4c1db2bde094f167c480320dfce162abf0e56d408
+status: UNCHANGED
+index_status: PENDING (preserved from NEW; no new signal)
+embedding_version: NULL
+prerequisites: COMP1100 OR COMP1130 OR COMP1730
+```
+
+The lowercase course code in `canonical_url` is the canonical link returned by
+the live approved source; stable identity fields remain normalized uppercase.
+A third deterministic failed execution persisted a `FAILED` ingestion run with
+zero counts. A full-row snapshot before and after that failure was identical,
+proving last-known-good preservation.
+
+This verifies scraper-image/schema compatibility before deployment. It does not
+replace the two required executions against the shared Cloud SQL destination.
 
 ## Remaining blocker
 
