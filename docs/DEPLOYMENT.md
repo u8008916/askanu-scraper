@@ -42,8 +42,9 @@ The scraper-side implementation follows Qasim's approved ownership boundary:
 NEW/CHANGED records become `PENDING` with no embedding version; UNCHANGED
 records preserve their index status and embedding version. Day 7 requires a
 durable `ingestion_runs` row, with structured Cloud Run JSON as supplementary
-evidence. Carmen owns adding the minimal table to the shared migration; Will
-owns writing/updating it. The adapter requires review before real writes.
+evidence. Carmen owns the minimal table in the shared migration; Will owns
+writing/updating it. RAG PR #16 has merged that schema contract. The migration
+must still be applied and the scraper adapter reviewed before real writes.
 
 Do not wait until final week. V3 requires an early real vertical slice:
 `Firebase -> App -> RAG -> Cloud SQL -> one real course answer -> real source card`.
@@ -128,11 +129,11 @@ $LASTEXITCODE
 
 ### Persistence boundary
 
-The GCP deployment/environment values are confirmed, but Carmen's Cloud SQL
-write boundary is still pending. Until it is ready, the job deliberately uses the existing
-`LocalDataStore` adapter. It does not invent a second database contract.
-The reviewed durable cloud adapter is therefore the remaining dependency, not
-silently simulated by this package.
+The GCP deployment/environment values and shared table contract are confirmed.
+The shared migration still needs to be applied and the scraper image containing
+the PostgreSQL adapter still needs to be reviewed, published and deployed.
+Until then, the deployed job deliberately uses the existing `LocalDataStore`
+adapter. It does not simulate durable persistence.
 
 **Cloud Run executions must remain dry-run while `LocalDataStore` is the active
 persistence adapter.** Cloud Run Job container filesystems, including `/data`,

@@ -2,7 +2,7 @@
 
 Owner: Will  
 Date: 2026-09-11  
-Current gate: **READY FOR PERSISTENCE REVIEW — awaiting shared run migration**
+Current gate: **READY FOR PERSISTENCE REVIEW — awaiting migration deployment and image publish**
 
 This file is the handoff and evidence location for the first bounded COMP1110
 cloud ingestion. Do not mark the gate successful until the persisted cloud
@@ -46,6 +46,8 @@ image. Its Cloud SQL Client and password-secret access are confirmed.
 - A durable `ingestion_runs` row is required for Day 7; structured job JSON
   remains supplementary evidence. Carmen owns its minimal shared migration and
   Will owns the upsert.
+- The shared table contract was merged in RAG PR #16, including the exact
+  11-field `ingestion_runs` table used by this adapter.
 
 Do not add a second schema or write directly to guessed table names while these
 items are unresolved. Cloud Run must remain in dry-run mode while
@@ -89,13 +91,42 @@ requested for the unchanged record.
 Finally run one safe fetch-failure drill and confirm the failed run is visible
 while the previously persisted COMP1110 record remains current.
 
+## Cloud fallback evidence captured
+
+The currently deployed Day 6 image was executed without configuration changes
+on 2026-09-11. Execution `askanu-scraper-64l5v` completed successfully in 12.5
+seconds with one task succeeded. The execution used:
+
+```text
+project/region=askanu-dev-gdg/australia-southeast1
+runtime identity=askanu-scraper-runtime@askanu-dev-gdg.iam.gserviceaccount.com
+SCRAPER_DRY_RUN=true
+approved source=courses_programs_and_courses
+academic year=2026
+bounded sample=1 course + 1 program
+```
+
+This proves the approved-source Cloud Run Job can execute under the intended
+runtime identity. It is fallback evidence only: the deployed image predates the
+PostgreSQL adapter and therefore cannot satisfy the durable-write or repeated
+COMP1110 acceptance criteria.
+
+Application-log retrieval using Will's account was denied because it lacks
+`serviceusage.services.use` on `askanu-dev-gdg`. The execution-level success
+status remains visible. No secret value was requested or exposed.
+
 ## Remaining blocker
 
-- The local shell still has no `gcloud` CLI or Docker daemon access, but the
-  deployed job and GCP runtime path have been independently verified.
-- Carmen's RAG Day 7 branch supplies `course_program_records` and its reader but
-  is still at `b3cb871` without `ingestion_runs`. The minimal run-table migration
-  and scraper persistence review are required before enabling real writes.
+- RAG PR #16 merged the shared `course_program_records` and `ingestion_runs`
+  migration, but its evidence explicitly states that no live GCP resource was
+  changed. Qasim must confirm/apply the migration to the shared database.
+- This scraper persistence branch still requires review/merge and its image must
+  be published and deployed. Will currently has Artifact Registry Reader, not
+  Writer, so Qasim must publish it or grant the narrowly scoped writer role.
+- Will's account can describe and execute the job but cannot read application
+  logs until Qasim grants `serviceusage.services.use` (normally via Service Usage
+  Consumer) together with the intended logging access.
+- Keep the deployed job on `SCRAPER_DRY_RUN=true` until those steps complete.
 
 Local verification completed with the project test environment: **129 passed**.
 Use `.venv\\Scripts\\python.exe -m pytest` for local verification in this
