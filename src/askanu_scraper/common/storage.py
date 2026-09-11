@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 from askanu_scraper.common.models import (
     CommonRecord,
@@ -21,6 +21,25 @@ from askanu_scraper.common.models import (
     RecordStatus,
 )
 from askanu_scraper.common.normalizer import now_canberra
+
+
+class DataStore(Protocol):
+    """Persistence boundary implemented by local and future cloud stores."""
+
+    def get_record(self, record_id: str) -> CommonRecord | None:
+        """Return the current logical record, if one exists."""
+        ...
+
+    def save_record(
+        self,
+        record: CommonRecord,
+    ) -> tuple[RecordStatus, CommonRecord]:
+        """Compare and persist one normalized record."""
+        ...
+
+    def save_run(self, run: IngestionRun) -> None:
+        """Persist one ingestion-run result."""
+        ...
 
 
 class LocalDataStore:

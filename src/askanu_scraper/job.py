@@ -19,7 +19,7 @@ from askanu_scraper.common.registry import (
     UnapprovedSourceError,
     assert_source_allowed,
 )
-from askanu_scraper.common.storage import LocalDataStore
+from askanu_scraper.common.storage import DataStore, LocalDataStore
 from askanu_scraper.sources.courses.collector import (
     SOURCE_ID as COURSES_SOURCE_ID,
     CoursesCollector,
@@ -58,6 +58,8 @@ class JobConfig:
     source_id: str
     domain: str
     academic_year: str
+    course_code: str | None
+    storage_backend: str
     max_courses: int
     max_programs: int
     dry_run: bool
@@ -126,9 +128,11 @@ def build_parser() -> JobArgumentParser:
     parser.add_argument("--source-id")
     parser.add_argument("--domain")
     parser.add_argument("--academic-year")
+    parser.add_argument("--course-code")
     parser.add_argument("--max-courses")
     parser.add_argument("--max-programs")
     parser.add_argument("--storage-path")
+    parser.add_argument("--storage-backend")
     parser.add_argument("--timeout-seconds")
     parser.add_argument("--min-request-interval-seconds")
     parser.add_argument(
@@ -162,6 +166,16 @@ def load_config(
     if re.fullmatch(r"\d{4}", academic_year) is None:
         raise JobConfigurationError(
             "SCRAPER_ACADEMIC_YEAR/--academic-year must be a four-digit year"
+        )
+
+    raw_course_code = args.course_code or env.get("SCRAPER_COURSE_CODE", "")
+    course_code = re.sub(r"\s+", "", raw_course_code).upper() or None
+    if (
+        course_code is not None
+        and re.fullmatch(r"[A-Z]{4}\d{4}[A-Z]?", course_code) is None
+    ):
+        raise JobConfigurationError(
+            "SCRAPER_COURSE_CODE/--course-code must be a valid course code"
         )
 
     max_courses = _parse_int(
@@ -217,11 +231,20 @@ def load_config(
     storage_path = Path(
         args.storage_path or env.get("SCRAPER_STORAGE_PATH", "local-data")
     )
+    storage_backend = (
+        args.storage_backend or env.get("SCRAPER_STORAGE_BACKEND", "local")
+    ).strip().lower()
+    if storage_backend not in {"local", "postgres"}:
+        raise JobConfigurationError(
+            "SCRAPER_STORAGE_BACKEND/--storage-backend must be local or postgres"
+        )
 
     return JobConfig(
         source_id=source_id,
         domain=domain,
         academic_year=academic_year,
+        course_code=course_code,
+        storage_backend=storage_backend,
         max_courses=max_courses,
         max_programs=max_programs,
         dry_run=dry_run,
@@ -288,6 +311,8 @@ def _summary_from_run(
         "source_id": config.source_id,
         "domain": config.domain,
         "academic_year": config.academic_year,
+        "course_code": config.course_code,
+        "storage_backend": config.storage_backend,
         "requested_max_courses": config.max_courses,
         "requested_max_programs": config.max_programs,
         "status": run.status.value,
@@ -312,6 +337,7 @@ def execute_job(
     config: JobConfig,
     *,
     fetcher: BaseFetcher | None = None,
+    store: DataStore | None = None,
     environ: Mapping[str, str] | None = None,
     sleep_func: Callable[[float], None] | None = None,
 ) -> JobResult:
@@ -337,20 +363,40 @@ def execute_job(
             else HttpFetcher(timeout=config.timeout_seconds)
         )
 
-    store = LocalDataStore(config.storage_path, dry_run=config.dry_run)
+    if store is not None:
+        selected_store = store
+    elif config.storage_backend == "postgres":
+        from askanu_scraper.common.postgres_storage import PostgresDataStore
+
+        selected_store = PostgresDataStore.from_environment(
+            env,
+            dry_run=config.dry_run,
+        )
+    else:
+        selected_store = LocalDataStore(
+            config.storage_path,
+            dry_run=config.dry_run,
+        )
     collector = CoursesCollector(
         fetcher=selected_fetcher,
-        store=store,
+        store=selected_store,
         min_request_interval_seconds=config.min_request_interval_seconds,
         sleep_func=sleep_func,
     )
 
     started = time.monotonic()
-    run, _, _ = collector.run_live_catalogue(
-        academic_year=config.academic_year,
-        max_courses=config.max_courses,
-        max_programs=config.max_programs,
-    )
+    if config.course_code is not None:
+        root = source.canonical_root.rstrip("/")
+        course_url = (
+            f"{root}/{config.academic_year}/course/{config.course_code}"
+        )
+        run, _ = collector.run_single(course_url)
+    else:
+        run, _, _ = collector.run_live_catalogue(
+            academic_year=config.academic_year,
+            max_courses=config.max_courses,
+            max_programs=config.max_programs,
+        )
     duration_ms = max(0, round((time.monotonic() - started) * 1000))
     return _summary_from_run(
         run,
@@ -374,6 +420,8 @@ def _error_result(
         "source_id": None,
         "domain": None,
         "academic_year": None,
+        "course_code": None,
+        "storage_backend": None,
         "requested_max_courses": None,
         "requested_max_programs": None,
         "status": status,
