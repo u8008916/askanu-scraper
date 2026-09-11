@@ -7,8 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from askanu_scraper.common.fetcher import BaseFetcher, FetchError
+from askanu_scraper.common.fetcher import BaseFetcher, FetchError, MockFetcher
 from askanu_scraper.common.registry import UnapprovedSourceError
+from askanu_scraper.common.storage import LocalDataStore
 from askanu_scraper.job import (
     EXIT_CONFIGURATION_ERROR,
     EXIT_INGESTION_FAILURE,
@@ -25,6 +26,7 @@ from askanu_scraper.job import (
 SOURCE_ID = "courses_programs_and_courses"
 COURSE_URL = "https://programsandcourses.anu.edu.au/2026/course/COMP1100"
 PROGRAM_URL = "https://programsandcourses.anu.edu.au/2026/program/BACCT"
+COMP1110_URL = "https://programsandcourses.anu.edu.au/2026/course/COMP1110"
 COURSE_ENDPOINT = (
     "https://programsandcourses.anu.edu.au/data/CourseSearch/GetCourses"
 )
@@ -109,6 +111,8 @@ def make_config(storage_path: Path, *, dry_run: bool = False) -> JobConfig:
         source_id=SOURCE_ID,
         domain="courses",
         academic_year="2026",
+        course_code=None,
+        storage_backend="local",
         max_courses=1,
         max_programs=1,
         dry_run=dry_run,
@@ -143,6 +147,98 @@ def test_successful_job_persists_and_returns_structured_zero_exit(
     assert result.summary["error"] is None
     assert len(list((storage_path / "records").glob("*.json"))) == 2
     assert len(list((storage_path / "runs").glob("*.json"))) == 1
+
+
+def test_targeted_comp1110_job_is_idempotent_and_preserves_evidence(
+    tmp_path: Path,
+    rich_course_fixture_path: Path,
+) -> None:
+    storage_path = tmp_path / "store"
+    config = replace(
+        make_config(storage_path),
+        course_code="COMP1110",
+    )
+
+    first = execute_job(
+        config,
+        fetcher=MockFetcher({COMP1110_URL: rich_course_fixture_path}),
+        environ={},
+    )
+    stored_after_first = LocalDataStore(storage_path).get_record(
+        "courses:course:COMP1110_2026"
+    )
+
+    assert first.exit_code == EXIT_SUCCESS
+    assert first.summary["course_code"] == "COMP1110"
+    assert first.summary["records_seen"] == 1
+    assert first.summary["records_added"] == 1
+    assert stored_after_first is not None
+    assert stored_after_first.entity_id == "COMP1110_2026"
+    assert stored_after_first.canonical_url == COMP1110_URL
+    assert (
+        stored_after_first.metadata_json["prerequisites"]
+        == "COMP1100 or COMP1130"
+    )
+
+    second = execute_job(
+        config,
+        fetcher=MockFetcher({COMP1110_URL: rich_course_fixture_path}),
+        environ={},
+    )
+    stored_after_second = LocalDataStore(storage_path).get_record(
+        "courses:course:COMP1110_2026"
+    )
+
+    assert second.exit_code == EXIT_SUCCESS
+    assert second.summary["records_seen"] == 1
+    assert second.summary["records_added"] == 0
+    assert second.summary["records_changed"] == 0
+    assert second.summary["records_unchanged"] == 1
+    assert stored_after_second is not None
+    assert stored_after_second.content_hash == stored_after_first.content_hash
+    assert stored_after_second.index_status == stored_after_first.index_status
+    assert len(list((storage_path / "records").glob("*.json"))) == 1
+    assert len(list((storage_path / "runs").glob("*.json"))) == 2
+
+    record_before_failure = next(
+        (storage_path / "records").glob("*.json")
+    ).read_bytes()
+    failed = execute_job(
+        config,
+        fetcher=AlwaysFailFetcher(),
+        environ={},
+    )
+    record_after_failure = next(
+        (storage_path / "records").glob("*.json")
+    ).read_bytes()
+
+    assert failed.exit_code == EXIT_INGESTION_FAILURE
+    assert failed.summary["status"] == "FAILED"
+    assert record_after_failure == record_before_failure
+
+
+def test_job_accepts_injected_persistence_boundary(
+    tmp_path: Path,
+    rich_course_fixture_path: Path,
+) -> None:
+    configured_path = tmp_path / "unused-local-default"
+    injected_path = tmp_path / "injected-store"
+    config = replace(
+        make_config(configured_path),
+        course_code="COMP1110",
+    )
+    store = LocalDataStore(injected_path)
+
+    result = execute_job(
+        config,
+        fetcher=MockFetcher({COMP1110_URL: rich_course_fixture_path}),
+        store=store,
+        environ={},
+    )
+
+    assert result.exit_code == EXIT_SUCCESS
+    assert store.get_record("courses:course:COMP1110_2026") is not None
+    assert not configured_path.exists()
 
 
 def test_dry_run_compares_but_does_not_change_existing_storage(
@@ -291,11 +387,37 @@ def test_config_is_environment_driven_and_cli_takes_precedence(tmp_path: Path) -
     assert config.storage_path == tmp_path / "from-env"
 
 
+def test_course_code_is_normalized_from_environment() -> None:
+    config = load_config(
+        ["--academic-year", "2026"],
+        {"SCRAPER_COURSE_CODE": " comp 1110 "},
+    )
+
+    assert config.course_code == "COMP1110"
+
+
+def test_postgres_storage_backend_is_explicit() -> None:
+    config = load_config(
+        ["--academic-year", "2026"],
+        {"SCRAPER_STORAGE_BACKEND": "postgres"},
+    )
+
+    assert config.storage_backend == "postgres"
+
+
 @pytest.mark.parametrize(
     ("argv", "message"),
     [
         ([], "academic-year"),
         (["--academic-year", "20XX"], "four-digit"),
+        (
+            ["--academic-year", "2026", "--course-code", "not-a-course"],
+            "valid course code",
+        ),
+        (
+            ["--academic-year", "2026", "--storage-backend", "unknown"],
+            "local or postgres",
+        ),
         (
             [
                 "--academic-year",

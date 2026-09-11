@@ -23,7 +23,7 @@ from askanu_scraper.common.models import (
 )
 from askanu_scraper.common.normalizer import now_canberra
 from askanu_scraper.common.registry import assert_source_allowed
-from askanu_scraper.common.storage import LocalDataStore
+from askanu_scraper.common.storage import DataStore, LocalDataStore
 from askanu_scraper.sources.courses.discovery import (
     CatalogueDiscoveryResult,
     CoursesCatalogueDiscovery,
@@ -42,7 +42,7 @@ class CoursesCollector:
     def __init__(
         self,
         fetcher: BaseFetcher | None = None,
-        store: LocalDataStore | None = None,
+        store: DataStore | None = None,
         min_request_interval_seconds: float | None = None,
         sleep_func: Callable[[float], None] | None = None,
     ) -> None:

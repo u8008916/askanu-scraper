@@ -20,6 +20,16 @@ python -m pip install -e ".[dev]"
 askanu-scraper-job --academic-year 2026 --max-courses 1 --max-programs 1 --dry-run
 ```
 
+For the Day 7 COMP1110 smoke, select the one approved detail record directly:
+
+```powershell
+askanu-scraper-job --academic-year 2026 --course-code COMP1110 --dry-run
+```
+
+`--course-code` accepts only normalized ANU course-code shapes and constructs a
+detail URL under the approved Programs & Courses registry root. When omitted,
+the existing bounded catalogue sample remains the default.
+
 The command performs one approved Courses catalogue run and exits. CLI options
 override their matching environment variables. The current Day 6 safety bound
 requires at least one course, at least one program, and no more than four total
@@ -40,6 +50,12 @@ because its `/data` filesystem is not durable. Enable
 `SCRAPER_DRY_RUN=false` in Cloud Run only after the durable Cloud SQL
 persistence path is connected. Local development can explicitly set it to
 `false` when local JSON persistence is intended.
+
+The reviewed Day 7 image can select the shared PostgreSQL boundary with
+`SCRAPER_STORAGE_BACKEND=postgres`. Keep `SCRAPER_DRY_RUN=true` while reviewing
+the connection and comparison path. Real writes require Carmen's migration to
+contain `course_program_records`. Day 7 ingestion-run evidence remains the
+structured JSON summary written to Cloud Run logs.
 
 To verify the failure path without making a network request:
 
