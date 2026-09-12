@@ -19,6 +19,7 @@ from askanu_scraper.common.postgres_storage import (
     PostgresConfigurationError,
     PostgresConnectionConfig,
     PostgresDataStore,
+    PostgresPersistenceError,
 )
 from askanu_scraper.sources.courses.parser import CoursesParser
 
@@ -72,9 +73,20 @@ class FakeConnection:
         self._cursor = cursor
 
     def __enter__(self):
+        self._records_snapshot = {
+            key: value.copy() for key, value in self._cursor.records.items()
+        }
+        self._runs_snapshot = {
+            key: value.copy() for key, value in self._cursor.runs.items()
+        }
         return self
 
-    def __exit__(self, *_args):
+    def __exit__(self, exc_type, *_args):
+        if exc_type is not None:
+            self._cursor.records.clear()
+            self._cursor.records.update(self._records_snapshot)
+            self._cursor.runs.clear()
+            self._cursor.runs.update(self._runs_snapshot)
         return False
 
     def cursor(self) -> FakeCursor:
@@ -169,6 +181,66 @@ def test_ingestion_run_is_durably_upserted() -> None:
     assert runs["run_day7"]["records_unchanged"] == 1
     query, _parameters = calls[-1]
     assert "ON CONFLICT (run_id) DO UPDATE" in query
+
+
+def test_batch_commits_records_and_successful_run_together(
+    rich_course_fixture_path: Path,
+) -> None:
+    store, records, runs, calls = _store()
+    observed = datetime(2026, 9, 12, tzinfo=timezone.utc)
+    run = IngestionRun(
+        run_id="run_day8_batch",
+        source_id="courses_programs_and_courses",
+        started_at=observed,
+        completed_at=observed,
+        status=IngestionRunStatus.SUCCESS,
+    )
+
+    results = store.save_records_and_run(
+        [_comp1110(rich_course_fixture_path)],
+        run,
+    )
+
+    assert [action for action, _record in results] == [RecordStatus.NEW]
+    assert run.records_seen == 1
+    assert run.records_added == 1
+    assert len(records) == 1
+    assert runs["run_day8_batch"]["status"] == "SUCCESS"
+    assert "FOR UPDATE" in calls[0][0]
+    assert calls[-1][0].startswith("INSERT INTO ingestion_runs")
+
+
+def test_batch_run_write_failure_rolls_back_record_changes(
+    rich_course_fixture_path: Path,
+) -> None:
+    records: dict = {}
+    runs: dict = {}
+
+    class RunWriteFailureCursor(FakeCursor):
+        def execute(self, query: str, parameters: tuple) -> None:
+            if "INSERT INTO ingestion_runs" in query:
+                raise RuntimeError("simulated run-row failure")
+            super().execute(query, parameters)
+
+    cursor = RunWriteFailureCursor(records, runs)
+    store = PostgresDataStore(lambda: FakeConnection(cursor))
+    observed = datetime(2026, 9, 12, tzinfo=timezone.utc)
+    run = IngestionRun(
+        run_id="run_day8_rollback",
+        source_id="courses_programs_and_courses",
+        started_at=observed,
+        completed_at=observed,
+        status=IngestionRunStatus.SUCCESS,
+    )
+
+    with pytest.raises(PostgresPersistenceError):
+        store.save_records_and_run(
+            [_comp1110(rich_course_fixture_path)],
+            run,
+        )
+
+    assert records == {}
+    assert runs == {}
 
 
 def test_incomplete_connection_configuration_fails_without_secret_echo() -> None:

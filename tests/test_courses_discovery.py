@@ -88,6 +88,21 @@ def test_catalogue_run_is_bounded_and_does_not_persist_uncontracted_types(
         "courses:program:BFIN_2026",
     ]
     assert discovery.counts_by_type["major"] == 1
+    assert collector.last_run_sanity == {
+        "request_count": 5,
+        "detail_request_count": 4,
+        "discovery_counts": {
+            "course": 2,
+            "program": 2,
+            "major": 1,
+            "minor": 1,
+            "specialisation": 1,
+        },
+        "duplicate_identity_count": 1,
+        "duplicate_record_id_count": 0,
+        "duplicate_canonical_url_count": 0,
+        "rejected_candidate_count": 2,
+    }
     assert len(list(store.records_dir.glob("*.json"))) == 4
 
 
@@ -210,6 +225,7 @@ def test_catalogue_identity_mismatch_fails_before_write(
 
 def test_zero_supported_candidates_is_suspicious_and_preserves_existing(
     tmp_path: Path,
+    courses_fixture_path: Path,
 ) -> None:
     catalogue = tmp_path / "unsupported_only.html"
     catalogue.write_text(
@@ -217,6 +233,15 @@ def test_zero_supported_candidates_is_suspicious_and_preserves_existing(
         encoding="utf-8",
     )
     store = LocalDataStore(tmp_path / "store")
+    seed_collector = CoursesCollector(
+        fetcher=MockFetcher({COURSE_URL: courses_fixture_path}),
+        store=store,
+    )
+    seed_run, _ = seed_collector.run_single(COURSE_URL)
+    assert seed_run.status == IngestionRunStatus.SUCCESS
+    stored_path = next(store.records_dir.glob("*.json"))
+    before = stored_path.read_bytes()
+
     collector = CoursesCollector(
         fetcher=MockFetcher({CATALOGUE_URL: catalogue}),
         store=store,
@@ -230,7 +255,11 @@ def test_zero_supported_candidates_is_suspicious_and_preserves_existing(
     assert run.status == IngestionRunStatus.SUSPICIOUS_ZERO
     assert records == []
     assert discovery.counts_by_type["major"] == 1
-    assert list(store.records_dir.glob("*.json")) == []
+    assert collector.last_run_sanity["request_count"] == 1
+    assert collector.last_run_sanity["detail_request_count"] == 0
+    assert collector.last_run_sanity["discovery_counts"]["major"] == 1
+    assert list(store.records_dir.glob("*.json")) == [stored_path]
+    assert stored_path.read_bytes() == before
 
 
 def test_invalid_bound_is_rejected_before_fetch(tmp_path: Path) -> None:

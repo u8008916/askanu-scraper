@@ -145,4 +145,23 @@ Cloud SQL persistence path is connected. Local development may explicitly set
 
 Failure or suspicious-zero outcomes do not delete or mark existing records
 missing. Dry-run mode does not create or modify record/run files. Scheduler
-creation and production scheduled runs remain Day 8 work and are not included.
+creation is not performed from this repository; the Day 8 review proposal is
+below.
+
+## Day 8 scheduled freshness gate
+
+The scraper now supports an atomic PostgreSQL batch boundary: all preflighted
+record changes and the successful `ingestion_runs` row commit together or roll
+back together. Structured stdout summary schema v2 includes supplemental bounded
+request, discovery, rejection and duplicate counts without changing the shared
+database schema.
+
+The proposed daily schedule is `03:15` in `Australia/Canberra`, using an OAuth-
+authenticated POST to the Cloud Run Jobs v2 `askanu-scraper:run` endpoint. Qasim
+must review/create the dedicated Scheduler caller and grant it only Cloud Run
+Invoker on this job. The deployed job remains `SCRAPER_DRY_RUN=true` until Qasim
+confirms Carmen's existing migration is applied and the adapter/image review is
+complete.
+
+See `docs/DAY_8_SCHEDULED_FRESHNESS.md` for the exact proposal and evidence
+checklist. It is a handoff document, not authorization to mutate GCP resources.

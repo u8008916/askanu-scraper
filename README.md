@@ -38,8 +38,9 @@ records. Live requests retain a minimum one-second interval.
 Success exits `0`. Collector failures and suspicious-zero runs exit `1`.
 Invalid, inactive, mismatched, or unsupported source configuration exits `2`.
 Every attempted run emits one compact JSON summary with status and record
-counts. Secret-bearing DB/cloud configuration and credentials are never
-included in that summary.
+counts. Summary schema v2 also includes bounded request, discovery, rejection
+and duplicate sanity counts. Secret-bearing DB/cloud configuration and
+credentials are never included in that summary.
 
 Dry-run mode fetches, parses, validates, and compares against existing local
 records, but writes neither records nor ingestion-run files.
@@ -65,8 +66,9 @@ askanu-scraper-job --academic-year 2026 --max-courses 1 `
 $LASTEXITCODE
 ```
 
-See `docs/DEPLOYMENT.md` for environment configuration, container usage, and
-the current Cloud SQL handoff boundary.
+See `docs/DEPLOYMENT.md` for environment configuration and the current Cloud
+SQL handoff boundary. The reviewed dry-run Scheduler proposal and Day 8 evidence
+checklist are in `docs/DAY_8_SCHEDULED_FRESHNESS.md`.
 
 ## Development verification
 

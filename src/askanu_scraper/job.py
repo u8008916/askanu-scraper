@@ -29,7 +29,7 @@ from askanu_scraper.sources.courses.collector import (
 EXIT_SUCCESS = 0
 EXIT_INGESTION_FAILURE = 1
 EXIT_CONFIGURATION_ERROR = 2
-SUMMARY_SCHEMA_VERSION = "1"
+SUMMARY_SCHEMA_VERSION = "2"
 
 
 class JobConfigurationError(ValueError):
@@ -302,6 +302,7 @@ def _summary_from_run(
     config: JobConfig,
     duration_ms: int,
     environ: Mapping[str, str],
+    sanity: Mapping[str, object],
 ) -> JobResult:
     succeeded = run.status == IngestionRunStatus.SUCCESS
     exit_code = EXIT_SUCCESS if succeeded else EXIT_INGESTION_FAILURE
@@ -325,6 +326,7 @@ def _summary_from_run(
         "records_changed": run.records_changed,
         "records_unchanged": run.records_unchanged,
         "records_missing": run.records_missing,
+        "sanity": dict(sanity),
         "exit_code": exit_code,
         "error": (
             sanitize_error(run.error, environ) if run.error is not None else None
@@ -403,6 +405,7 @@ def execute_job(
         config=config,
         duration_ms=duration_ms,
         environ=env,
+        sanity=collector.last_run_sanity,
     )
 
 
@@ -436,6 +439,7 @@ def _error_result(
         "records_changed": 0,
         "records_unchanged": 0,
         "records_missing": 0,
+        "sanity": None,
         "exit_code": exit_code,
         "error": error,
     }
