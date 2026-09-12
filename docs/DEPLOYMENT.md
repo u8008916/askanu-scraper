@@ -30,11 +30,11 @@ Use separate App/RAG/Scraper service identities, Secret Manager and least privil
 | Instance connection name | `askanu-dev-gdg:australia-southeast1:askanu-postgres-dev` |
 | Database | `askanu` |
 | Database user | `askanu_backend` |
-| Password secret | `askanu-db-password:1` (enabled) |
+| Password secret | `askanu-db-password:2` (active; version 1 disabled) |
 
 The deployed job is verified to use the dedicated scraper runtime identity and
 the merged Day 6 image. The runtime identity has the intended Cloud SQL Client
-role and access to the database-password secret. Bind secret version 1 to the
+role and access to the database-password secret. Bind secret version 2 to the
 runtime `DB_PASSWORD` environment variable; never place its payload in files,
 image layers, command arguments or documentation.
 
@@ -43,8 +43,10 @@ NEW/CHANGED records become `PENDING` with no embedding version; UNCHANGED
 records preserve their index status and embedding version. Day 7 requires a
 durable `ingestion_runs` row, with structured Cloud Run JSON as supplementary
 evidence. Carmen owns the minimal table in the shared migration; Will owns
-writing/updating it. RAG PR #16 has merged that schema contract. The migration
-must still be applied and the scraper adapter reviewed before real writes.
+writing/updating it. RAG PR #16 has merged that schema contract. The shared
+migration is confirmed at Alembic revision `20260911_0001` (`head`) and was
+verified in Cloud SQL Studio. The scraper adapter/image still requires Qasim's
+deployment and release review before real writes.
 
 Do not wait until final week. V3 requires an early real vertical slice:
 `Firebase -> App -> RAG -> Cloud SQL -> one real course answer -> real source card`.
@@ -86,7 +88,7 @@ implemented. Rubric stays inactive and cannot be selected.
 | `DATABASE_URL` | unset unless the approved interface selects a DSN | Protected optional Cloud SQL handoff; never logged. |
 | `DB_NAME` | `askanu` | Confirmed Cloud SQL database name. |
 | `DB_USER` | `askanu_backend` | Confirmed Cloud SQL database user. |
-| `DB_PASSWORD` | required for durable writes; Secret Manager only | Bind from `askanu-db-password:1`; never log it. |
+| `DB_PASSWORD` | required for durable writes; Secret Manager only | Bind from `askanu-db-password:2`; never log it. |
 | `CLOUD_SQL_INSTANCE_CONNECTION_NAME` | `askanu-dev-gdg:australia-southeast1:askanu-postgres-dev` | Confirmed Cloud SQL attachment/socket name. |
 | `GOOGLE_CLOUD_PROJECT` | `askanu-dev-gdg` | GCP project selection. |
 | `GOOGLE_CLOUD_LOCATION` | `australia-southeast1` | Initial region assumption. |
@@ -129,9 +131,11 @@ $LASTEXITCODE
 
 ### Persistence boundary
 
-The GCP deployment/environment values and shared table contract are confirmed.
-The shared migration still needs to be applied and the scraper image containing
-the PostgreSQL adapter still needs to be reviewed, published and deployed.
+The GCP deployment/environment values, shared table contract and migration are
+confirmed. Alembic is at `20260911_0001` (`head`) and the shared tables plus
+COMP1110 data were verified in Cloud SQL Studio. The scraper image containing
+the PostgreSQL adapter still needs to be reviewed, published and deployed by
+Qasim.
 Until then, the deployed job deliberately uses the existing `LocalDataStore`
 adapter. It does not simulate durable persistence.
 
@@ -159,9 +163,8 @@ database schema.
 The proposed daily schedule is `03:15` in `Australia/Canberra`, using an OAuth-
 authenticated POST to the Cloud Run Jobs v2 `askanu-scraper:run` endpoint. Qasim
 must review/create the dedicated Scheduler caller and grant it only Cloud Run
-Invoker on this job. The deployed job remains `SCRAPER_DRY_RUN=true` until Qasim
-confirms Carmen's existing migration is applied and the adapter/image review is
-complete.
+Invoker on this job. The deployed job remains `SCRAPER_DRY_RUN=true` until
+Qasim completes the adapter/image review, Scheduler IAM and release gate.
 
 See `docs/DAY_8_SCHEDULED_FRESHNESS.md` for the exact proposal and evidence
 checklist. It is a handoff document, not authorization to mutate GCP resources.

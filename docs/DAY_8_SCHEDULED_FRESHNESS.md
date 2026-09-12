@@ -2,12 +2,15 @@
 
 Owner: Will
 Date: 2026-09-12
-Current gate: **DRY RUN — shared Cloud SQL migration deployment not confirmed**
+Current gate: **MIGRATION CONFIRMED — awaiting Qasim's cloud deployment,
+Scheduler IAM and release gate**
 
 This is the evidence and review checklist for the first daily Programs &
 Courses job. It does not authorize a production write, create IAM bindings, or
-create a Scheduler job. Qasim coordinates those changes after confirming
-Carmen's existing shared migration is applied.
+create a Scheduler job. Carmen's shared migration is confirmed at Alembic
+revision `20260911_0001` (`head`) and was verified against the shared tables and
+COMP1110 data in Cloud SQL Studio. Qasim coordinates the remaining image,
+deployment, Scheduler IAM and release-gate changes.
 
 ## Implemented safety boundary
 
@@ -28,6 +31,15 @@ Carmen's existing shared migration is applied.
   and detail-request counts, five discovery entity counts, rejected candidates,
   and identity/record-ID/canonical-URL duplicate counts. No new shared DB field
   is introduced.
+
+### Summary schema compatibility confirmation
+
+A repository-wide consumer audit found no runtime code that expects summary
+schema version `"1"`. `schema_version` is produced only for structured stdout
+logs and asserted by scraper tests; it is not stored in the shared database and
+does not change the `/api/v1/ask` contract. Schema v2 plus the supplemental
+`sanity` object is therefore compatible with the current downstream boundary,
+as approved in principle by Qasim during PR #17 review.
 
 ## Bounded discovery policy
 
@@ -51,7 +63,7 @@ job: askanu-scraper
 runtime service account: askanu-scraper-runtime@askanu-dev-gdg.iam.gserviceaccount.com
 Cloud SQL attachment: askanu-dev-gdg:australia-southeast1:askanu-postgres-dev
 database/user: askanu / askanu_backend
-secret binding: DB_PASSWORD=askanu-db-password:1
+secret binding: DB_PASSWORD=askanu-db-password:2
 ```
 
 Required non-secret job environment:
@@ -137,7 +149,9 @@ bounded and dry-run.
 - [ ] Scheduler description shows `15 3 * * *`, `Australia/Canberra`, the Jobs
       v2 `:run` URI and the dedicated OAuth identity.
 - [ ] Manual dry-run execution ID and schema-v2 JSON summary captured.
-- [ ] Qasim confirms the shared migration gate before any later switch to
+- [x] Shared migration confirmed at `20260911_0001` (`head`) and verified in
+      Cloud SQL Studio.
+- [ ] Qasim approves the deployment/release gate before any later switch to
       `SCRAPER_DRY_RUN=false`.
 
 ## Local evidence captured
@@ -149,7 +163,8 @@ Verification command on 2026-09-12:
   --basetemp .test-tmp-day8-final -p no:cacheprovider
 ```
 
-Result: **132 passed**.
+Result: **135 passed locally**. This is local evidence, not GitHub Actions/CI
+evidence.
 
 The fixture-backed two-run proof produced one logical COMP1110 record:
 
@@ -183,11 +198,11 @@ SQL write, deployed image, Scheduler resource or IAM change.
 
 ## Blocked handoff bundle
 
-If the shared migration, image publication, logs or Scheduler IAM remain
-blocked, send Qasim this document plus the PR/SHA, test output, schema-v2 run
-summaries, two-run ID/hash comparison, discovery counts and exact missing IAM or
-migration dependency. Do not create a competing production table or disable the
-dry-run gate.
+If image publication, deployment approval, logs or Scheduler IAM remain
+blocked, send Qasim this document plus the PR/SHA, local test output, schema-v2
+run summaries, two-run ID/hash comparison, discovery counts and exact missing
+IAM/release dependency. Do not create a competing production table or disable
+the dry-run gate before Qasim approves the release.
 
 ## Google Cloud references
 
