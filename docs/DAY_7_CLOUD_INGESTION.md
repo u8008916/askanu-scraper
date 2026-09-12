@@ -2,7 +2,8 @@
 
 Owner: Will  
 Date: 2026-09-11  
-Current gate: **READY FOR PERSISTENCE REVIEW — awaiting migration deployment and image publish**
+Current gate: **MIGRATION CONFIRMED — awaiting scraper image deployment and
+release gate**
 
 This file is the handoff and evidence location for the first bounded COMP1110
 cloud ingestion. Do not mark the gate successful until the persisted cloud
@@ -29,7 +30,7 @@ Project/region: askanu-dev-gdg / australia-southeast1
 Runtime identity: askanu-scraper-runtime@askanu-dev-gdg.iam.gserviceaccount.com
 Cloud SQL: askanu-dev-gdg:australia-southeast1:askanu-postgres-dev
 Database/user: askanu / askanu_backend
-Password binding: DB_PASSWORD=askanu-db-password:1
+Password binding: DB_PASSWORD=askanu-db-password:2 (version 1 disabled)
 ```
 
 The deployed job is running as the scraper runtime identity on the merged Day 6
@@ -49,9 +50,11 @@ image. Its Cloud SQL Client and password-secret access are confirmed.
 - The shared table contract was merged in RAG PR #16, including the exact
   11-field `ingestion_runs` table used by this adapter.
 
-Do not add a second schema or write directly to guessed table names while these
-items are unresolved. Cloud Run must remain in dry-run mode while
-`LocalDataStore` is the active adapter.
+The shared migration is confirmed at Alembic revision `20260911_0001` (`head`)
+and was verified against the shared tables and COMP1110 data in Cloud SQL
+Studio. Do not add a second schema or write directly to guessed table names.
+Cloud Run must remain in dry-run mode while `LocalDataStore` is the active
+adapter.
 
 ## Execution settings after unblock
 
@@ -148,16 +151,14 @@ replace the two required executions against the shared Cloud SQL destination.
 
 ## Remaining blocker
 
-- RAG PR #16 merged the shared `course_program_records` and `ingestion_runs`
-  migration, but its evidence explicitly states that no live GCP resource was
-  changed. Qasim must confirm/apply the migration to the shared database.
 - This scraper persistence branch still requires review/merge and its image must
   be published and deployed. Will currently has Artifact Registry Reader, not
   Writer, so Qasim must publish it or grant the narrowly scoped writer role.
 - Will's account can describe and execute the job but cannot read application
   logs until Qasim grants `serviceusage.services.use` (normally via Service Usage
   Consumer) together with the intended logging access.
-- Keep the deployed job on `SCRAPER_DRY_RUN=true` until those steps complete.
+- Keep the deployed job on `SCRAPER_DRY_RUN=true` until Qasim completes the
+  image/deployment, Scheduler IAM and release gate.
 
 Local verification completed with the project test environment: **129 passed**.
 Use `.venv\\Scripts\\python.exe -m pytest` for local verification in this

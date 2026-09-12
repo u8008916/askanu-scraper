@@ -17,4 +17,6 @@ FETCH -> PARSE -> VALIDATE -> SANITY CHECK -> COMPARE -> DB UPDATE -> EMBED CHAN
 
 Failure must preserve last-known-good.
 
-Before coding read `docs/MY_DAY_BY_DAY_TASKS.md`, `docs/DATA_SCHEMA.md`, `docs/SOURCE_REGISTRY.md`, `docs/SECURITY_BASELINE.md`.
+Before coding read root `my_day_by_day_tasks.md` as the current execution plan,
+then `docs/DATA_SCHEMA.md`, `docs/SOURCE_REGISTRY.md` and
+`docs/SECURITY_BASELINE.md`. `docs/MY_DAY_BY_DAY_TASKS.md` is the older V3 plan.

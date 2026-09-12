@@ -19,7 +19,6 @@ from askanu_scraper.common.models import (
     CommonRecord,
     IngestionRun,
     IngestionRunStatus,
-    RecordStatus,
 )
 from askanu_scraper.common.normalizer import now_canberra
 from askanu_scraper.common.registry import assert_source_allowed
@@ -67,6 +66,89 @@ class CoursesCollector:
         self._min_request_interval_seconds = min_request_interval_seconds
         self._sleep = sleep_func or time.sleep
         self._catalogue_request_count = 0
+        self._detail_request_count = 0
+        self.last_run_sanity: dict[str, object] = self._empty_sanity()
+
+    @staticmethod
+    def _empty_sanity() -> dict[str, object]:
+        return {
+            "request_count": 0,
+            "detail_request_count": 0,
+            "discovery_counts": {
+                "course": 0,
+                "program": 0,
+                "major": 0,
+                "minor": 0,
+                "specialisation": 0,
+            },
+            "duplicate_identity_count": 0,
+            "duplicate_record_id_count": 0,
+            "duplicate_canonical_url_count": 0,
+            "rejected_candidate_count": 0,
+        }
+
+    def _capture_sanity(
+        self,
+        discovery: CatalogueDiscoveryResult | None = None,
+        *,
+        duplicate_record_ids: int = 0,
+        duplicate_canonical_urls: int = 0,
+    ) -> None:
+        counts = self._empty_sanity()["discovery_counts"]
+        if discovery is not None:
+            counts = {
+                key: discovery.counts_by_type.get(key, 0)
+                for key in counts
+            }
+        self.last_run_sanity = {
+            "request_count": self._catalogue_request_count,
+            "detail_request_count": self._detail_request_count,
+            "discovery_counts": counts,
+            "duplicate_identity_count": (
+                len(discovery.duplicate_identities)
+                if discovery is not None
+                else 0
+            ),
+            "duplicate_record_id_count": duplicate_record_ids,
+            "duplicate_canonical_url_count": duplicate_canonical_urls,
+            "rejected_candidate_count": (
+                len(discovery.rejected_links)
+                if discovery is not None
+                else 0
+            ),
+        }
+
+    def _save_failed_run(self, run: IngestionRun) -> None:
+        """Best-effort durable failure audit without losing stdout evidence."""
+        try:
+            self._store.save_run(run)
+        except Exception:
+            suffix = "Durable ingestion-run write also failed"
+            run.error = f"{run.error}; {suffix}" if run.error else suffix
+
+    def _persist_success(
+        self,
+        run: IngestionRun,
+        records: list[CommonRecord],
+    ) -> tuple[bool, list[CommonRecord]]:
+        """Commit preflighted records and the successful run as one batch."""
+        run.status = IngestionRunStatus.SUCCESS
+        run.completed_at = now_canberra()
+        try:
+            results = self._store.save_records_and_run(records, run)
+        except Exception:
+            run.status = IngestionRunStatus.FAILED
+            run.records_added = 0
+            run.records_changed = 0
+            run.records_unchanged = 0
+            run.error = (
+                "Atomic persistence failed; preflighted records were not "
+                "committed"
+            )
+            run.completed_at = now_canberra()
+            self._save_failed_run(run)
+            return False, []
+        return True, [final for _action, final in results]
 
     def _catalogue_fetch(self, url: str) -> str:
         """Fetch one catalogue-run request with configured request spacing."""
@@ -76,9 +158,12 @@ class CoursesCollector:
         ):
             self._sleep(self._min_request_interval_seconds)
 
-        body = self._fetcher.fetch(url)
         self._catalogue_request_count += 1
-        return body
+        return self._fetcher.fetch(url)
+
+    def _detail_fetch(self, url: str) -> str:
+        self._detail_request_count += 1
+        return self._catalogue_fetch(url)
 
     def _url_belongs_to_source(self, url: str) -> bool:
         candidate = urlparse(url)
@@ -156,23 +241,29 @@ class CoursesCollector:
             started_at=now_canberra(),
             status=IngestionRunStatus.RUNNING,
         )
+        self._catalogue_request_count = 0
+        self._detail_request_count = 0
+        self.last_run_sanity = self._empty_sanity()
 
         # 1. URL root validation
         if not self._url_belongs_to_source(url):
             run.status = IngestionRunStatus.FAILED
             run.error = f"URL {url!r} does not belong to approved canonical root {self._source.canonical_root!r}"
             run.completed_at = now_canberra()
-            self._store.save_run(run)
+            self._save_failed_run(run)
             return run, []
 
         # 2. Fetch
         try:
+            self._catalogue_request_count = 1
+            self._detail_request_count = 1
             raw_html = self._fetcher.fetch(url)
         except FetchError as exc:
             run.status = IngestionRunStatus.FAILED
             run.error = f"Fetch failed: {exc}"
             run.completed_at = now_canberra()
-            self._store.save_run(run)
+            self._capture_sanity()
+            self._save_failed_run(run)
             return run, []
 
         # 3. Parse
@@ -182,26 +273,28 @@ class CoursesCollector:
             run.status = IngestionRunStatus.FAILED
             run.error = f"schema-v1 validation failed: {exc}"
             run.completed_at = now_canberra()
-            self._store.save_run(run)
+            self._capture_sanity()
+            self._save_failed_run(run)
             return run, []
         except Exception as exc:
             run.status = IngestionRunStatus.FAILED
             run.error = f"Parser failed: {exc}"
             run.completed_at = now_canberra()
-            self._store.save_run(run)
+            self._capture_sanity()
+            self._save_failed_run(run)
             return run, []
 
         if not records:
             run.status = IngestionRunStatus.FAILED
             run.error = f"No entity records parsed from {url}"
             run.completed_at = now_canberra()
-            self._store.save_run(run)
+            self._capture_sanity()
+            self._save_failed_run(run)
             return run, []
 
-        saved_records: list[CommonRecord] = []
         run.records_seen = len(records)
 
-        # 4. Validate and save with hash comparison
+        # 4. Validate the complete response before the first write.
         for record in records:
             if not self._validate_record(record):
                 run.status = IngestionRunStatus.FAILED
@@ -210,23 +303,32 @@ class CoursesCollector:
                     "identity/provenance validation"
                 )
                 run.completed_at = now_canberra()
-                self._store.save_run(run)
+                self._capture_sanity()
+                self._save_failed_run(run)
                 return run, []
 
-            action, final_rec = self._store.save_record(record)
-            if action == RecordStatus.NEW:
-                run.records_added += 1
-            elif action == RecordStatus.CHANGED:
-                run.records_changed += 1
-            elif action == RecordStatus.UNCHANGED:
-                run.records_unchanged += 1
+        record_ids = [record.record_id for record in records]
+        canonical_urls = [record.canonical_url for record in records]
+        duplicate_record_ids = len(record_ids) - len(set(record_ids))
+        duplicate_urls = len(canonical_urls) - len(set(canonical_urls))
+        self._capture_sanity(
+            duplicate_record_ids=duplicate_record_ids,
+            duplicate_canonical_urls=duplicate_urls,
+        )
+        discovery_counts = self.last_run_sanity["discovery_counts"]
+        if isinstance(discovery_counts, dict):
+            for record in records:
+                entity_type = record.metadata_json.get("entity_type")
+                if entity_type in discovery_counts:
+                    discovery_counts[entity_type] += 1
+        if duplicate_record_ids or duplicate_urls:
+            run.status = IngestionRunStatus.FAILED
+            run.error = "Duplicate normalized single-record output"
+            run.completed_at = now_canberra()
+            self._save_failed_run(run)
+            return run, []
 
-            saved_records.append(final_rec)
-
-        run.status = IngestionRunStatus.SUCCESS
-        run.completed_at = now_canberra()
-        self._store.save_run(run)
-
+        _committed, saved_records = self._persist_success(run, records)
         return run, saved_records
 
     def run_catalogue(
@@ -238,6 +340,10 @@ class CoursesCollector:
         """Run a bounded, preflighted course/program sample from a catalogue."""
         if max_records < 1:
             raise ValueError("max_records must be at least 1")
+
+        self._catalogue_request_count = 0
+        self._detail_request_count = 0
+        self.last_run_sanity = self._empty_sanity()
 
         run = IngestionRun(
             run_id=f"run_{uuid.uuid4().hex[:12]}",
@@ -252,6 +358,8 @@ class CoursesCollector:
             discovery: CatalogueDiscoveryResult = empty_discovery,
             *,
             suspicious_zero: bool = False,
+            duplicate_record_ids: int = 0,
+            duplicate_canonical_urls: int = 0,
         ) -> tuple[IngestionRun, list[CommonRecord], CatalogueDiscoveryResult]:
             run.status = (
                 IngestionRunStatus.SUSPICIOUS_ZERO
@@ -260,7 +368,12 @@ class CoursesCollector:
             )
             run.error = message
             run.completed_at = now_canberra()
-            self._store.save_run(run)
+            self._capture_sanity(
+                discovery,
+                duplicate_record_ids=duplicate_record_ids,
+                duplicate_canonical_urls=duplicate_canonical_urls,
+            )
+            self._save_failed_run(run)
             return run, [], discovery
 
         if not self._url_belongs_to_source(catalogue_url):
@@ -270,7 +383,6 @@ class CoursesCollector:
             )
 
         try:
-            self._catalogue_request_count = 0
             catalogue_html = self._catalogue_fetch(catalogue_url)
         except FetchError as exc:
             return fail(f"Catalogue fetch failed: {exc}")
@@ -293,7 +405,7 @@ class CoursesCollector:
         preflight_records: list[CommonRecord] = []
         try:
             for candidate in candidates:
-                detail_html = self._catalogue_fetch(candidate.url)
+                detail_html = self._detail_fetch(candidate.url)
                 parsed_records = self._parser.parse(detail_html, candidate.url)
                 if len(parsed_records) != 1:
                     return fail(
@@ -339,34 +451,34 @@ class CoursesCollector:
 
         record_ids = [record.record_id for record in preflight_records]
         canonical_urls = [record.canonical_url for record in preflight_records]
+        duplicate_record_ids = len(record_ids) - len(set(record_ids))
+        duplicate_urls = len(canonical_urls) - len(set(canonical_urls))
+        self._capture_sanity(
+            discovery,
+            duplicate_record_ids=duplicate_record_ids,
+            duplicate_canonical_urls=duplicate_urls,
+        )
         if len(record_ids) != len(set(record_ids)):
             return fail(
                 "Duplicate normalized record identities detected; no records "
                 "were updated",
                 discovery,
+                duplicate_record_ids=duplicate_record_ids,
+                duplicate_canonical_urls=duplicate_urls,
             )
         if len(canonical_urls) != len(set(canonical_urls)):
             return fail(
                 "Duplicate normalized canonical URLs detected; no records "
                 "were updated",
                 discovery,
+                duplicate_record_ids=duplicate_record_ids,
+                duplicate_canonical_urls=duplicate_urls,
             )
 
-        run.records_seen = len(preflight_records)
-        saved_records: list[CommonRecord] = []
-        for record in preflight_records:
-            action, final_record = self._store.save_record(record)
-            if action == RecordStatus.NEW:
-                run.records_added += 1
-            elif action == RecordStatus.CHANGED:
-                run.records_changed += 1
-            elif action == RecordStatus.UNCHANGED:
-                run.records_unchanged += 1
-            saved_records.append(final_record)
-
-        run.status = IngestionRunStatus.SUCCESS
-        run.completed_at = now_canberra()
-        self._store.save_run(run)
+        _committed, saved_records = self._persist_success(
+            run,
+            preflight_records,
+        )
         return run, saved_records, discovery
 
     def run_live_catalogue(
@@ -400,6 +512,10 @@ class CoursesCollector:
                 "Day 5 live catalogue verification is bounded to 4 records"
             )
 
+        self._catalogue_request_count = 0
+        self._detail_request_count = 0
+        self.last_run_sanity = self._empty_sanity()
+
         run = IngestionRun(
             run_id=f"run_{uuid.uuid4().hex[:12]}",
             source_id=SOURCE_ID,
@@ -414,6 +530,8 @@ class CoursesCollector:
             discovery: CatalogueDiscoveryResult = empty_discovery,
             *,
             suspicious_zero: bool = False,
+            duplicate_record_ids: int = 0,
+            duplicate_canonical_urls: int = 0,
         ) -> tuple[
             IngestionRun,
             list[CommonRecord],
@@ -426,7 +544,12 @@ class CoursesCollector:
             )
             run.error = message
             run.completed_at = now_canberra()
-            self._store.save_run(run)
+            self._capture_sanity(
+                discovery,
+                duplicate_record_ids=duplicate_record_ids,
+                duplicate_canonical_urls=duplicate_canonical_urls,
+            )
+            self._save_failed_run(run)
             return run, [], discovery
 
         root = self._source.canonical_root.rstrip("/")
@@ -462,8 +585,6 @@ class CoursesCollector:
             or not self._url_belongs_to_source(program_url)
         ):
             return fail("Live catalogue API endpoint failed source validation")
-
-        self._catalogue_request_count = 0
 
         try:
             course_body = self._catalogue_fetch(course_url)
@@ -553,7 +674,7 @@ class CoursesCollector:
 
         try:
             for candidate in candidates:
-                detail_html = self._catalogue_fetch(candidate.url)
+                detail_html = self._detail_fetch(candidate.url)
                 parsed_records = self._parser.parse(
                     detail_html,
                     candidate.url,
@@ -620,12 +741,21 @@ class CoursesCollector:
             record.canonical_url
             for record in preflight_records
         ]
+        duplicate_record_ids = len(record_ids) - len(set(record_ids))
+        duplicate_urls = len(canonical_urls) - len(set(canonical_urls))
+        self._capture_sanity(
+            discovery,
+            duplicate_record_ids=duplicate_record_ids,
+            duplicate_canonical_urls=duplicate_urls,
+        )
 
         if len(record_ids) != len(set(record_ids)):
             return fail(
                 "Duplicate normalized record identities detected; "
                 "no records were updated",
                 discovery,
+                duplicate_record_ids=duplicate_record_ids,
+                duplicate_canonical_urls=duplicate_urls,
             )
 
         if len(canonical_urls) != len(set(canonical_urls)):
@@ -633,25 +763,13 @@ class CoursesCollector:
                 "Duplicate normalized canonical URLs detected; "
                 "no records were updated",
                 discovery,
+                duplicate_record_ids=duplicate_record_ids,
+                duplicate_canonical_urls=duplicate_urls,
             )
 
-        run.records_seen = len(preflight_records)
-        saved_records: list[CommonRecord] = []
-
-        for record in preflight_records:
-            action, final_record = self._store.save_record(record)
-
-            if action == RecordStatus.NEW:
-                run.records_added += 1
-            elif action == RecordStatus.CHANGED:
-                run.records_changed += 1
-            elif action == RecordStatus.UNCHANGED:
-                run.records_unchanged += 1
-
-            saved_records.append(final_record)
-
-        run.status = IngestionRunStatus.SUCCESS
-        run.completed_at = now_canberra()
-        self._store.save_run(run)
+        _committed, saved_records = self._persist_success(
+            run,
+            preflight_records,
+        )
 
         return run, saved_records, discovery

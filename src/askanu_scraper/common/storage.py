@@ -41,6 +41,14 @@ class DataStore(Protocol):
         """Persist one ingestion-run result."""
         ...
 
+    def save_records_and_run(
+        self,
+        records: list[CommonRecord],
+        run: IngestionRun,
+    ) -> list[tuple[RecordStatus, CommonRecord]]:
+        """Atomically compare/persist a preflighted batch and its run."""
+        ...
+
 
 class LocalDataStore:
     """Local JSON-based store for development data handoff.
@@ -139,6 +147,58 @@ class LocalDataStore:
         file_path = self._run_file_path(run.run_id)
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(run.model_dump_json(indent=2))
+
+    def save_records_and_run(
+        self,
+        records: list[CommonRecord],
+        run: IngestionRun,
+    ) -> list[tuple[RecordStatus, CommonRecord]]:
+        """Persist a preflighted local batch with best-effort rollback.
+
+        PostgreSQL provides the production transaction boundary.  The local
+        adapter snapshots the small bounded set of affected files so fixture
+        and dry-run evidence has the same all-or-nothing behaviour when a
+        write raises.
+        """
+        record_ids = [record.record_id for record in records]
+        if len(record_ids) != len(set(record_ids)):
+            raise ValueError("record batch contains duplicate record IDs")
+
+        affected_paths = [
+            self._record_file_path(record_id) for record_id in record_ids
+        ] + [self._run_file_path(run.run_id)]
+        snapshots = {
+            path: path.read_bytes() if path.exists() else None
+            for path in affected_paths
+        }
+
+        results: list[tuple[RecordStatus, CommonRecord]] = []
+        run.records_seen = len(records)
+        run.records_added = 0
+        run.records_changed = 0
+        run.records_unchanged = 0
+
+        try:
+            for record in records:
+                action, final = self.save_record(record)
+                results.append((action, final))
+                if action == RecordStatus.NEW:
+                    run.records_added += 1
+                elif action == RecordStatus.CHANGED:
+                    run.records_changed += 1
+                elif action == RecordStatus.UNCHANGED:
+                    run.records_unchanged += 1
+            self.save_run(run)
+        except Exception:
+            if not self.dry_run:
+                for path, content in snapshots.items():
+                    if content is None:
+                        path.unlink(missing_ok=True)
+                    else:
+                        path.write_bytes(content)
+            raise
+
+        return results
 
     def get_run(self, run_id: str) -> IngestionRun | None:
         file_path = self._run_file_path(run_id)

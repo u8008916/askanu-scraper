@@ -269,3 +269,145 @@ class PostgresDataStore:
                     )
         except Exception:
             raise PostgresPersistenceError() from None
+
+    def save_records_and_run(
+        self,
+        records: list[CommonRecord],
+        run: IngestionRun,
+    ) -> list[tuple[RecordStatus, CommonRecord]]:
+        """Persist one preflighted bounded batch and its run atomically.
+
+        The connection context is the production transaction boundary.  Any
+        record or ingestion-run write failure causes psycopg to roll back the
+        complete batch, preserving the last-known-good rows.
+        """
+        validated = [
+            CommonRecord.model_validate(record.model_dump(mode="python"))
+            for record in records
+        ]
+        record_ids = [record.record_id for record in validated]
+        if len(record_ids) != len(set(record_ids)):
+            raise ValueError("record batch contains duplicate record IDs")
+
+        select = (
+            f"SELECT {', '.join(RECORD_COLUMNS)} "
+            "FROM course_program_records WHERE record_id = %s"
+            + ("" if self.dry_run else " FOR UPDATE")
+        )
+        observed_at = now_canberra()
+        results: list[tuple[RecordStatus, CommonRecord]] = []
+        run.records_seen = len(validated)
+        run.records_added = 0
+        run.records_changed = 0
+        run.records_unchanged = 0
+
+        try:
+            with self._connection_factory() as connection:
+                with connection.cursor() as cursor:
+                    for record in validated:
+                        cursor.execute(select, (record.record_id,))
+                        row = cursor.fetchone()
+                        existing = (
+                            CommonRecord.model_validate(row)
+                            if row is not None
+                            else None
+                        )
+
+                        if existing is None:
+                            action = RecordStatus.NEW
+                            final = record.model_copy(
+                                update={
+                                    "status": action,
+                                    "index_status": IndexStatus.PENDING,
+                                    "embedding_version": None,
+                                    "collected_at": observed_at,
+                                    "last_seen_at": observed_at,
+                                }
+                            )
+                            if not self.dry_run:
+                                placeholders = ", ".join(
+                                    ["%s"] * len(RECORD_COLUMNS)
+                                )
+                                cursor.execute(
+                                    "INSERT INTO course_program_records "
+                                    f"({', '.join(RECORD_COLUMNS)}) "
+                                    f"VALUES ({placeholders})",
+                                    self._record_values(final),
+                                )
+                        elif existing.content_hash == record.content_hash:
+                            action = RecordStatus.UNCHANGED
+                            final = existing.model_copy(
+                                update={
+                                    "status": action,
+                                    "last_seen_at": observed_at,
+                                }
+                            )
+                            if not self.dry_run:
+                                cursor.execute(
+                                    "UPDATE course_program_records "
+                                    "SET status = %s, last_seen_at = %s "
+                                    "WHERE record_id = %s",
+                                    (
+                                        action.value,
+                                        observed_at,
+                                        record.record_id,
+                                    ),
+                                )
+                        else:
+                            action = RecordStatus.CHANGED
+                            final = record.model_copy(
+                                update={
+                                    "status": action,
+                                    "index_status": IndexStatus.PENDING,
+                                    "embedding_version": None,
+                                    "collected_at": existing.collected_at,
+                                    "last_seen_at": observed_at,
+                                }
+                            )
+                            assignments = ", ".join(
+                                f"{column} = %s"
+                                for column in RECORD_COLUMNS[1:]
+                            )
+                            if not self.dry_run:
+                                cursor.execute(
+                                    "UPDATE course_program_records SET "
+                                    f"{assignments} WHERE record_id = %s",
+                                    self._record_values(final)[1:]
+                                    + (record.record_id,),
+                                )
+
+                        final = CommonRecord.model_validate(
+                            final.model_dump(mode="python")
+                        )
+                        results.append((action, final))
+                        if action == RecordStatus.NEW:
+                            run.records_added += 1
+                        elif action == RecordStatus.CHANGED:
+                            run.records_changed += 1
+                        else:
+                            run.records_unchanged += 1
+
+                    if not self.dry_run:
+                        values = run.model_dump(mode="python")
+                        values["status"] = run.status.value
+                        placeholders = ", ".join(
+                            ["%s"] * len(RUN_COLUMNS)
+                        )
+                        updates = ", ".join(
+                            f"{column} = EXCLUDED.{column}"
+                            for column in RUN_COLUMNS[1:]
+                        )
+                        cursor.execute(
+                            "INSERT INTO ingestion_runs "
+                            f"({', '.join(RUN_COLUMNS)}) "
+                            f"VALUES ({placeholders}) "
+                            "ON CONFLICT (run_id) DO UPDATE SET "
+                            f"{updates}",
+                            tuple(values[column] for column in RUN_COLUMNS),
+                        )
+        except PostgresConfigurationError:
+            raise
+        except Exception:
+            raise PostgresPersistenceError() from None
+
+        return results

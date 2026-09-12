@@ -137,7 +137,7 @@ def test_successful_job_persists_and_returns_structured_zero_exit(
     )
 
     assert result.exit_code == EXIT_SUCCESS
-    assert result.summary["schema_version"] == "1"
+    assert result.summary["schema_version"] == "2"
     assert result.summary["status"] == "SUCCESS"
     assert result.summary["academic_year"] == "2026"
     assert result.summary["requested_max_courses"] == 1
@@ -145,6 +145,21 @@ def test_successful_job_persists_and_returns_structured_zero_exit(
     assert result.summary["records_seen"] == 2
     assert result.summary["records_added"] == 2
     assert result.summary["error"] is None
+    assert result.summary["sanity"] == {
+        "request_count": 4,
+        "detail_request_count": 2,
+        "discovery_counts": {
+            "course": 1,
+            "program": 1,
+            "major": 0,
+            "minor": 0,
+            "specialisation": 0,
+        },
+        "duplicate_identity_count": 0,
+        "duplicate_record_id_count": 0,
+        "duplicate_canonical_url_count": 0,
+        "rejected_candidate_count": 0,
+    }
     assert len(list((storage_path / "records").glob("*.json"))) == 2
     assert len(list((storage_path / "runs").glob("*.json"))) == 1
 
@@ -239,6 +254,38 @@ def test_job_accepts_injected_persistence_boundary(
     assert result.exit_code == EXIT_SUCCESS
     assert store.get_record("courses:course:COMP1110_2026") is not None
     assert not configured_path.exists()
+
+
+def test_atomic_persistence_failure_returns_safe_summary_and_no_records(
+    tmp_path: Path,
+    rich_course_fixture_path: Path,
+) -> None:
+    class FailingBatchStore(LocalDataStore):
+        def save_records_and_run(self, records, run):
+            del records, run
+            raise RuntimeError("database detail that must not escape")
+
+    storage_path = tmp_path / "store"
+    config = replace(
+        make_config(storage_path),
+        course_code="COMP1110",
+    )
+    store = FailingBatchStore(storage_path)
+
+    result = execute_job(
+        config,
+        fetcher=MockFetcher({COMP1110_URL: rich_course_fixture_path}),
+        store=store,
+        environ={},
+    )
+
+    assert result.exit_code == EXIT_INGESTION_FAILURE
+    assert result.summary["status"] == "FAILED"
+    assert result.summary["records_seen"] == 1
+    assert result.summary["records_added"] == 0
+    assert "database detail" not in json.dumps(result.summary)
+    assert list((storage_path / "records").glob("*.json")) == []
+    assert len(list((storage_path / "runs").glob("*.json"))) == 1
 
 
 def test_dry_run_compares_but_does_not_change_existing_storage(
@@ -368,6 +415,15 @@ def test_suspicious_zero_is_nonzero_and_writes_no_records(
 
     assert result.exit_code == EXIT_INGESTION_FAILURE
     assert result.summary["status"] == "SUSPICIOUS_ZERO"
+    assert result.summary["sanity"]["request_count"] == 2
+    assert result.summary["sanity"]["detail_request_count"] == 0
+    assert result.summary["sanity"]["discovery_counts"] == {
+        "course": 0,
+        "program": 1,
+        "major": 0,
+        "minor": 0,
+        "specialisation": 0,
+    }
     assert list((storage_path / "records").glob("*.json")) == []
 
 
