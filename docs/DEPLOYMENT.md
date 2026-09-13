@@ -58,27 +58,34 @@ entrypoint runs exactly one bounded collector invocation, writes one structured
 JSON summary to standard output, and exits `0` only for `SUCCESS`. `FAILED` and
 `SUSPICIOUS_ZERO` exit `1`; invalid configuration exits `2`.
 
-The currently implemented job target is:
+The implemented job targets are:
 
 ```text
 source_id = courses_programs_and_courses
 domain    = courses
+
+source_id = scholarships_anu_finder
+domain    = scholarships
 ```
 
 All selections pass through the machine-readable approved-source registry.
 Other approved domains remain unsupported until their collectors are
-implemented. Rubric stays inactive and cannot be selected.
+implemented. Rubric stays inactive and cannot be selected. Scholarships are
+limited to the one public finder page and at most ten same-site details.
 
 ### Environment contract
 
 | Variable | Required/default | Purpose |
 |---|---|---|
-| `SCRAPER_ACADEMIC_YEAR` | required | Four-digit catalogue year. |
+| `SCRAPER_ACADEMIC_YEAR` | required for Courses | Four-digit catalogue year; unused by Scholarships. |
 | `SCRAPER_COURSE_CODE` | unset | Optional single-course smoke target, for example `COMP1110`; bypasses catalogue discovery but still enforces the approved source root. |
 | `SCRAPER_SOURCE_ID` | `courses_programs_and_courses` | Approved registry ID. |
 | `SCRAPER_DOMAIN` | `courses` | Must match the selected registry entry. |
 | `SCRAPER_MAX_COURSES` | `2` | Bounded course count; minimum 1. |
 | `SCRAPER_MAX_PROGRAMS` | `2` | Bounded program count; minimum 1. |
+| `SCRAPER_MAX_SCHOLARSHIP_LISTING_PAGES` | `1` | Fixed one-page scholarship discovery bound; other values are rejected. |
+| `SCRAPER_MAX_SCHOLARSHIP_DETAILS` | `10` | Scholarship detail bound; valid range 1–10. |
+| `SCRAPER_SCHOLARSHIP_POSTGRES_APPROVED` | `false` | Set true only after Carmen's shared multi-domain persistence/RAG generalisation is deployed and Qasim approves it. |
 | `SCRAPER_DRY_RUN` | `true` in the Day 6 container (`false` application default) | Compare normally but suppress all local writes. |
 | `SCRAPER_STORAGE_PATH` | `local-data` (`/data` in container) | Existing local JSON handoff. |
 | `SCRAPER_STORAGE_BACKEND` | `local` | Set to `postgres` only for the reviewed shared Cloud SQL adapter. |
@@ -99,6 +106,8 @@ environment values. `--dry-run` and `--simulate-fetch-failure` are boolean
 flags. A combined course/program bound above four is rejected before fetching.
 When `SCRAPER_COURSE_CODE` is set, the job fetches exactly that course detail
 page for the configured academic year and does not call catalogue APIs.
+Scholarship runs reject `SCRAPER_COURSE_CODE`, external-scholarship cards,
+off-origin links and application/authentication paths.
 
 Environment variables are injected by the Cloud Run Job configuration. Secret
 values must come from Secret Manager references and must not be placed in image

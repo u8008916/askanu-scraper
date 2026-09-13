@@ -24,6 +24,11 @@ from askanu_scraper.sources.courses.collector import (
     SOURCE_ID as COURSES_SOURCE_ID,
     CoursesCollector,
 )
+from askanu_scraper.sources.scholarships import (
+    LISTING_URL as SCHOLARSHIPS_LISTING_URL,
+    SOURCE_ID as SCHOLARSHIPS_SOURCE_ID,
+    ScholarshipsCollector,
+)
 
 
 EXIT_SUCCESS = 0
@@ -57,7 +62,7 @@ class JobConfig:
 
     source_id: str
     domain: str
-    academic_year: str
+    academic_year: str | None
     course_code: str | None
     storage_backend: str
     max_courses: int
@@ -67,6 +72,9 @@ class JobConfig:
     storage_path: Path
     timeout_seconds: int
     min_request_interval_seconds: float
+    max_scholarship_listing_pages: int = 1
+    max_scholarship_details: int = 10
+    scholarship_postgres_approved: bool = False
 
 
 @dataclass(frozen=True)
@@ -131,6 +139,8 @@ def build_parser() -> JobArgumentParser:
     parser.add_argument("--course-code")
     parser.add_argument("--max-courses")
     parser.add_argument("--max-programs")
+    parser.add_argument("--max-scholarship-listing-pages")
+    parser.add_argument("--max-scholarship-details")
     parser.add_argument("--storage-path")
     parser.add_argument("--storage-backend")
     parser.add_argument("--timeout-seconds")
@@ -161,9 +171,16 @@ def load_config(
         "SCRAPER_SOURCE_ID", COURSES_SOURCE_ID
     )
     domain = args.domain or env.get("SCRAPER_DOMAIN", "courses")
-    academic_year = args.academic_year or env.get("SCRAPER_ACADEMIC_YEAR", "")
-
-    if re.fullmatch(r"\d{4}", academic_year) is None:
+    raw_academic_year = args.academic_year or env.get("SCRAPER_ACADEMIC_YEAR", "")
+    academic_year = raw_academic_year or None
+    if source_id == COURSES_SOURCE_ID and (
+        academic_year is None
+        or re.fullmatch(r"\d{4}", academic_year) is None
+    ):
+        raise JobConfigurationError(
+            "SCRAPER_ACADEMIC_YEAR/--academic-year must be a four-digit year"
+        )
+    if academic_year is not None and re.fullmatch(r"\d{4}", academic_year) is None:
         raise JobConfigurationError(
             "SCRAPER_ACADEMIC_YEAR/--academic-year must be a four-digit year"
         )
@@ -176,6 +193,10 @@ def load_config(
     ):
         raise JobConfigurationError(
             "SCRAPER_COURSE_CODE/--course-code must be a valid course code"
+        )
+    if source_id != COURSES_SOURCE_ID and course_code is not None:
+        raise JobConfigurationError(
+            "SCRAPER_COURSE_CODE/--course-code is only valid for Courses"
         )
 
     max_courses = _parse_int(
@@ -191,10 +212,27 @@ def load_config(
         maximum=4,
     )
 
-    if max_courses + max_programs > 4:
+    if source_id == COURSES_SOURCE_ID and max_courses + max_programs > 4:
         raise JobConfigurationError(
             "The combined course/program sample must not exceed 4 records"
         )
+    max_scholarship_listing_pages = _parse_int(
+        args.max_scholarship_listing_pages
+        or env.get("SCRAPER_MAX_SCHOLARSHIP_LISTING_PAGES", "1"),
+        name=(
+            "SCRAPER_MAX_SCHOLARSHIP_LISTING_PAGES/"
+            "--max-scholarship-listing-pages"
+        ),
+        minimum=1,
+        maximum=1,
+    )
+    max_scholarship_details = _parse_int(
+        args.max_scholarship_details
+        or env.get("SCRAPER_MAX_SCHOLARSHIP_DETAILS", "10"),
+        name="SCRAPER_MAX_SCHOLARSHIP_DETAILS/--max-scholarship-details",
+        minimum=1,
+        maximum=10,
+    )
 
     dry_run = (
         args.dry_run
@@ -211,6 +249,14 @@ def load_config(
             env.get("SCRAPER_SIMULATE_FETCH_FAILURE", "false"),
             name="SCRAPER_SIMULATE_FETCH_FAILURE",
         )
+    )
+    scholarship_postgres_approved = (
+        _parse_bool(
+            env.get("SCRAPER_SCHOLARSHIP_POSTGRES_APPROVED", "false"),
+            name="SCRAPER_SCHOLARSHIP_POSTGRES_APPROVED",
+        )
+        if source_id == SCHOLARSHIPS_SOURCE_ID
+        else False
     )
     timeout_seconds = _parse_int(
         args.timeout_seconds or env.get("SCRAPER_TIMEOUT_SECONDS", "30"),
@@ -252,6 +298,9 @@ def load_config(
         storage_path=storage_path,
         timeout_seconds=timeout_seconds,
         min_request_interval_seconds=min_request_interval_seconds,
+        max_scholarship_listing_pages=max_scholarship_listing_pages,
+        max_scholarship_details=max_scholarship_details,
+        scholarship_postgres_approved=scholarship_postgres_approved,
     )
 
 
@@ -314,8 +363,22 @@ def _summary_from_run(
         "academic_year": config.academic_year,
         "course_code": config.course_code,
         "storage_backend": config.storage_backend,
-        "requested_max_courses": config.max_courses,
-        "requested_max_programs": config.max_programs,
+        "requested_max_courses": (
+            config.max_courses if config.source_id == COURSES_SOURCE_ID else None
+        ),
+        "requested_max_programs": (
+            config.max_programs if config.source_id == COURSES_SOURCE_ID else None
+        ),
+        "requested_max_scholarship_listing_pages": (
+            config.max_scholarship_listing_pages
+            if config.source_id == SCHOLARSHIPS_SOURCE_ID
+            else None
+        ),
+        "requested_max_scholarship_details": (
+            config.max_scholarship_details
+            if config.source_id == SCHOLARSHIPS_SOURCE_ID
+            else None
+        ),
         "status": run.status.value,
         "dry_run": config.dry_run,
         "started_at": _isoformat(run.started_at),
@@ -352,9 +415,21 @@ def execute_job(
         raise JobConfigurationError(
             "Selected source does not belong to the selected domain"
         )
-    if config.source_id != COURSES_SOURCE_ID or config.domain != "courses":
+    supported = {
+        (COURSES_SOURCE_ID, "courses"),
+        (SCHOLARSHIPS_SOURCE_ID, "scholarships"),
+    }
+    if (config.source_id, config.domain) not in supported:
         raise JobConfigurationError(
-            "Only the approved Courses collector is implemented for Day 6"
+            "Only the approved Courses and Scholarships collectors are implemented"
+        )
+    if (
+        config.source_id == SCHOLARSHIPS_SOURCE_ID
+        and config.storage_backend == "postgres"
+        and not config.scholarship_postgres_approved
+    ):
+        raise JobConfigurationError(
+            "Scholarships PostgreSQL writes require the cross-repo schema approval gate"
         )
 
     selected_fetcher = fetcher
@@ -379,25 +454,39 @@ def execute_job(
             config.storage_path,
             dry_run=config.dry_run,
         )
-    collector = CoursesCollector(
-        fetcher=selected_fetcher,
-        store=selected_store,
-        min_request_interval_seconds=config.min_request_interval_seconds,
-        sleep_func=sleep_func,
-    )
-
     started = time.monotonic()
-    if config.course_code is not None:
-        root = source.canonical_root.rstrip("/")
-        course_url = (
-            f"{root}/{config.academic_year}/course/{config.course_code}"
+    if config.source_id == COURSES_SOURCE_ID:
+        collector = CoursesCollector(
+            fetcher=selected_fetcher,
+            store=selected_store,
+            min_request_interval_seconds=config.min_request_interval_seconds,
+            sleep_func=sleep_func,
         )
-        run, _ = collector.run_single(course_url)
+        if config.academic_year is None:
+            raise JobConfigurationError("Courses requires an academic year")
+        if config.course_code is not None:
+            root = source.canonical_root.rstrip("/")
+            course_url = (
+                f"{root}/{config.academic_year}/course/{config.course_code}"
+            )
+            run, _ = collector.run_single(course_url)
+        else:
+            run, _, _ = collector.run_live_catalogue(
+                academic_year=config.academic_year,
+                max_courses=config.max_courses,
+                max_programs=config.max_programs,
+            )
     else:
-        run, _, _ = collector.run_live_catalogue(
-            academic_year=config.academic_year,
-            max_courses=config.max_courses,
-            max_programs=config.max_programs,
+        collector = ScholarshipsCollector(
+            fetcher=selected_fetcher,
+            store=selected_store,
+            min_request_interval_seconds=config.min_request_interval_seconds,
+            sleep_func=sleep_func,
+        )
+        run, _, _ = collector.run_listing(
+            listing_url=SCHOLARSHIPS_LISTING_URL,
+            max_listing_pages=config.max_scholarship_listing_pages,
+            max_details=config.max_scholarship_details,
         )
     duration_ms = max(0, round((time.monotonic() - started) * 1000))
     return _summary_from_run(
@@ -427,6 +516,8 @@ def _error_result(
         "storage_backend": None,
         "requested_max_courses": None,
         "requested_max_programs": None,
+        "requested_max_scholarship_listing_pages": None,
+        "requested_max_scholarship_details": None,
         "status": status,
         "dry_run": None,
         "started_at": _isoformat(started_at),

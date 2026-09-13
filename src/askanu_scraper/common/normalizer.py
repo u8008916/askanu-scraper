@@ -80,7 +80,14 @@ def parse_date_safe(raw: str | None) -> datetime | None:
     if not raw:
         return None
     raw = raw.strip()
-    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d %B %Y", "%B %d, %Y"):
+    for fmt in (
+        "%Y-%m-%d",
+        "%d/%m/%Y",
+        "%d %B %Y",
+        "%B %d, %Y",
+        "%d-%b-%Y",
+        "%d %b %Y",
+    ):
         try:
             dt = datetime.strptime(raw, fmt)
             return dt.replace(tzinfo=CANBERRA_TZ)

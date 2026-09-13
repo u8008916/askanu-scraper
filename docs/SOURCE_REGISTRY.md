@@ -23,6 +23,7 @@ This document records source policy; the machine-readable registry and enforceme
 
 - Define the machine-readable approved registry with stable `source_id`, parser mapping, and approval/active state. No collector may target a source absent from the eventual approved registry; registry presence alone does not grant production approval.
 - Agree a bounded source-fetch/rate policy before live requests. Request bounds and rate limits remain unresolved; daily poll cadence does not define those limits.
+- The Day 9 implementation uses a conservative pending-approval proof bound of one finder page, at most ten same-site detail pages and at least one second between live requests. This is not authorization for a broader crawl or Scheduler enablement.
 - Record the exact additional approved ANU Support source targets before collecting them. The general reference to ANU support pages does not approve arbitrary pages.
 - Document the exact production Events target if different from the already approved official ANU Events/calendar fallback. Do not infer a new target or approval. Official ANU Events/calendar remains the release-safe baseline, and Rubric approval is non-blocking.
 

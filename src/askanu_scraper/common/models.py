@@ -11,7 +11,7 @@ Authoritative shared contracts:
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from enum import Enum
 import hashlib
 import re
@@ -322,6 +322,112 @@ class CommonRecord(BaseModel):
                 raise ValueError(
                     "record_id does not match schema-v1 identity"
                 )
+
+        is_scholarship_record = (
+            self.domain == Domain.SCHOLARSHIPS
+            or self.source_id == "scholarships_anu_finder"
+            or self.record_id.startswith("scholarships:")
+            or entity_type == "scholarship"
+        )
+        if is_scholarship_record:
+            try:
+                scholarship_port = parsed_url.port
+            except ValueError as exc:
+                raise ValueError(
+                    "Scholarship canonical_url has an invalid port"
+                ) from exc
+            if self.domain != Domain.SCHOLARSHIPS:
+                raise ValueError("Scholarship records require domain 'scholarships'")
+            if self.source_id != "scholarships_anu_finder":
+                raise ValueError(
+                    "Scholarship records require source_id 'scholarships_anu_finder'"
+                )
+            if entity_type != "scholarship":
+                raise ValueError(
+                    "Scholarship metadata_json.entity_type must be 'scholarship'"
+                )
+            if re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", self.entity_id) is None:
+                raise ValueError("Scholarship entity_id must be a canonical URL slug")
+            expected_record_id = f"scholarships:scholarship:{self.entity_id}"
+            if self.record_id != expected_record_id:
+                raise ValueError(
+                    "Scholarship record_id does not match schema-v1 identity"
+                )
+            if (
+                parsed_url.scheme != "https"
+                or parsed_url.hostname != "study.anu.edu.au"
+                or parsed_url.username is not None
+                or parsed_url.password is not None
+                or scholarship_port is not None
+                or parsed_url.path
+                != f"/scholarships/find-scholarship/{self.entity_id}"
+                or parsed_url.query
+                or parsed_url.fragment
+            ):
+                raise ValueError(
+                    "Scholarship canonical_url must match its approved ANU slug"
+                )
+
+            expected_keys = {
+                "entity_type",
+                "featured",
+                "status",
+                "application_required",
+                "study_stage",
+                "student_type",
+                "study_level",
+                "area_of_study",
+                "value",
+                "selection_basis",
+                "opening_date",
+                "closing_date",
+                "eligibility",
+            }
+            if set(metadata) != expected_keys:
+                raise ValueError(
+                    "Scholarship metadata_json must match the approved v1 fields"
+                )
+
+            for key in ("featured", "application_required"):
+                value = metadata[key]
+                if value is not None and not isinstance(value, bool):
+                    raise ValueError(f"metadata_json.{key} must be boolean or null")
+
+            for key in ("study_stage", "student_type", "study_level", "area_of_study"):
+                value = metadata[key]
+                if not isinstance(value, list) or not all(
+                    isinstance(item, str) and item.strip() for item in value
+                ):
+                    raise ValueError(
+                        f"metadata_json.{key} must be an array of non-empty strings"
+                    )
+
+            for key in (
+                "status",
+                "value",
+                "selection_basis",
+                "eligibility",
+            ):
+                value = metadata[key]
+                if value is not None and (
+                    not isinstance(value, str) or not value.strip()
+                ):
+                    raise ValueError(f"metadata_json.{key} must be a string or null")
+
+            for key in ("opening_date", "closing_date"):
+                value = metadata[key]
+                if value is None:
+                    continue
+                if not isinstance(value, str):
+                    raise ValueError(f"metadata_json.{key} must be an ISO date or null")
+                try:
+                    parsed_date = date.fromisoformat(value)
+                except ValueError as exc:
+                    raise ValueError(
+                        f"metadata_json.{key} must be an ISO date or null"
+                    ) from exc
+                if parsed_date.isoformat() != value:
+                    raise ValueError(f"metadata_json.{key} must be an ISO date or null")
 
         return self
 
