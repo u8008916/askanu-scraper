@@ -11,7 +11,7 @@ stable IDs and canonical URLs, ingestion runs, and safe persistence handoff.
 Shared record semantics are defined in `docs/DATA_SCHEMA.md`; production
 source policy is defined in `docs/SOURCE_REGISTRY.md`.
 
-## One-shot Courses job
+## One-shot approved-source jobs
 
 Install the package, then run one bounded job:
 
@@ -45,6 +45,22 @@ credentials are never included in that summary.
 Dry-run mode fetches, parses, validates, and compares against existing local
 records, but writes neither records nor ingestion-run files.
 
+The Scholarships path fetches exactly one public ANU finder page and at most
+ten same-site detail pages. It excludes external-scholarship cards and rejects
+off-origin, application/authentication, duplicate, malformed and over-limit
+links before persistence:
+
+```powershell
+askanu-scraper-job --source-id scholarships_anu_finder `
+  --domain scholarships --max-scholarship-listing-pages 1 `
+  --max-scholarship-details 10 --dry-run
+```
+
+Scholarships do not require `--academic-year`. PostgreSQL remains blocked for
+this domain unless `SCRAPER_SCHOLARSHIP_POSTGRES_APPROVED=true` is supplied
+after Carmen's shared persistence/RAG generalisation is merged and deployed,
+and Qasim approves that boundary.
+
 The Day 6 container image defaults `SCRAPER_DRY_RUN=true`: Cloud Run executions
 must stay dry-run while `LocalDataStore` is the active persistence adapter,
 because its `/data` filesystem is not durable. Enable
@@ -52,11 +68,14 @@ because its `/data` filesystem is not durable. Enable
 persistence path is connected. Local development can explicitly set it to
 `false` when local JSON persistence is intended.
 
-The reviewed Day 7 image can select the shared PostgreSQL boundary with
+The reviewed scraper can select the shared PostgreSQL boundary with
 `SCRAPER_STORAGE_BACKEND=postgres`. Keep `SCRAPER_DRY_RUN=true` while reviewing
 the connection and comparison path. Real writes require Carmen's migration to
-contain both `course_program_records` and `ingestion_runs`. Structured JSON logs
-remain supplementary to the durable run record.
+provide writable `source_records`, the read-only Courses/Programs compatibility
+view `course_program_records`, and `ingestion_runs`. Scholarship writes remain
+blocked until migration and runtime permissions are verified and Qasim gives
+release approval. Structured JSON logs remain supplementary to the durable run
+record.
 
 To verify the failure path without making a network request:
 

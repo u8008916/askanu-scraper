@@ -109,6 +109,7 @@ RECORD_COLUMNS = (
     "collected_at", "last_seen_at", "content_hash", "embedding_version",
     "index_status", "metadata_json",
 )
+RECORDS_TABLE = "source_records"
 RUN_COLUMNS = (
     "run_id", "source_id", "started_at", "completed_at", "records_seen",
     "records_added", "records_changed", "records_unchanged",
@@ -150,7 +151,7 @@ class PostgresDataStore:
     def get_record(self, record_id: str) -> CommonRecord | None:
         query = (
             f"SELECT {', '.join(RECORD_COLUMNS)} "
-            "FROM course_program_records WHERE record_id = %s"
+            f"FROM {RECORDS_TABLE} WHERE record_id = %s"
         )
         try:
             with self._connection_factory() as connection:
@@ -170,7 +171,7 @@ class PostgresDataStore:
         record = CommonRecord.model_validate(record.model_dump(mode="python"))
         select = (
             f"SELECT {', '.join(RECORD_COLUMNS)} "
-            "FROM course_program_records WHERE record_id = %s"
+            f"FROM {RECORDS_TABLE} WHERE record_id = %s"
             + ("" if self.dry_run else " FOR UPDATE")
         )
         now = now_canberra()
@@ -200,7 +201,7 @@ class PostgresDataStore:
                         if not self.dry_run:
                             placeholders = ", ".join(["%s"] * len(RECORD_COLUMNS))
                             cursor.execute(
-                                f"INSERT INTO course_program_records "
+                                f"INSERT INTO {RECORDS_TABLE} "
                                 f"({', '.join(RECORD_COLUMNS)}) "
                                 f"VALUES ({placeholders})",
                                 self._record_values(final),
@@ -212,7 +213,7 @@ class PostgresDataStore:
                         )
                         if not self.dry_run:
                             cursor.execute(
-                                "UPDATE course_program_records "
+                                f"UPDATE {RECORDS_TABLE} "
                                 "SET status = %s, last_seen_at = %s "
                                 "WHERE record_id = %s",
                                 (action.value, now, record.record_id),
@@ -233,7 +234,7 @@ class PostgresDataStore:
                         )
                         if not self.dry_run:
                             cursor.execute(
-                                f"UPDATE course_program_records SET {assignments} "
+                                f"UPDATE {RECORDS_TABLE} SET {assignments} "
                                 "WHERE record_id = %s",
                                 self._record_values(final)[1:] + (record.record_id,),
                             )
@@ -291,7 +292,7 @@ class PostgresDataStore:
 
         select = (
             f"SELECT {', '.join(RECORD_COLUMNS)} "
-            "FROM course_program_records WHERE record_id = %s"
+            f"FROM {RECORDS_TABLE} WHERE record_id = %s"
             + ("" if self.dry_run else " FOR UPDATE")
         )
         observed_at = now_canberra()
@@ -329,7 +330,7 @@ class PostgresDataStore:
                                     ["%s"] * len(RECORD_COLUMNS)
                                 )
                                 cursor.execute(
-                                    "INSERT INTO course_program_records "
+                                    f"INSERT INTO {RECORDS_TABLE} "
                                     f"({', '.join(RECORD_COLUMNS)}) "
                                     f"VALUES ({placeholders})",
                                     self._record_values(final),
@@ -344,7 +345,7 @@ class PostgresDataStore:
                             )
                             if not self.dry_run:
                                 cursor.execute(
-                                    "UPDATE course_program_records "
+                                    f"UPDATE {RECORDS_TABLE} "
                                     "SET status = %s, last_seen_at = %s "
                                     "WHERE record_id = %s",
                                     (
@@ -370,7 +371,7 @@ class PostgresDataStore:
                             )
                             if not self.dry_run:
                                 cursor.execute(
-                                    "UPDATE course_program_records SET "
+                                    f"UPDATE {RECORDS_TABLE} SET "
                                     f"{assignments} WHERE record_id = %s",
                                     self._record_values(final)[1:]
                                     + (record.record_id,),

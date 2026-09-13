@@ -15,6 +15,7 @@ from askanu_scraper.common.models import (
 )
 from askanu_scraper.common.postgres_storage import (
     RECORD_COLUMNS,
+    RECORDS_TABLE,
     RUN_COLUMNS,
     PostgresConfigurationError,
     PostgresConnectionConfig,
@@ -46,14 +47,14 @@ class FakeCursor:
         normalized = " ".join(query.split())
         if normalized.startswith("SELECT"):
             self.result = self.records.get(parameters[0])
-        elif normalized.startswith("INSERT INTO course_program_records"):
+        elif normalized.startswith(f"INSERT INTO {RECORDS_TABLE}"):
             row = dict(zip(RECORD_COLUMNS, map(_plain, parameters)))
             self.records[row["record_id"]] = row
-        elif normalized.startswith("UPDATE course_program_records SET status"):
+        elif normalized.startswith(f"UPDATE {RECORDS_TABLE} SET status"):
             status, last_seen_at, record_id = parameters
             self.records[record_id]["status"] = status
             self.records[record_id]["last_seen_at"] = last_seen_at
-        elif normalized.startswith("UPDATE course_program_records SET"):
+        elif normalized.startswith(f"UPDATE {RECORDS_TABLE} SET"):
             record_id = parameters[-1]
             self.records[record_id].update(
                 dict(zip(RECORD_COLUMNS[1:], map(_plain, parameters[:-1])))
@@ -141,6 +142,21 @@ def test_new_unchanged_and_changed_index_transitions(
     assert final.embedding_version is None
     assert len(records) == 1
     assert all("%s" in query for query, _parameters in calls)
+    assert all(RECORDS_TABLE in query for query, _parameters in calls)
+    assert all("course_program_records" not in query for query, _parameters in calls)
+
+
+def test_writer_targets_canonical_table_not_compatibility_view(
+    rich_course_fixture_path: Path,
+) -> None:
+    store, _records, _runs, calls = _store()
+
+    store.save_record(_comp1110(rich_course_fixture_path))
+
+    assert calls
+    assert RECORDS_TABLE == "source_records"
+    assert all("source_records" in query for query, _parameters in calls)
+    assert all("course_program_records" not in query for query, _parameters in calls)
 
 
 def test_dry_run_compares_without_writes(

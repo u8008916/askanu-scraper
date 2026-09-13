@@ -126,6 +126,18 @@ class CoursesCollector:
             suffix = "Durable ingestion-run write also failed"
             run.error = f"{run.error}; {suffix}" if run.error else suffix
 
+    def _persist_running(self, run: IngestionRun) -> bool:
+        """Create the durable RUNNING audit before collection begins."""
+        try:
+            self._store.save_run(run)
+            return True
+        except Exception:
+            run.status = IngestionRunStatus.FAILED
+            run.error = "RUNNING ingestion-run write failed; collection not started"
+            run.completed_at = now_canberra()
+            self._save_failed_run(run)
+            return False
+
     def _persist_success(
         self,
         run: IngestionRun,
@@ -245,6 +257,9 @@ class CoursesCollector:
         self._detail_request_count = 0
         self.last_run_sanity = self._empty_sanity()
 
+        if not self._persist_running(run):
+            return run, []
+
         # 1. URL root validation
         if not self._url_belongs_to_source(url):
             run.status = IngestionRunStatus.FAILED
@@ -352,6 +367,9 @@ class CoursesCollector:
             status=IngestionRunStatus.RUNNING,
         )
         empty_discovery = CatalogueDiscoveryResult((), {}, (), ())
+
+        if not self._persist_running(run):
+            return run, [], empty_discovery
 
         def fail(
             message: str,
@@ -524,6 +542,9 @@ class CoursesCollector:
         )
 
         empty_discovery = CatalogueDiscoveryResult((), {}, (), ())
+
+        if not self._persist_running(run):
+            return run, [], empty_discovery
 
         def fail(
             message: str,
