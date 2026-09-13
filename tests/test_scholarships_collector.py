@@ -7,6 +7,7 @@ from askanu_scraper.common.fetcher import BaseFetcher, FetchError, MockFetcher
 from askanu_scraper.common.models import (
     IndexStatus,
     IngestionRunStatus,
+    RecordStatus,
 )
 from askanu_scraper.common.storage import LocalDataStore
 from askanu_scraper.sources.scholarships import (
@@ -217,6 +218,46 @@ def test_zero_candidate_parse_is_suspicious_and_preserves_records(
     preserved = store.get_record(records[0].record_id)
     assert preserved is not None and existing is not None
     assert preserved.content_hash == existing.content_hash
+
+
+def test_bounded_absence_does_not_mark_unseen_record_missing(
+    tmp_path: Path,
+) -> None:
+    """A bounded sample is not a complete snapshot and cannot prove removal."""
+    store = LocalDataStore(tmp_path / "store")
+    first, records, _ = _collector(store).run_listing(max_details=2)
+    assert first.records_added == 2
+    unseen_before = store.get_record(records[1].record_id)
+    assert unseen_before is not None
+
+    one_item_listing = tmp_path / "one-item-listing.html"
+    one_item_listing.write_text(
+        '<a class="d-block h100" href="'
+        f'{FEATURED_URL}">Open for applications FEATURED</a>',
+        encoding="utf-8",
+    )
+    collector = ScholarshipsCollector(
+        fetcher=MockFetcher(
+            {
+                LISTING_URL: one_item_listing,
+                FEATURED_URL: (
+                    FIXTURES / "anu_scholarship_open_featured_sample.html"
+                ),
+            }
+        ),
+        store=store,
+    )
+
+    second, _, _ = collector.run_listing(max_details=10)
+
+    assert second.status == IngestionRunStatus.SUCCESS
+    assert second.records_seen == 1
+    assert second.records_missing == 0
+    unseen_after = store.get_record(records[1].record_id)
+    assert unseen_after is not None
+    assert unseen_after.status == RecordStatus.NEW
+    assert unseen_after.content_hash == unseen_before.content_hash
+    assert unseen_after.last_seen_at == unseen_before.last_seen_at
 
 
 def test_unapproved_listing_is_rejected_before_fetch(tmp_path: Path) -> None:

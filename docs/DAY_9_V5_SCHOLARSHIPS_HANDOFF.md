@@ -12,7 +12,7 @@ atomic comparison/persistence, one-shot job selection and failure-safe tests.
 No Scheduler, schema migration, production deployment or Cloud SQL write was
 performed.
 
-The full local suite passes: **168 tests passed**. A live dry-run against one
+The full local suite passes: **169 tests passed**. A live dry-run against one
 finder page and the configured maximum of ten same-site detail candidates also
 succeeded:
 
@@ -29,6 +29,22 @@ duration: 11.660 seconds
 Because dry-run suppresses both record and ingestion-run writes, the live run
 did not modify local or cloud data.
 
+## Cloud preflight
+
+A read-only `gcloud run jobs describe` on 2026-09-13 confirmed that generation
+5 of `askanu-scraper` still runs the reviewed Day 8 Courses configuration:
+
+```text
+image: .../askanu-scraper@sha256:f52a4c9cc3e1bc05598ddb8d23093dae50ad7753de5c478424964ea29150512f
+SCRAPER_SOURCE_ID=courses_programs_and_courses
+SCRAPER_DOMAIN=courses
+SCRAPER_STORAGE_BACKEND=postgres
+SCRAPER_DRY_RUN=true
+```
+
+No approved Day 9 image or shared multi-domain table is deployed. The cloud job
+was not changed or executed for Scholarships.
+
 ## Record and safety contract
 
 - Identity is the canonical lowercase detail slug: `entity_id=<slug>` and
@@ -43,6 +59,8 @@ did not modify local or cloud data.
   malformed, duplicate and over-limit links are rejected before persistence.
 - All accepted details are fetched, parsed and validated before one atomic batch
   write. Fetch/parser failure or suspicious zero preserves last-known-good.
+- Because the run is a bounded sample rather than a complete source snapshot,
+  unseen records remain last-known-good and are not marked `MISSING`.
 
 ## Cloud SQL release gate
 
