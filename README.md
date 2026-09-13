@@ -68,13 +68,14 @@ because its `/data` filesystem is not durable. Enable
 persistence path is connected. Local development can explicitly set it to
 `false` when local JSON persistence is intended.
 
-The reviewed Day 7 image can select the shared PostgreSQL boundary with
+The reviewed scraper can select the shared PostgreSQL boundary with
 `SCRAPER_STORAGE_BACKEND=postgres`. Keep `SCRAPER_DRY_RUN=true` while reviewing
 the connection and comparison path. Real writes require Carmen's migration to
-contain both `course_program_records` and `ingestion_runs`. Scholarship writes
-remain blocked because that table is Courses/Programs-specific. They require
-Carmen's reviewed multi-domain persistence generalisation and Qasim's release
-approval. Structured JSON logs remain supplementary to the durable run record.
+provide writable `source_records`, the read-only Courses/Programs compatibility
+view `course_program_records`, and `ingestion_runs`. Scholarship writes remain
+blocked until migration and runtime permissions are verified and Qasim gives
+release approval. Structured JSON logs remain supplementary to the durable run
+record.
 
 To verify the failure path without making a network request:
 

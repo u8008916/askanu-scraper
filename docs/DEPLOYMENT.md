@@ -85,7 +85,7 @@ limited to the one public finder page and at most ten same-site details.
 | `SCRAPER_MAX_PROGRAMS` | `2` | Bounded program count; minimum 1. |
 | `SCRAPER_MAX_SCHOLARSHIP_LISTING_PAGES` | `1` | Fixed one-page scholarship discovery bound; other values are rejected. |
 | `SCRAPER_MAX_SCHOLARSHIP_DETAILS` | `10` | Scholarship detail bound; valid range 1–10. |
-| `SCRAPER_SCHOLARSHIP_POSTGRES_APPROVED` | `false` | Set true only after Carmen's shared multi-domain persistence/RAG generalisation is deployed and Qasim approves it. |
+| `SCRAPER_SCHOLARSHIP_POSTGRES_APPROVED` | `false` | Set true only after migration `20260913_0002`, runtime grants, Courses regression and Scholarship live read are verified and Qasim approves writes. |
 | `SCRAPER_DRY_RUN` | `true` in the Day 6 container (`false` application default) | Compare normally but suppress all local writes. |
 | `SCRAPER_STORAGE_PATH` | `local-data` (`/data` in container) | Existing local JSON handoff. |
 | `SCRAPER_STORAGE_BACKEND` | `local` | Set to `postgres` only for the reviewed shared Cloud SQL adapter. |
@@ -145,6 +145,14 @@ confirmed. Alembic is at `20260911_0001` (`head`) and the shared tables plus
 COMP1110 data were verified in Cloud SQL Studio. The scraper image containing
 the PostgreSQL adapter still needs to be reviewed, published and deployed by
 Qasim.
+
+For the Day 9 shared contract, RAG PR #19 defines `source_records` as the
+canonical writable record table and retains `course_program_records` as a
+read-only Courses/Programs compatibility view. The current scraper branch uses
+only `source_records` for record reads/writes. Do not deploy that image ahead of
+migration `20260913_0002`. Even after migration, keep
+`SCRAPER_SCHOLARSHIP_POSTGRES_APPROVED=false` until production-equivalent grants,
+the COMP1110 regression and a Scholarship live read have passed.
 Until then, the deployed job deliberately uses the existing `LocalDataStore`
 adapter. It does not simulate durable persistence.
 

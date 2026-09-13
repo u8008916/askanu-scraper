@@ -12,7 +12,8 @@ atomic comparison/persistence, one-shot job selection and failure-safe tests.
 No Scheduler, schema migration, production deployment or Cloud SQL write was
 performed.
 
-The full local suite passes: **170 tests passed**. A live dry-run against one
+The full local suite passes: **171 tests passed** (including 42 focused
+Scholarship/PostgreSQL tests). A live dry-run against one
 finder page and the configured maximum of ten same-site detail candidates also
 succeeded:
 
@@ -42,8 +43,9 @@ SCRAPER_STORAGE_BACKEND=postgres
 SCRAPER_DRY_RUN=true
 ```
 
-No approved Day 9 image or shared multi-domain table is deployed. The cloud job
-was not changed or executed for Scholarships.
+No approved Day 9 scraper image is deployed. The cloud job was not changed or
+executed for Scholarships. This account cannot inspect the private RAG service,
+so deployment of the merged shared migration is not asserted here.
 
 ## Record and safety contract
 
@@ -83,18 +85,23 @@ the App and model must not construct it.
 
 ## Cloud SQL release gate
 
-Qasim has confirmed that the existing `course_program_records` persistence and
-RAG path is Courses/Programs-specific and must not receive Scholarship rows.
-Carmen owns the smallest shared multi-domain persistence/RAG generalisation;
-Qasim must review that deployed boundary before any Scholarships PostgreSQL
-dry-run or write. The job enforces this with:
+RAG PR #19 merged the approved shared contract at head
+`8006e900c5b9be82ab01066ca46d08da7daa28ee` (merge commit
+`6e5bd0b91bc66ff9a007d6ac36853dbeed595185`). The canonical writable table is
+now `source_records`; `course_program_records` is the read-only compatibility
+view. This scraper branch targets `source_records` and tests that it never
+writes through the compatibility view.
+
+The deployed migration, PostgreSQL 18 behavior, runtime grants, COMP1110
+regression and Scholarship live read must still be verified by the integration
+owner. The job enforces the write hold with:
 
 ```text
 SCRAPER_SCHOLARSHIP_POSTGRES_APPROVED=false
 ```
 
-After that generalisation, approval and reviewed image deployment, set the gate
-to `true` and capture, in order:
+After those live gates pass and the reviewed image is deployed, set the gate to
+`true` and capture, in order:
 
 1. bounded PostgreSQL dry-run;
 2. first real run showing `NEW`;
