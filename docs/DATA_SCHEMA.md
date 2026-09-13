@@ -226,8 +226,16 @@ creating a new entity ID.
 ### Scholarship
 
 For the approved ANU Scholarship Finder, `entity_id` is the lowercase slug from
-the canonical detail URL path. It is not derived from the title and contains no
-deadline, status, year or value.
+the persisted canonical detail URL path:
+
+```text
+https://study.anu.edu.au/scholarships/find-scholarship/<slug>
+```
+
+It is not derived from the title and contains no deadline, status, year or
+value. This persisted-record rule does not apply to the Scholarship home or
+Finder listing pages used as frontend navigation links; those pages create no
+`entity_id` or `record_id`.
 
 Example:
 
@@ -442,6 +450,19 @@ Do NOT:
 RAG consumes the stored `canonical_url` directly.
 
 For source/evidence responses, URLs come from stored records, never Gemini.
+
+Scholarship navigation/resource links are separate from persisted evidence
+URLs. The App may statically link to the official Scholarship home and Finder:
+
+```text
+https://study.anu.edu.au/scholarships
+https://study.anu.edu.au/scholarships/find-scholarship
+```
+
+These are not individual Scholarship records and must not be forced through
+the detail-slug identity validator. A source link supporting an answer about a
+specific Scholarship must instead come from that stored record's exact
+`canonical_url`.
 
 ---
 

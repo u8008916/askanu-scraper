@@ -66,6 +66,21 @@ was not changed or executed for Scholarships.
 - Because the run is a bounded sample rather than a complete source snapshot,
   unseen records remain last-known-good and are not marked `MISSING`.
 
+## Navigation links versus evidence links
+
+The persisted identity rule applies only to individual Scholarship detail
+records. The App's official navigation links remain valid as static resources:
+
+```text
+https://study.anu.edu.au/scholarships
+https://study.anu.edu.au/scholarships/find-scholarship
+```
+
+They create no `entity_id` or `record_id` and must not be passed through the
+persisted-detail validator. By contrast, a source link supporting an answer
+about a specific Scholarship must be the exact stored detail `canonical_url`;
+the App and model must not construct it.
+
 ## Cloud SQL release gate
 
 Qasim has confirmed that the existing `course_program_records` persistence and
