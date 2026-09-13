@@ -12,18 +12,18 @@ atomic comparison/persistence, one-shot job selection and failure-safe tests.
 No Scheduler, schema migration, production deployment or Cloud SQL write was
 performed.
 
-The full local suite passes: **169 tests passed**. A live dry-run against one
+The full local suite passes: **170 tests passed**. A live dry-run against one
 finder page and the configured maximum of ten same-site detail candidates also
 succeeded:
 
 ```text
-run_id: run_8691f33b7361
+run_id: run_d1f05fbe3093
 status: SUCCESS
 requests: 9 (1 listing + 8 accepted same-site details)
 records_seen / NEW: 8 / 8 (dry-run comparison only)
 rejected listing cards: 2 external scholarships
 duplicate records / URLs: 0 / 0
-duration: 11.660 seconds
+duration: 11.654 seconds
 ```
 
 Because dry-run suppresses both record and ingestion-run writes, the live run
@@ -52,13 +52,17 @@ was not changed or executed for Scholarships.
 - `metadata_json` matches Qasim's shared v1 names: `entity_type`, `featured`,
   `status`, `application_required`, the four filter arrays, `value`,
   `selection_basis`, ISO `opening_date`/`closing_date`, and `eligibility`.
-- Unpublished or placeholder deadlines remain `null`. Unambiguous dates are
-  also represented as Canberra-aware `effective_from`/`effective_to` values.
+- Unpublished or placeholder deadlines remain `null`. Application dates remain
+  in Scholarship metadata/content; top-level `effective_from`/`effective_to`
+  stay `null` because an application window is not general record validity.
 - Discovery is fixed to one finder page and at most ten details, with a minimum
   one-second interval for live HTTP. External, off-origin, application/auth,
   malformed, duplicate and over-limit links are rejected before persistence.
 - All accepted details are fetched, parsed and validated before one atomic batch
   write. Fetch/parser failure or suspicious zero preserves last-known-good.
+- A RUNNING audit is persisted before collection. The accepted batch and final
+  SUCCESS/count update share one transaction; a failure rolls back that batch
+  before a separate FAILED recovery update.
 - Because the run is a bounded sample rather than a complete source snapshot,
   unseen records remain last-known-good and are not marked `MISSING`.
 

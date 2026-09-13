@@ -148,6 +148,18 @@ class ScholarshipsCollector:
             suffix = "Durable ingestion-run write also failed"
             run.error = f"{run.error}; {suffix}" if run.error else suffix
 
+    def _persist_running(self, run: IngestionRun) -> bool:
+        """Create the durable RUNNING audit before collection begins."""
+        try:
+            self._store.save_run(run)
+            return True
+        except Exception:
+            run.status = IngestionRunStatus.FAILED
+            run.error = "RUNNING ingestion-run write failed; collection not started"
+            run.completed_at = now_canberra()
+            self._save_failed_run(run)
+            return False
+
     def _persist_success(
         self,
         run: IngestionRun,
@@ -196,6 +208,9 @@ class ScholarshipsCollector:
             started_at=now_canberra(),
             status=IngestionRunStatus.RUNNING,
         )
+
+        if not self._persist_running(run):
+            return run, [], None
 
         def fail(
             message: str,

@@ -304,7 +304,7 @@ class ScholarshipsParser(BaseParser):
             )
 
         raw_closes = _optional(table.get("application closes"))
-        opens_text, closes_text, effective_from, effective_to = _period_dates(
+        opens_text, closes_text, opening_datetime, closing_datetime = _period_dates(
             application_period,
             raw_closes,
         )
@@ -328,9 +328,11 @@ class ScholarshipsParser(BaseParser):
             "value": value,
             "selection_basis": selection_basis,
             "opening_date": (
-                effective_from.date().isoformat() if effective_from else None
+                opening_datetime.date().isoformat() if opening_datetime else None
             ),
-            "closing_date": effective_to.date().isoformat() if effective_to else None,
+            "closing_date": (
+                closing_datetime.date().isoformat() if closing_datetime else None
+            ),
             "eligibility": eligibility,
         }
         content_fields = (
@@ -367,8 +369,9 @@ class ScholarshipsParser(BaseParser):
             title=title,
             content=content,
             canonical_url=canonical_url,
-            effective_from=effective_from,
-            effective_to=effective_to,
+            # An application window is not the record's general validity period.
+            effective_from=None,
+            effective_to=None,
             collected_at=now_canberra(),
             last_seen_at=now_canberra(),
             content_hash=make_content_hash(content),

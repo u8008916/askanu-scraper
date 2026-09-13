@@ -659,6 +659,11 @@ required -> `true`, automatic/no application required -> `false`, and missing
 or ambiguous evidence -> `null`. The parser preserves the original source
 wording in canonical `content`.
 
+Scholarship application periods do not define general record validity.
+`opening_date` and `closing_date` remain in `metadata_json`, displayed wording
+remains in canonical `content`, and top-level `effective_from`/`effective_to`
+remain `null` for Scholarships.
+
 The four filter fields are always arrays. Explicit source values become array
 members; missing source evidence becomes `[]`. All other missing scholarship
 metadata remains `null`. User-specific eligibility reasoning does not belong in
@@ -718,6 +723,12 @@ Australia/Canberra
 ```
 
 `collected_at` and `last_seen_at` are required.
+
+Lifecycle timestamp semantics are fixed across supported collectors:
+
+- `NEW` sets both `collected_at` and `last_seen_at`;
+- `CHANGED` preserves `collected_at` and advances `last_seen_at`; and
+- `UNCHANGED` preserves `collected_at` and advances `last_seen_at`.
 
 `effective_from` and `effective_to` remain nullable because many course/program
 pages do not provide source-supported effective dates.

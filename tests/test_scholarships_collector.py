@@ -1,11 +1,13 @@
 """Safe bounded ScholarshipsCollector ingestion tests."""
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 from askanu_scraper.common.fetcher import BaseFetcher, FetchError, MockFetcher
 from askanu_scraper.common.models import (
     IndexStatus,
+    IngestionRun,
     IngestionRunStatus,
     RecordStatus,
 )
@@ -87,6 +89,12 @@ def test_bounded_listing_preflights_and_persists_supported_records(
     assert sleeps == [1.0, 1.0, 1.0]
     assert len(list((tmp_path / "store" / "records").glob("*.json"))) == 3
     assert len(list((tmp_path / "store" / "runs").glob("*.json"))) == 1
+    for record in records:
+        persisted = store.get_record(record.record_id)
+        assert persisted is not None
+        assert persisted.content_hash == hashlib.sha256(
+            persisted.content.encode("utf-8")
+        ).hexdigest()
 
 
 def test_rerun_is_unchanged_and_preserves_deterministic_hashes(tmp_path: Path) -> None:
@@ -105,6 +113,13 @@ def test_rerun_is_unchanged_and_preserves_deterministic_hashes(tmp_path: Path) -
     assert [item.content_hash for item in first_records] == [
         item.content_hash for item in second_records
     ]
+    assert [item.collected_at for item in first_records] == [
+        item.collected_at for item in second_records
+    ]
+    assert all(
+        second_item.last_seen_at >= first_item.last_seen_at
+        for first_item, second_item in zip(first_records, second_records)
+    )
 
 
 def test_supported_change_marks_record_changed_and_pending(tmp_path: Path) -> None:
@@ -132,6 +147,8 @@ def test_supported_change_marks_record_changed_and_pending(tmp_path: Path) -> No
     assert changed.records_changed == 1
     assert changed.records_added == 0
     assert records[0].content_hash != first_records[0].content_hash
+    assert records[0].collected_at == first_records[0].collected_at
+    assert records[0].last_seen_at >= first_records[0].last_seen_at
     assert records[0].index_status == IndexStatus.PENDING
     assert records[0].embedding_version is None
 
@@ -175,6 +192,35 @@ class _AlwaysFailFetcher(BaseFetcher):
     def fetch(self, url: str) -> str:
         del url
         raise FetchError("simulated fetch failure")
+
+
+class _RecordingRunStore(LocalDataStore):
+    def __init__(self, base_dir: Path) -> None:
+        super().__init__(base_dir)
+        self.observed_run_statuses: list[IngestionRunStatus] = []
+
+    def save_run(self, run: IngestionRun) -> None:
+        self.observed_run_statuses.append(run.status)
+        super().save_run(run)
+
+
+def test_running_audit_precedes_success_and_failure_updates(tmp_path: Path) -> None:
+    store = _RecordingRunStore(tmp_path / "store")
+
+    success, _, _ = _collector(store).run_listing(max_details=1)
+    failed, _, _ = ScholarshipsCollector(
+        fetcher=_AlwaysFailFetcher(),
+        store=store,
+    ).run_listing(max_details=1)
+
+    assert success.status == IngestionRunStatus.SUCCESS
+    assert failed.status == IngestionRunStatus.FAILED
+    assert store.observed_run_statuses == [
+        IngestionRunStatus.RUNNING,
+        IngestionRunStatus.SUCCESS,
+        IngestionRunStatus.RUNNING,
+        IngestionRunStatus.FAILED,
+    ]
 
 
 def test_listing_fetch_failure_preserves_last_known_good(tmp_path: Path) -> None:

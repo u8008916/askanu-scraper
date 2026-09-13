@@ -92,7 +92,7 @@ def test_open_non_featured_listing_evidence_is_retained() -> None:
     assert "Featured: No" in record.content
 
 
-def test_closed_period_preserves_raw_dates_and_normalizes_canberra_deadline() -> None:
+def test_closed_period_preserves_dates_without_treating_them_as_record_validity() -> None:
     url = (
         "https://study.anu.edu.au/scholarships/find-scholarship/"
         "anu-humanitarian-scholarship"
@@ -108,10 +108,8 @@ def test_closed_period_preserves_raw_dates_and_normalizes_canberra_deadline() ->
     assert record.metadata_json["opening_date"] == "2025-01-16"
     assert record.metadata_json["closing_date"] == "2025-02-07"
     assert "Application Period: 16-Jan-2025 to 07-Feb-2025" in record.content
-    assert record.effective_from is not None
-    assert record.effective_from.isoformat() == "2025-01-16T00:00:00+11:00"
-    assert record.effective_to is not None
-    assert record.effective_to.isoformat() == "2025-02-07T00:00:00+11:00"
+    assert record.effective_from is None
+    assert record.effective_to is None
 
 
 def test_missing_deadline_and_placeholder_value_remain_null() -> None:
