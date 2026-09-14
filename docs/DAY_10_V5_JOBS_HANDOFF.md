@@ -54,9 +54,9 @@ duration: 1.545 seconds
 The live run used `--dry-run`, local comparison, and no PostgreSQL connection;
 it wrote no records or ingestion-run files.
 
-The local Docker build could not run because Docker Desktop/the Docker engine
-is not running on this workstation. This does not affect the Python test or
-live dry-run evidence above.
+The local Docker image built successfully as `askanu-scraper:day10-local`. A
+no-network `docker run --rm askanu-scraper:day10-local --help` smoke test also
+passed and exposed the bounded Jobs command-line options.
 
 ## Read-only cloud preflight
 
