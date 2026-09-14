@@ -29,6 +29,11 @@ from askanu_scraper.sources.scholarships import (
     SOURCE_ID as SCHOLARSHIPS_SOURCE_ID,
     ScholarshipsCollector,
 )
+from askanu_scraper.sources.jobs import (
+    LISTING_URL as JOBS_LISTING_URL,
+    SOURCE_ID as JOBS_SOURCE_ID,
+    JobsCollector,
+)
 
 
 EXIT_SUCCESS = 0
@@ -75,6 +80,9 @@ class JobConfig:
     max_scholarship_listing_pages: int = 1
     max_scholarship_details: int = 10
     scholarship_postgres_approved: bool = False
+    max_jobs_listing_pages: int = 1
+    max_job_details: int = 10
+    jobs_postgres_approved: bool = False
 
 
 @dataclass(frozen=True)
@@ -141,6 +149,8 @@ def build_parser() -> JobArgumentParser:
     parser.add_argument("--max-programs")
     parser.add_argument("--max-scholarship-listing-pages")
     parser.add_argument("--max-scholarship-details")
+    parser.add_argument("--max-jobs-listing-pages")
+    parser.add_argument("--max-job-details")
     parser.add_argument("--storage-path")
     parser.add_argument("--storage-backend")
     parser.add_argument("--timeout-seconds")
@@ -233,6 +243,19 @@ def load_config(
         minimum=1,
         maximum=10,
     )
+    max_jobs_listing_pages = _parse_int(
+        args.max_jobs_listing_pages
+        or env.get("SCRAPER_MAX_JOBS_LISTING_PAGES", "1"),
+        name="SCRAPER_MAX_JOBS_LISTING_PAGES/--max-jobs-listing-pages",
+        minimum=1,
+        maximum=1,
+    )
+    max_job_details = _parse_int(
+        args.max_job_details or env.get("SCRAPER_MAX_JOB_DETAILS", "10"),
+        name="SCRAPER_MAX_JOB_DETAILS/--max-job-details",
+        minimum=1,
+        maximum=10,
+    )
 
     dry_run = (
         args.dry_run
@@ -256,6 +279,14 @@ def load_config(
             name="SCRAPER_SCHOLARSHIP_POSTGRES_APPROVED",
         )
         if source_id == SCHOLARSHIPS_SOURCE_ID
+        else False
+    )
+    jobs_postgres_approved = (
+        _parse_bool(
+            env.get("SCRAPER_JOBS_POSTGRES_APPROVED", "false"),
+            name="SCRAPER_JOBS_POSTGRES_APPROVED",
+        )
+        if source_id == JOBS_SOURCE_ID
         else False
     )
     timeout_seconds = _parse_int(
@@ -301,6 +332,9 @@ def load_config(
         max_scholarship_listing_pages=max_scholarship_listing_pages,
         max_scholarship_details=max_scholarship_details,
         scholarship_postgres_approved=scholarship_postgres_approved,
+        max_jobs_listing_pages=max_jobs_listing_pages,
+        max_job_details=max_job_details,
+        jobs_postgres_approved=jobs_postgres_approved,
     )
 
 
@@ -379,6 +413,14 @@ def _summary_from_run(
             if config.source_id == SCHOLARSHIPS_SOURCE_ID
             else None
         ),
+        "requested_max_jobs_listing_pages": (
+            config.max_jobs_listing_pages
+            if config.source_id == JOBS_SOURCE_ID
+            else None
+        ),
+        "requested_max_job_details": (
+            config.max_job_details if config.source_id == JOBS_SOURCE_ID else None
+        ),
         "status": run.status.value,
         "dry_run": config.dry_run,
         "started_at": _isoformat(run.started_at),
@@ -418,10 +460,11 @@ def execute_job(
     supported = {
         (COURSES_SOURCE_ID, "courses"),
         (SCHOLARSHIPS_SOURCE_ID, "scholarships"),
+        (JOBS_SOURCE_ID, "jobs"),
     }
     if (config.source_id, config.domain) not in supported:
         raise JobConfigurationError(
-            "Only the approved Courses and Scholarships collectors are implemented"
+            "Only the approved Courses, Scholarships, and Jobs collectors are implemented"
         )
     if (
         config.source_id == SCHOLARSHIPS_SOURCE_ID
@@ -430,6 +473,14 @@ def execute_job(
     ):
         raise JobConfigurationError(
             "Scholarships PostgreSQL writes require the cross-repo schema approval gate"
+        )
+    if (
+        config.source_id == JOBS_SOURCE_ID
+        and config.storage_backend == "postgres"
+        and not config.jobs_postgres_approved
+    ):
+        raise JobConfigurationError(
+            "Jobs PostgreSQL writes require the cross-repo schema approval gate"
         )
 
     selected_fetcher = fetcher
@@ -476,7 +527,7 @@ def execute_job(
                 max_courses=config.max_courses,
                 max_programs=config.max_programs,
             )
-    else:
+    elif config.source_id == SCHOLARSHIPS_SOURCE_ID:
         collector = ScholarshipsCollector(
             fetcher=selected_fetcher,
             store=selected_store,
@@ -487,6 +538,18 @@ def execute_job(
             listing_url=SCHOLARSHIPS_LISTING_URL,
             max_listing_pages=config.max_scholarship_listing_pages,
             max_details=config.max_scholarship_details,
+        )
+    else:
+        collector = JobsCollector(
+            fetcher=selected_fetcher,
+            store=selected_store,
+            min_request_interval_seconds=config.min_request_interval_seconds,
+            sleep_func=sleep_func,
+        )
+        run, _, _ = collector.run_listing(
+            listing_url=JOBS_LISTING_URL,
+            max_listing_pages=config.max_jobs_listing_pages,
+            max_details=config.max_job_details,
         )
     duration_ms = max(0, round((time.monotonic() - started) * 1000))
     return _summary_from_run(
@@ -518,6 +581,8 @@ def _error_result(
         "requested_max_programs": None,
         "requested_max_scholarship_listing_pages": None,
         "requested_max_scholarship_details": None,
+        "requested_max_jobs_listing_pages": None,
+        "requested_max_job_details": None,
         "status": status,
         "dry_run": None,
         "started_at": _isoformat(started_at),

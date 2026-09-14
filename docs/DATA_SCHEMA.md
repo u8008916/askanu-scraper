@@ -4,9 +4,10 @@ Shared Scraper -> storage/DB -> RAG normalized record contract.
 
 ## Schema version
 
-**Courses/Programs schema v1**
+**Shared schema v1 with frozen Courses/Programs, Scholarships and Jobs domain contracts**
 
-Frozen for the first AskANU Courses/Programs vertical slice on 2026-09-06.
+Courses/Programs were frozen on 2026-09-06, Scholarships on 2026-09-13 and Jobs
+on 2026-09-14.
 
 This document defines the serialized boundary between:
 
@@ -243,6 +244,18 @@ Example:
 national-university-scholarship
 ```
 
+### Job
+
+For the approved public ANU Jobs source, `entity_id` is the numeric public
+requisition/job identifier represented as a string. It is not derived from the
+title or canonical URL slug and remains stable when mutable job fields change.
+
+Example:
+
+```text
+563693
+```
+
 ---
 
 ## `record_id`
@@ -283,6 +296,18 @@ Example:
 
 ```text
 scholarships:scholarship:national-university-scholarship
+```
+
+### Job format
+
+```text
+jobs:job:<ENTITY_ID>
+```
+
+Example:
+
+```text
+jobs:job:563693
 ```
 
 `record_id` remains stable when the normalized source content changes.
@@ -439,6 +464,10 @@ Allowed normalization:
 - remove an unnecessary trailing slash where safe.
 - for approved ANU Scholarship Finder detail URLs, strip query strings and
   fragments before deriving identity or storing the canonical URL.
+- for approved ANU Jobs detail URLs, require `https://jobs.anu.edu.au/jobs/<slug>`,
+  strip query strings/fragments, remove the trailing slash and require any page
+  canonical URL to match the fetched detail URL. The slug is provenance, not
+  job identity.
 
 Do NOT:
 
@@ -692,7 +721,64 @@ scraper metadata.
 
 ---
 
-# 16. Missing/null value policy
+# 16. Jobs metadata v1
+
+Jobs records use:
+
+```text
+domain = "jobs"
+source_id = "jobs_anu_search"
+entity_id = <numeric public requisition ID as a string>
+record_id = "jobs:job:<entity_id>"
+metadata_json.job_id = entity_id
+```
+
+These exact keys are required inside `metadata_json`; unknown additional keys
+are invalid for Jobs v1:
+
+| Key | Type | Nullable |
+|---|---|---:|
+| `entity_type` | string literal `"job"` | no |
+| `job_id` | digits-only string | no |
+| `category` | string | yes |
+| `employment_types` | array of strings | no |
+| `location` | string | yes |
+| `classification` | string | yes |
+| `salary` | string | yes |
+| `closing_text` | string | yes |
+| `closing_date` | ISO calendar date string (`YYYY-MM-DD`) | yes |
+| `closing_at` | timezone-aware ISO-8601 datetime string | yes |
+| `status` | `"current"`, `"closed"`, or null | yes |
+| `summary` | string | yes |
+
+Missing scalar evidence is `null`; missing `employment_types` evidence is `[]`.
+Employment-type values and salary preserve normalized official source wording.
+Salary remains text in v1 and is not converted into numeric ranges. Fixed term
+is an employment-type value and never implies that a role is closed.
+
+The scraper maps explicit open/current wording to `current`, explicit
+closed/expired wording to `closed`, and otherwise may derive status only from a
+safely parsed source closing value. Insufficient evidence remains `null`.
+
+`closing_date` is the Canberra-local calendar date used for deterministic
+filtering and sorting. `closing_at` exists only when the source provides an
+exact time; a date-only value never invents a time. Top-level `effective_from`
+and `effective_to` remain `null` for Jobs v1.
+
+Current Jobs includes only `status == "current"` where `closing_date` is null or
+is on/after the current Canberra date. Closed, past-date and null-status records
+are excluded. Dated records sort before undated records; dated records sort by
+`closing_date` ascending, with numeric `entity_id` ascending as the stable
+tie-breaker. Undated records sort by numeric `entity_id` ascending. Filtering
+precedes ordering and limiting.
+
+Exact lookup priority is numeric `job_id`/`entity_id`, then exact normalized
+title, then general Jobs retrieval. Duplicate titles require disambiguation;
+title is not identity.
+
+---
+
+# 17. Missing/null value policy
 
 Global rule:
 
@@ -726,6 +812,9 @@ Scholarship filter arrays are the explicit exception: missing `study_stage`,
 `student_type`, `study_level` or `area_of_study` evidence is represented by
 `[]` under the approved Scholarships v1 contract.
 
+Jobs `employment_types` is also always an array; missing evidence is `[]` under
+the approved Jobs v1 contract.
+
 Required identity fields must not be silently replaced with placeholders.
 
 If required identity cannot be established, the scraper must reject/flag the
@@ -733,7 +822,7 @@ record rather than publish a misleading normalized record.
 
 ---
 
-# 17. Datetimes and timezone
+# 18. Datetimes and timezone
 
 Serialized datetimes MUST be timezone-aware ISO-8601 values.
 
@@ -756,7 +845,7 @@ pages do not provide source-supported effective dates.
 
 ---
 
-# 18. Representative normalized course identity
+# 19. Representative normalized course identity
 
 The verified live COMP1100 collection has this identity:
 
@@ -781,7 +870,7 @@ normalized record instance and MUST NOT be invented in documentation.
 
 ---
 
-# 19. Source registry
+# 20. Source registry
 
 Source registry fields remain:
 
@@ -805,7 +894,7 @@ Rules:
 
 ---
 
-# 20. Ingestion run
+# 21. Ingestion run
 
 Ingestion-run fields remain:
 
@@ -848,7 +937,7 @@ do not wipe current data
 
 ---
 
-# 21. First DB / migration ownership
+# 22. First DB / migration ownership
 
 For the first Courses/Programs vertical slice:
 
@@ -877,7 +966,7 @@ coordinating the affected repo(s).
 
 ---
 
-# 22. RAG implementation boundary
+# 23. RAG implementation boundary
 
 The RAG repository MUST NOT copy scraper implementation such as:
 
@@ -907,7 +996,7 @@ schema-v1 top-level fields.
 
 ---
 
-# 23. Day 2 exact-retrieval expectations
+# 24. Day 2 exact-retrieval expectations
 
 For Courses/Programs exact retrieval:
 
@@ -926,7 +1015,7 @@ The exact-retrieval layer does not require Gemini or vector search.
 
 ---
 
-# 24. Change workflow
+# 25. Change workflow
 
 Any future change to:
 
