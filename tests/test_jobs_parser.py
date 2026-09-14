@@ -7,7 +7,9 @@ from datetime import datetime
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
+from askanu_scraper.common.models import CommonRecord
 from askanu_scraper.common.normalizer import CANBERRA_TZ
 from askanu_scraper.common.parser import ParseError
 from askanu_scraper.sources.jobs.discovery import JobsDiscovery
@@ -55,9 +57,10 @@ def test_open_dated_job_preserves_fields_and_canberra_closing_time() -> None:
         "entity_type": "job",
         "job_id": "563693",
         "category": "Professional",
-        "employment_type": "Fixed Term",
+        "employment_types": ["Fixed Term"],
         "location": "Canberra / ACT, ACT, Australia, 2601",
         "classification": "ANU Officer 8 (Administration)",
+        "salary": "$124,392 - $133,017 per annum plus 17% superannuation",
         "closing_text": "Closing at: Sep 27 2026 - 23:55 AEST",
         "closing_date": "2026-09-27",
         "closing_at": "2026-09-27T23:55:00+10:00",
@@ -75,6 +78,32 @@ def test_explicit_open_undated_job_does_not_invent_a_deadline() -> None:
     assert record.metadata_json["closing_text"] is None
     assert record.metadata_json["closing_date"] is None
     assert record.metadata_json["closing_at"] is None
+
+
+def test_multiple_official_employment_types_are_preserved_as_a_list() -> None:
+    html = _html("anu_job_open_dated_sample.html").replace(
+        "<span>Fixed Term</span>",
+        "<span>Continuing</span><span>Fixed Term</span>",
+    )
+    record = _parser().parse(html, DATED_URL)[0]
+
+    assert record.metadata_json["employment_types"] == ["Continuing", "Fixed Term"]
+    assert "Employment types: Continuing; Fixed Term" in record.content
+
+
+def test_jobs_v1_metadata_rejects_non_array_employment_types_and_unknown_keys() -> None:
+    record = _parser().parse(_html("anu_job_open_dated_sample.html"), DATED_URL)[0]
+    serialized = record.model_dump(mode="json")
+
+    scalar = dict(serialized["metadata_json"])
+    scalar["employment_types"] = "Fixed Term"
+    with pytest.raises(ValidationError, match="employment_types"):
+        CommonRecord.model_validate({**serialized, "metadata_json": scalar})
+
+    unknown = dict(serialized["metadata_json"])
+    unknown["description"] = "Not part of Jobs v1"
+    with pytest.raises(ValidationError, match="approved v1 fields"):
+        CommonRecord.model_validate({**serialized, "metadata_json": unknown})
 
 
 def test_explicit_closed_job_is_never_presented_as_current() -> None:
@@ -104,6 +133,19 @@ def test_date_only_closing_stays_current_for_the_whole_canberra_date() -> None:
     assert record.metadata_json["closing_date"] == "2026-09-27"
     assert record.metadata_json["closing_at"] is None
     assert record.metadata_json["status"] == "current"
+
+
+def test_unparseable_closing_wording_is_preserved_without_inventing_status() -> None:
+    html = _html("anu_job_open_dated_sample.html").replace(
+        "Closing at: Sep 27 2026 - 23:55 AEST",
+        "Closing date to be advised",
+    )
+    record = _parser().parse(html, DATED_URL)[0]
+
+    assert record.metadata_json["closing_text"] == "Closing date to be advised"
+    assert record.metadata_json["closing_date"] is None
+    assert record.metadata_json["closing_at"] is None
+    assert record.metadata_json["status"] is None
 
 
 def test_canberra_dst_offset_is_derived_from_the_closing_date() -> None:
@@ -174,6 +216,7 @@ def test_discovery_reads_live_and_preparation_selectors_and_enforces_bound() -> 
     assert result.candidates[0].url == DATED_URL
     assert result.candidates[0].listing_metadata["job_id"] == "563693"
     assert result.candidates[0].listing_metadata["category"] == "Professional"
+    assert result.candidates[0].listing_metadata["employment_types"] == ["Fixed Term"]
     assert result.candidates[0].listing_metadata["summary"].startswith("Create user-friendly")
     assert result.advertised_page_count == 1
     assert result.advertised_total_count == 60
@@ -207,3 +250,29 @@ def test_normalized_handoff_fixture_matches_parser_output() -> None:
     )[0]
 
     assert actual.model_dump(mode="json") == expected
+
+
+def test_synthetic_contract_edge_records_are_labelled_and_validate() -> None:
+    handoff = json.loads(
+        (FIXTURES / "synthetic_jobs_v1_edge_records.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert handoff["contract_version"] == "jobs-v1"
+    assert handoff["warning"].startswith("Synthetic edge cases only")
+
+    records = {
+        case["case"]: CommonRecord.model_validate(case["record"])
+        for case in handoff["cases"]
+    }
+    assert records["synthetic_open_undated"].metadata_json["status"] == "current"
+    assert records["synthetic_open_undated"].metadata_json["closing_date"] is None
+    assert records["synthetic_closed"].metadata_json["status"] == "closed"
+    assert records["synthetic_closed"].metadata_json["employment_types"] == []
+    assert (
+        records["synthetic_same_closing_date_tiebreak"].metadata_json["closing_date"]
+        == "2026-09-27"
+    )
+    assert int(records["synthetic_same_closing_date_tiebreak"].entity_id) > 563693
+    assert records["synthetic_unknown_state"].metadata_json["status"] is None
+    assert records["synthetic_unknown_state"].metadata_json["closing_date"] is None

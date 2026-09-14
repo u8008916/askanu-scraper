@@ -1,0 +1,146 @@
+{
+  "contract_version": "jobs-v1",
+  "warning": "Synthetic edge cases only; not captured or currently published ANU job records.",
+  "cases": [
+    {
+      "case": "synthetic_open_undated",
+      "record": {
+        "record_id": "jobs:job:600001",
+        "source_id": "jobs_anu_search",
+        "entity_id": "600001",
+        "domain": "jobs",
+        "title": "ANU Talent Register",
+        "content": "Title: ANU Talent Register\nJob ID: 600001\nEmployment types: Casual\nStatus: current\nSummary: Join the ANU talent community.",
+        "canonical_url": "https://jobs.anu.edu.au/jobs/anu-talent-register-canberra-act-australia",
+        "status": "NEW",
+        "effective_from": null,
+        "effective_to": null,
+        "collected_at": "2026-09-14T12:00:00+10:00",
+        "last_seen_at": "2026-09-14T12:00:00+10:00",
+        "content_hash": "7dc195b95febc13d8535896da5dd26ddb6472a465819720786ae8a709c3527dd",
+        "embedding_version": null,
+        "index_status": "PENDING",
+        "metadata_json": {
+          "entity_type": "job",
+          "job_id": "600001",
+          "category": null,
+          "employment_types": [
+            "Casual"
+          ],
+          "location": null,
+          "classification": null,
+          "salary": null,
+          "closing_text": null,
+          "closing_date": null,
+          "closing_at": null,
+          "status": "current",
+          "summary": "Join the ANU talent community."
+        }
+      }
+    },
+    {
+      "case": "synthetic_closed",
+      "record": {
+        "record_id": "jobs:job:500001",
+        "source_id": "jobs_anu_search",
+        "entity_id": "500001",
+        "domain": "jobs",
+        "title": "Research Assistant",
+        "content": "Title: Research Assistant\nJob ID: 500001\nClosing: Closing at: Sep 10 2026 - 23:55 AEST\nStatus: closed\nSummary: Support an ANU research project.",
+        "canonical_url": "https://jobs.anu.edu.au/jobs/research-assistant-canberra-act-australia",
+        "status": "NEW",
+        "effective_from": null,
+        "effective_to": null,
+        "collected_at": "2026-09-14T12:00:00+10:00",
+        "last_seen_at": "2026-09-14T12:00:00+10:00",
+        "content_hash": "4c9562d41ee44ab927e5a0458d60f4e3a3b6434fb7b58c7d496aaa1c73635c6a",
+        "embedding_version": null,
+        "index_status": "PENDING",
+        "metadata_json": {
+          "entity_type": "job",
+          "job_id": "500001",
+          "category": null,
+          "employment_types": [],
+          "location": null,
+          "classification": null,
+          "salary": null,
+          "closing_text": "Closing at: Sep 10 2026 - 23:55 AEST",
+          "closing_date": "2026-09-10",
+          "closing_at": "2026-09-10T23:55:00+10:00",
+          "status": "closed",
+          "summary": "Support an ANU research project."
+        }
+      }
+    },
+    {
+      "case": "synthetic_same_closing_date_tiebreak",
+      "record": {
+        "record_id": "jobs:job:563694",
+        "source_id": "jobs_anu_search",
+        "entity_id": "563694",
+        "domain": "jobs",
+        "title": "Synthetic same-date role",
+        "content": "Title: Synthetic same-date role\nJob ID: 563694\nEmployment types: Continuing\nClosing: Closing on: Sep 27 2026\nStatus: current",
+        "canonical_url": "https://jobs.anu.edu.au/jobs/synthetic-same-date-role",
+        "status": "NEW",
+        "effective_from": null,
+        "effective_to": null,
+        "collected_at": "2026-09-14T12:00:00+10:00",
+        "last_seen_at": "2026-09-14T12:00:00+10:00",
+        "content_hash": "79716c1441f741815c74b6e026e255152e954f6e104f8027528724b47583374f",
+        "embedding_version": null,
+        "index_status": "PENDING",
+        "metadata_json": {
+          "entity_type": "job",
+          "job_id": "563694",
+          "category": null,
+          "employment_types": [
+            "Continuing"
+          ],
+          "location": null,
+          "classification": null,
+          "salary": null,
+          "closing_text": "Closing on: Sep 27 2026",
+          "closing_date": "2026-09-27",
+          "closing_at": null,
+          "status": "current",
+          "summary": null
+        }
+      }
+    },
+    {
+      "case": "synthetic_unknown_state",
+      "record": {
+        "record_id": "jobs:job:600002",
+        "source_id": "jobs_anu_search",
+        "entity_id": "600002",
+        "domain": "jobs",
+        "title": "Synthetic unknown-state role",
+        "content": "Title: Synthetic unknown-state role\nJob ID: 600002\nClosing: Closing date to be advised",
+        "canonical_url": "https://jobs.anu.edu.au/jobs/synthetic-unknown-state-role",
+        "status": "NEW",
+        "effective_from": null,
+        "effective_to": null,
+        "collected_at": "2026-09-14T12:00:00+10:00",
+        "last_seen_at": "2026-09-14T12:00:00+10:00",
+        "content_hash": "36ba112e184e4295def7fb36d044bbb2c25f6241cb0acaa2da83bff341196fd0",
+        "embedding_version": null,
+        "index_status": "PENDING",
+        "metadata_json": {
+          "entity_type": "job",
+          "job_id": "600002",
+          "category": null,
+          "employment_types": [],
+          "location": null,
+          "classification": null,
+          "salary": null,
+          "closing_text": "Closing date to be advised",
+          "closing_date": null,
+          "closing_at": null,
+          "status": null,
+          "summary": null
+        }
+      }
+    }
+  ]
+}

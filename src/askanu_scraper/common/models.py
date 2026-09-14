@@ -467,9 +467,10 @@ class CommonRecord(BaseModel):
                 "entity_type",
                 "job_id",
                 "category",
-                "employment_type",
+                "employment_types",
                 "location",
                 "classification",
+                "salary",
                 "closing_text",
                 "closing_date",
                 "closing_at",
@@ -477,14 +478,21 @@ class CommonRecord(BaseModel):
                 "summary",
             }
             if set(metadata) != expected_keys:
-                raise ValueError("Jobs metadata_json must match the Day 10 proposed fields")
+                raise ValueError("Jobs metadata_json must match the approved v1 fields")
             if metadata["job_id"] != self.entity_id:
                 raise ValueError("metadata_json.job_id must match entity_id")
+            employment_types = metadata["employment_types"]
+            if not isinstance(employment_types, list) or not all(
+                isinstance(item, str) and item.strip() for item in employment_types
+            ):
+                raise ValueError(
+                    "metadata_json.employment_types must be an array of non-empty strings"
+                )
             for key in (
                 "category",
-                "employment_type",
                 "location",
                 "classification",
+                "salary",
                 "closing_text",
                 "summary",
             ):
@@ -527,9 +535,6 @@ class CommonRecord(BaseModel):
                     )
                 if closing_date != parsed_closing_at.date().isoformat():
                     raise ValueError("Jobs closing_date and closing_at must agree")
-            if metadata["closing_text"] is not None and closing_date is None:
-                raise ValueError("Published Jobs closing text must parse to a date")
-
         return self
 
 

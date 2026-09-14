@@ -92,7 +92,7 @@ details.
 | `SCRAPER_SCHOLARSHIP_POSTGRES_APPROVED` | `false` | Set true only after migration `20260913_0002`, runtime grants, Courses regression and Scholarship live read are verified and Qasim approves writes. |
 | `SCRAPER_MAX_JOBS_LISTING_PAGES` | `1` | Fixed one-page Jobs discovery bound; other values are rejected. |
 | `SCRAPER_MAX_JOB_DETAILS` | `10` | Public Jobs detail bound; valid range 1-10. |
-| `SCRAPER_JOBS_POSTGRES_APPROVED` | `false` | Set true only after the Jobs metadata contract, migration/runtime grants and bounded live-read gate are approved. |
+| `SCRAPER_JOBS_POSTGRES_APPROVED` | `false` | Set true only after frozen Jobs v1 alignment and the migration/runtime grants and bounded live-read gate are approved. |
 | `SCRAPER_DRY_RUN` | `true` in the Day 6 container (`false` application default) | Compare normally but suppress all local writes. |
 | `SCRAPER_STORAGE_PATH` | `local-data` (`/data` in container) | Existing local JSON handoff. |
 | `SCRAPER_STORAGE_BACKEND` | `local` | Set to `postgres` only for the reviewed shared Cloud SQL adapter. |
@@ -192,3 +192,10 @@ Qasim completes the adapter/image review, Scheduler IAM and release gate.
 
 See `docs/DAY_8_SCHEDULED_FRESHNESS.md` for the exact proposal and evidence
 checklist. It is a handoff document, not authorization to mutate GCP resources.
+
+Jobs must deploy as a separate `askanu-scraper-jobs` Cloud Run Job rather than
+overwriting the existing Courses or Scholarships job configuration. Its first
+executions remain dry-run until the RAG migration after `20260914_0003`, runtime
+grants and frozen-contract validation are verified. Scheduler activation is a
+later Qasim-owned release decision after PostgreSQL `NEW` -> `UNCHANGED`,
+failure-preservation and RAG live-read evidence passes.

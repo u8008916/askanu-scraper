@@ -60,6 +60,32 @@ def _listing_value(metadata: Mapping[str, object], key: str) -> str | None:
     return normalize_text(value) if isinstance(value, str) else None
 
 
+def _listing_values(metadata: Mapping[str, object], key: str) -> list[str]:
+    value = metadata.get(key)
+    if not isinstance(value, list):
+        return []
+    normalized: list[str] = []
+    for item in value:
+        if not isinstance(item, str):
+            continue
+        text = normalize_text(item)
+        if text and text not in normalized:
+            normalized.append(text)
+    return normalized
+
+
+def _all_text(soup: BeautifulSoup, selectors: tuple[str, ...]) -> list[str]:
+    for selector in selectors:
+        values: list[str] = []
+        for node in soup.select(selector):
+            value = _text(node)
+            if value and value not in values:
+                values.append(value)
+        if values:
+            return values
+    return []
+
+
 def _labelled_value(soup: BeautifulSoup, label: str) -> str | None:
     """Read text following a strong detail-page label up to the next line break."""
     for strong in soup.select(".job-description strong"):
@@ -166,9 +192,9 @@ class JobsParser(BaseParser):
         category = _listing_value(metadata, "category") or _first_text(
             soup, (".job-component-category span", ".category")
         )
-        employment_type = _first_text(
+        employment_types = _all_text(
             soup, (".job-component-employment-type span", ".employment-type")
-        ) or _listing_value(metadata, "employment_type")
+        ) or _listing_values(metadata, "employment_types")
         location = _first_text(
             soup, (".job-component-location span", ".location")
         ) or _listing_value(metadata, "location")
@@ -176,6 +202,12 @@ class JobsParser(BaseParser):
             _labelled_value(soup, "Classification")
             or _first_text(soup, (".job-component-dropdown-field-1 span", ".classification"))
             or _listing_value(metadata, "classification")
+        )
+        salary = (
+            _labelled_value(soup, "Salary package")
+            or _labelled_value(soup, "Salary")
+            or _first_text(soup, (".job-component-salary span", ".salary"))
+            or _listing_value(metadata, "salary")
         )
         closing_text = _first_text(
             soup,
@@ -204,9 +236,10 @@ class JobsParser(BaseParser):
             "entity_type": "job",
             "job_id": job_id,
             "category": category,
-            "employment_type": employment_type,
+            "employment_types": employment_types,
             "location": location,
             "classification": classification,
+            "salary": salary,
             "closing_text": closing_text,
             "closing_date": closing_date,
             "closing_at": closing_at.isoformat() if closing_at else None,
@@ -217,9 +250,10 @@ class JobsParser(BaseParser):
             ("Title", title),
             ("Job ID", job_id),
             ("Category", category),
-            ("Employment type", employment_type),
+            ("Employment types", "; ".join(employment_types)),
             ("Location", location),
             ("Classification", classification),
+            ("Salary", salary),
             ("Closing", closing_text),
             ("Status", job_status),
             ("Summary", summary),

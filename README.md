@@ -71,8 +71,10 @@ askanu-scraper-job --source-id jobs_anu_search --domain jobs `
 ```
 
 Jobs do not require `--academic-year`. PostgreSQL remains blocked unless
-`SCRAPER_JOBS_POSTGRES_APPROVED=true` is supplied after Carmen/Qasim approve
-the Day 10 metadata/temporal contract and the shared migration/runtime gates.
+`SCRAPER_JOBS_POSTGRES_APPROVED=true` is supplied after the frozen Day 10
+contract alignment is merged/deployed and Qasim approves the shared
+migration/runtime/live-read gates. Cloud deployment uses a separate Jobs Cloud
+Run Job rather than replacing the Courses or Scholarships configuration.
 
 The Day 6 container image defaults `SCRAPER_DRY_RUN=true`: Cloud Run executions
 must stay dry-run while `LocalDataStore` is the active persistence adapter,

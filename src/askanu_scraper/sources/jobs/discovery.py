@@ -39,6 +39,18 @@ def _text(card: Tag, selectors: tuple[str, ...]) -> str | None:
     return None
 
 
+def _texts(card: Tag, selectors: tuple[str, ...]) -> list[str]:
+    for selector in selectors:
+        values: list[str] = []
+        for node in card.select(selector):
+            value = normalize_text(node.get_text(" ", strip=True))
+            if value and value not in values:
+                values.append(value)
+        if values:
+            return values
+    return []
+
+
 class JobsDiscovery:
     def discover(
         self, raw_content: str, listing_url: str, *, max_details: int
@@ -89,13 +101,14 @@ class JobsDiscovery:
             metadata: dict[str, object] = {
                 "job_id": normalize_text(str(job_id)) if job_id else None,
                 "category": _text(card, (".job-component-category", ".category")),
-                "employment_type": _text(
+                "employment_types": _texts(
                     card, (".job-component-employment-type", ".employment-type")
                 ),
                 "location": _text(card, (".job-component-location", ".location")),
                 "classification": _text(
                     card, (".job-component-dropdown-field-1", ".classification")
                 ),
+                "salary": _text(card, (".job-component-salary", ".salary")),
                 "closing_text": _text(
                     card, (".job-component-closing-on", ".closing-date")
                 ),

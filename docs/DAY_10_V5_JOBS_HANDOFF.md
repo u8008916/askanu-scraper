@@ -3,7 +3,7 @@
 Owner: Will
 Date: 2026-09-14
 Source: `jobs_anu_search`
-Status: **LOCAL SLICE COMPLETE — CLOUD/CONTRACT GATES OPEN**
+Status: **FROZEN CONTRACT ALIGNED — CLOUD RELEASE GATES OPEN**
 
 ## Implemented
 
@@ -11,8 +11,9 @@ Status: **LOCAL SLICE COMPLETE — CLOUD/CONTRACT GATES OPEN**
 - Current PageUp listing/detail selectors validated against the approved public
   ANU Jobs source.
 - Stable numeric requisition identity and exact public canonical detail URLs.
-- Source title, category, employment type, location, classification, closing
-  wording, summary and explicit/derived current-or-closed state.
+- Source title, category, employment types, location, classification, raw
+  salary wording, closing wording, summary and explicit/derived
+  current-or-closed state.
 - `Australia/Canberra` normalization for exact close times; date-only closes do
   not invent a time and remain current through that local calendar day.
 - Complete preflight before atomic persistence, duplicate checks,
@@ -21,20 +22,23 @@ Status: **LOCAL SLICE COMPLETE — CLOUD/CONTRACT GATES OPEN**
 - URL validation before every direct or discovered fetch; invalid, mismatched,
   account/application and off-origin canonical URLs fail before persistence.
 - One-shot Jobs selection and an explicit PostgreSQL approval gate.
+- Source-backed normalized fixture plus clearly labelled synthetic closed,
+  undated, same-date tie-break and unknown-state repository/parser cases.
 
-The proposed cross-repo identity/metadata contract is recorded in
-`docs/DAY_10_JOBS_CONTRACT_PROPOSAL.md`. It is not yet a frozen shared-contract
-change.
+The cross-repo identity/metadata contract is frozen in
+`docs/DAY_10_JOBS_CONTRACT_PROPOSAL.md`, synchronized into `docs/DATA_SCHEMA.md`
+and recorded in `docs/DECISION_LOG.md` with Qasim's approval. The implementation
+uses `employment_types` as an array and preserves salary as source text.
 
 ## Verification
 
 Local suite:
 
 ```text
-204 passed
-40 focused Jobs/storage tests passed
+208 passed
+44 focused Jobs/storage tests passed
 83% repository coverage
-Jobs collector / discovery / parser coverage: 77% / 90% / 91%
+Jobs collector / discovery / parser coverage: 77% / 90% / 89%
 compileall: passed
 git diff --check: passed
 ```
@@ -42,17 +46,17 @@ git diff --check: passed
 Bounded live dry-run:
 
 ```text
-run_id: run_f404164cb37a
+run_id: run_e6395b25c2bb
 status: SUCCESS
 requests: 2 (1 listing + 1 detail)
 discovered / accepted / over limit: 30 / 1 / 29
 records_seen / NEW: 1 / 1 (dry-run comparison only)
 duplicate records / URLs: 0 / 0
-duration: 1.545 seconds
+duration: 1.583 seconds
 ```
 
-The live run used `--dry-run`, local comparison, and no PostgreSQL connection;
-it wrote no records or ingestion-run files.
+The live run used the rebuilt Docker image, `--dry-run`, local comparison, and
+no PostgreSQL connection; it wrote no records or ingestion-run files.
 
 The local Docker image built successfully as `askanu-scraper:day10-local`. A
 no-network `docker run --rm askanu-scraper:day10-local --help` smoke test also
@@ -81,15 +85,13 @@ Scheduler, schema or database mutation was attempted.
 
 ## Remaining release gates
 
-1. Carmen/Qasim approve or revise Jobs identity, metadata keys, current/closed
-   semantics and whether any temporal value belongs in top-level `effective_to`.
-2. Synchronize the approved decision into `docs/DATA_SCHEMA.md`, the decision
-   log, and affected RAG/App contracts.
-3. Qasim approves the one-page/ten-detail fetch bound and daily cadence.
-4. Qasim verifies the shared migration/runtime grants and deploys the reviewed
-   image; this account cannot inspect the Cloud SQL instance.
-5. Enable `SCRAPER_JOBS_POSTGRES_APPROVED=true` only for the approved job
-   revision, then prove dry-run, first `NEW`, repeated `UNCHANGED`, stored rows,
-   ingestion run and failure-safe preservation in staging.
+1. Carmen synchronizes the frozen contract into RAG and creates the next
+   migration after live revision `20260914_0003` (expected `20260914_0004`).
+2. Qasim verifies the shared migration/runtime grants and deploys the reviewed
+   image as a separate `askanu-scraper-jobs` Cloud Run Job.
+3. Capture PostgreSQL dry-run, first `NEW`, repeated `UNCHANGED`, stored rows,
+   ingestion run, failure-safe preservation and RAG live-read evidence.
+4. Qasim separately approves Scheduler activation after the controlled evidence
+   passes; daily cadence is intended but not yet a production release approval.
 
 No Cloud Run Job, Scheduler, IAM, shared schema or Cloud SQL data was changed.
