@@ -23,6 +23,8 @@ from askanu_scraper.common.postgres_storage import (
     PostgresPersistenceError,
 )
 from askanu_scraper.sources.courses.parser import CoursesParser
+from askanu_scraper.common.normalizer import CANBERRA_TZ
+from askanu_scraper.sources.jobs.parser import JobsParser
 
 
 def _plain(value):
@@ -107,6 +109,18 @@ def _comp1110(path: Path):
     return CoursesParser().parse(path.read_text(encoding="utf-8"), url)[0]
 
 
+def _job(path: Path):
+    url = (
+        "https://jobs.anu.edu.au/jobs/"
+        "senior-consultant-user-experience-hr-systems-projects-"
+        "canberra-act-act-australia"
+    )
+    parser = JobsParser(
+        now_func=lambda: datetime(2026, 9, 14, 12, 0, tzinfo=CANBERRA_TZ)
+    )
+    return parser.parse(path.read_text(encoding="utf-8"), url)[0]
+
+
 def test_new_unchanged_and_changed_index_transitions(
     rich_course_fixture_path: Path,
 ) -> None:
@@ -157,6 +171,74 @@ def test_writer_targets_canonical_table_not_compatibility_view(
     assert RECORDS_TABLE == "source_records"
     assert all("source_records" in query for query, _parameters in calls)
     assert all("course_program_records" not in query for query, _parameters in calls)
+
+
+def test_jobs_new_unchanged_and_changed_use_generic_source_records() -> None:
+    store, records, _runs, calls = _store()
+    fixture = (
+        Path(__file__).parent.parent
+        / "fixtures"
+        / "jobs"
+        / "anu_job_open_dated_sample.html"
+    )
+    record = _job(fixture)
+
+    first_action, first = store.save_record(record)
+    records[first.record_id]["index_status"] = "INDEXED"
+    records[first.record_id]["embedding_version"] = "jobs-v1"
+    unchanged_action, unchanged = store.save_record(record)
+    changed_content = record.content.replace("Fixed Term", "Continuing")
+    changed_record = record.model_copy(
+        update={
+            "content": changed_content,
+            "content_hash": hashlib.sha256(changed_content.encode()).hexdigest(),
+        }
+    )
+    changed_action, changed = store.save_record(changed_record)
+
+    assert first_action == RecordStatus.NEW
+    assert unchanged_action == RecordStatus.UNCHANGED
+    assert unchanged.index_status == IndexStatus.INDEXED
+    assert unchanged.embedding_version == "jobs-v1"
+    assert changed_action == RecordStatus.CHANGED
+    assert changed.index_status == IndexStatus.PENDING
+    assert changed.embedding_version is None
+    assert len(records) == 1
+    assert all(RECORDS_TABLE in query for query, _parameters in calls)
+
+
+def test_jobs_batch_run_failure_rolls_back_last_known_good() -> None:
+    records: dict = {}
+    runs: dict = {}
+
+    class RunWriteFailureCursor(FakeCursor):
+        def execute(self, query: str, parameters: tuple) -> None:
+            if "INSERT INTO ingestion_runs" in query:
+                raise RuntimeError("simulated run-row failure")
+            super().execute(query, parameters)
+
+    fixture = (
+        Path(__file__).parent.parent
+        / "fixtures"
+        / "jobs"
+        / "anu_job_open_dated_sample.html"
+    )
+    cursor = RunWriteFailureCursor(records, runs)
+    store = PostgresDataStore(lambda: FakeConnection(cursor))
+    observed = datetime(2026, 9, 14, tzinfo=CANBERRA_TZ)
+    run = IngestionRun(
+        run_id="run_day10_jobs_rollback",
+        source_id="jobs_anu_search",
+        started_at=observed,
+        completed_at=observed,
+        status=IngestionRunStatus.SUCCESS,
+    )
+
+    with pytest.raises(PostgresPersistenceError):
+        store.save_records_and_run([_job(fixture)], run)
+
+    assert records == {}
+    assert runs == {}
 
 
 def test_dry_run_compares_without_writes(

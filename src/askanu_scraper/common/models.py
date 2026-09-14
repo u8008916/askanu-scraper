@@ -429,6 +429,107 @@ class CommonRecord(BaseModel):
                 if parsed_date.isoformat() != value:
                     raise ValueError(f"metadata_json.{key} must be an ISO date or null")
 
+        is_job_record = (
+            self.domain == Domain.JOBS
+            or self.source_id == "jobs_anu_search"
+            or self.record_id.startswith("jobs:")
+            or entity_type == "job"
+        )
+        if is_job_record:
+            if self.domain != Domain.JOBS:
+                raise ValueError("Job records require domain 'jobs'")
+            if self.source_id != "jobs_anu_search":
+                raise ValueError("Job records require source_id 'jobs_anu_search'")
+            if entity_type != "job":
+                raise ValueError("Jobs metadata_json.entity_type must be 'job'")
+            if re.fullmatch(r"[0-9]+", self.entity_id) is None:
+                raise ValueError("Job entity_id must be the numeric requisition ID")
+            if self.record_id != f"jobs:job:{self.entity_id}":
+                raise ValueError("Job record_id does not match its requisition ID")
+            try:
+                job_port = parsed_url.port
+            except ValueError as exc:
+                raise ValueError("Job canonical_url has an invalid port") from exc
+            if (
+                parsed_url.scheme != "https"
+                or parsed_url.hostname != "jobs.anu.edu.au"
+                or parsed_url.username is not None
+                or parsed_url.password is not None
+                or job_port is not None
+                or re.fullmatch(r"/jobs/[a-z0-9]+(?:-[a-z0-9]+)*", parsed_url.path)
+                is None
+                or parsed_url.query
+                or parsed_url.fragment
+            ):
+                raise ValueError("Job canonical_url must be a public ANU job-detail URL")
+
+            expected_keys = {
+                "entity_type",
+                "job_id",
+                "category",
+                "employment_type",
+                "location",
+                "classification",
+                "closing_text",
+                "closing_date",
+                "closing_at",
+                "status",
+                "summary",
+            }
+            if set(metadata) != expected_keys:
+                raise ValueError("Jobs metadata_json must match the Day 10 proposed fields")
+            if metadata["job_id"] != self.entity_id:
+                raise ValueError("metadata_json.job_id must match entity_id")
+            for key in (
+                "category",
+                "employment_type",
+                "location",
+                "classification",
+                "closing_text",
+                "summary",
+            ):
+                value = metadata[key]
+                if value is not None and (
+                    not isinstance(value, str) or not value.strip()
+                ):
+                    raise ValueError(f"metadata_json.{key} must be a string or null")
+            status = metadata["status"]
+            if status not in {None, "current", "closed"}:
+                raise ValueError("metadata_json.status must be current, closed, or null")
+            closing_date = metadata["closing_date"]
+            if closing_date is not None:
+                if not isinstance(closing_date, str):
+                    raise ValueError("metadata_json.closing_date must be an ISO date or null")
+                try:
+                    parsed_closing_date = date.fromisoformat(closing_date)
+                except ValueError as exc:
+                    raise ValueError(
+                        "metadata_json.closing_date must be an ISO date or null"
+                    ) from exc
+                if parsed_closing_date.isoformat() != closing_date:
+                    raise ValueError("metadata_json.closing_date must be an ISO date or null")
+            closing_at = metadata["closing_at"]
+            if closing_at is not None:
+                if not isinstance(closing_at, str):
+                    raise ValueError("metadata_json.closing_at must be an aware ISO datetime or null")
+                try:
+                    parsed_closing_at = datetime.fromisoformat(closing_at)
+                except ValueError as exc:
+                    raise ValueError(
+                        "metadata_json.closing_at must be an aware ISO datetime or null"
+                    ) from exc
+                if (
+                    parsed_closing_at.tzinfo is None
+                    or parsed_closing_at.utcoffset() is None
+                ):
+                    raise ValueError(
+                        "metadata_json.closing_at must be an aware ISO datetime or null"
+                    )
+                if closing_date != parsed_closing_at.date().isoformat():
+                    raise ValueError("Jobs closing_date and closing_at must agree")
+            if metadata["closing_text"] is not None and closing_date is None:
+                raise ValueError("Published Jobs closing text must parse to a date")
+
         return self
 
 

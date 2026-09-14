@@ -61,6 +61,19 @@ this domain unless `SCRAPER_SCHOLARSHIP_POSTGRES_APPROVED=true` is supplied
 after Carmen's shared persistence/RAG generalisation is merged and deployed,
 and Qasim approves that boundary.
 
+The Jobs path fetches exactly one public ANU Jobs search page and at most ten
+same-origin public detail pages. Candidate-account, authentication,
+application, malformed and off-origin links are rejected before persistence:
+
+```powershell
+askanu-scraper-job --source-id jobs_anu_search --domain jobs `
+  --max-jobs-listing-pages 1 --max-job-details 10 --dry-run
+```
+
+Jobs do not require `--academic-year`. PostgreSQL remains blocked unless
+`SCRAPER_JOBS_POSTGRES_APPROVED=true` is supplied after Carmen/Qasim approve
+the Day 10 metadata/temporal contract and the shared migration/runtime gates.
+
 The Day 6 container image defaults `SCRAPER_DRY_RUN=true`: Cloud Run executions
 must stay dry-run while `LocalDataStore` is the active persistence adapter,
 because its `/data` filesystem is not durable. Enable
