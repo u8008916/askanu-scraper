@@ -1,318 +1,272 @@
-# askanu-scraper - my_day_by_day_tasks.md (V5)
+# AskANU V6 - Will day-by-day tasks
 
-**Primary owner:** Will - Scraper / data  
-**Plan window:** 12-18 Sep 2026 accelerated phase; 19 Sep-3 Oct 1h/day hardening/release.  
-**Rule:** code is not done until tests/evidence exist. Read repo instructions/contracts before editing.
+**Ownership:** Scraper/data
+**Primary repo:** askanu-scraper
 
-## Cross-repo rules
+## V6 execution rule
 
-- Preserve the frozen Browser -> App -> private RAG -> Cloud SQL/Gemini architecture.
-- Do not silently change the `/api/v1/ask` response envelope/statuses.
-- Official source URLs come from stored records.
-- Session memory is current-chat only; no persistent account history.
-- Events/Rubric is scheduled ingestion only, never a synchronous user-request dependency.
-- Every day ends with a handoff: status, PR/SHA, tests, cloud evidence if relevant, known issues, contract/source changes.
+A day is not complete because code exists. Use the acceptance criteria/evidence from the V6 PDF. Domain Complete requires >=99% entity + required source-present information + capability coverage and 100% critical provenance/safety.
 
-## Sat 12 Sep - Busy-day light task: source registry/freshness contract review
+## Day 11 - Tue 15 Sep 2026 - 14h
 
-**Capacity:** 3h (busy)  
-**Outcome:** Spend a short busy-day block making Sunday/Monday heavy data work safer: verify source registry, current scraper semantics and the exact approved source boundaries for the five remaining domains.
+**Focus:** Scraper/data - freeze three source universes + expand Courses/Scholarships/Jobs to 99%
 
-**Starting state:** Courses collector and Cloud SQL safety behavior are proven, including NEW -> UNCHANGED and simulated fetch failure preserving last-known-good.
+**Primary outcome:** Turn the first three domains from bounded proof datasets into measured, source-faithful broad datasets with >=99% entity and required-field coverage targets.
 
-**Dependencies / stop:** Maximum 3h today. Do not start a large collector that cannot be completed/tested. Rubric exact endpoint is still TBC.
+**Work map:**
+- **0-3h - Universe + field inventory:** Freeze current Programs & Courses entity counts by type, scholarship finder/detail snapshot and current Jobs snapshot. Sample source pages to confirm required source-present fields.
+- **3-7h - Courses breadth:** Progress discovery-only -> 20 -> 100 -> larger bounded batches across courses/programs/majors/minors/specialisations. Inspect IDs, URLs, duplicates and field capture before broad write.
+- **7-10.5h - Scholarships breadth:** Expand approved scholarship discovery/detail ingestion toward frozen universe. Prove status/date/filter/value/eligibility field capture and idempotency.
+- **10.5-14h - Jobs breadth + report:** Expand current Jobs through pagination/detail pages toward frozen timestamped snapshot. Validate current/closed/date semantics, links and source health; publish three-domain coverage report.
 
-### Work blocks
-- **0-1h - Registry audit:** Read source registry/contracts and list the exact approved URLs/source IDs for Scholarships, Jobs, Accommodation, Support and Events. Flag anything still ambiguous.
-- **1-2h - Reuse plan:** Identify shared collector/storage primitives from Courses that should be reused: run records, hash/idempotency, last_seen_at, last-known-good, dry-run, bounded limits.
-- **2-3h - Fixture prep:** Capture/update a small fixture or parsing sample for Scholarships and Jobs; write Sunday kickoff notes. If Rubric endpoint details are available, document only - do not call or enable it yet.
+**Acceptance criteria:**
+- Frozen denominators and approved exclusions recorded for all three domains.
+- Each domain reaches >=99% entity coverage or has an exact quantified blocker.
+- Required source-present fact capture reaches >=99% or quantified blocker.
+- Idempotent rerun and failure/last-known-good behavior remain green.
+- Canonical URLs and stable identities pass representative audits.
 
-### Understand before coding
-- Today is preparation, not a half-built production collector.
-- External source HTML/endpoints are untrusted and may change.
-- Every stored record needs canonical provenance and deterministic identity.
+**Evidence:**
+- PR/SHA(s) + test counts.
+- Frozen denominator/count report by entity class/source.
+- Cloud execution IDs + added/changed/unchanged/rejected/duplicate counts.
+- Representative normalized records + field coverage results.
+- Quantified gaps with source examples.
 
-### Acceptance criteria
-- [ ] Source/claim-boundary checklist exists for five remaining domains.
-- [ ] Scholarships/Jobs next-step fixtures or parsing notes exist.
-- [ ] No production config or source enablement changed.
+**Do not / escalate:**
+- Do not mass-ingest before sanity review.
+- Do not invent fields from prose or third-party sources.
+- Do not enable Rubric or StarRez.
+- Do not bypass suspicious-count/failure guards to hit a percentage.
 
-### Evidence to hand off
-- Short markdown handoff or issue comment.
-- Fixture paths/URLs and known ambiguities.
+**Copy-paste AI kickoff:**
 
-### Do not / escalate
-- Do not exceed the light-day scope.
-- Do not enable Rubric or live request-time integrations.
-- Do not weaken Courses safety guards.
+> You are Will in askanu-scraper on V6 Day 11. Read source registry, current collectors, common storage, DATA_SCHEMA and V6 99% domain specs first. Today is not a sample demo: first freeze the approved source universe and required-field denominator for Courses, Scholarships and Jobs with Qasim. Then expand progressively using existing safety primitives. Courses must cover courses, programs, majors, minors and specialisations. Scholarships must cover the approved finder/detail universe. Jobs must cover the frozen current public vacancy snapshot. At every gate report discovered/parsed/persisted/rejected/duplicate counts and stop on suspicious drops. Preserve stable IDs, canonical URLs, source-present wording, nulls, content_hash/idempotency and last-known-good. Do not loosen guards simply to reach 99%.
 
-### Copy-paste AI kickoff
+## Day 12 - Wed 16 Sep 2026 - 14h
 
-> Use this as a 3-hour preparation block only. Audit approved source registry and shared scraper/storage primitives, prepare Scholarships/Jobs fixtures, and document unresolved source questions. Do not build or deploy a new collector today and do not enable Rubric.
+**Focus:** Scraper/data - Accommodation + Support source inventory, safe broad ingestion and 99% coverage
 
-### Qasim integration checkpoint
+**Primary outcome:** Build two independently testable approved collectors and expand each from sample safety proof to >=99% of its frozen entity universe.
 
-Before this day is considered closed, coordinate with Qasim on: **V5 reset, contract freeze and integration gates**. Shared contract/source/schema/cloud changes must be explicitly approved and evidenced.
+**Work map:**
+- **0-3h - Universe + field inventory:** Freeze Accommodation entity classes/counts and Support approved service registry. Sample page variants; confirm required source-present fields and canonical identity.
+- **3-7h - Accommodation collector:** Fixtures -> dry-run -> small write -> unchanged/failure guard -> progressive broad ingestion. Preserve fees/period wording, features, application/eligibility and explicit unknown vacancy.
+- **7-11h - Support collector:** Build source-specific fixtures/parsers; preserve purpose/category/audience/contact/location/hours only when published; progressive broad ingestion with untrusted-content sanitization.
+- **11-14h - Cloud + coverage proof:** Run bounded production writes/reruns/failure drills; inspect Cloud SQL counts/representative rows/ingestion_runs; compute entity + field coverage and source health.
 
-## Sun 13 Sep - Scholarships approved collector + safe cloud ingestion
+**Acceptance criteria:**
+- Each domain has frozen entity denominator/source registry.
+- >=99% entity coverage and >=99% required source-present fact capture or quantified blocker.
+- Repeated run idempotent; failure/drastic-count guard preserves current data.
+- Representative rows have approved canonical URLs and stable IDs.
+- No authenticated or unapproved source introduced.
 
-**Capacity:** 12h  
-**Outcome:** Implement and prove the Scholarships collector end-to-end using approved ANU scholarship pages, normalized records, deterministic identity, idempotency and last-known-good behavior.
+**Evidence:**
+- PR/SHA(s), fixture/full test counts.
+- Cloud execution IDs + run summaries.
+- DB counts/samples + coverage numerators/denominators.
+- Source-health report and known page variants/missing fields.
 
-**Starting state:** Saturday source audit/fixtures plus proven Courses ingestion primitives.
-
-**Dependencies / stop:** Coordinate normalized field names with Carmen/Qasim before shared DB migration if new generic storage shape is needed.
-
-### Work blocks
-- **0-4h - Parser + fixtures:** Implement bounded fetch/parse for scholarship finder/detail data. Preserve canonical URL, title, open/closed, Featured, application requirement, filters, value, basis, deadlines and eligibility where present. Add HTML fixtures.
-- **4-8h - Storage/idempotency:** Map to shared record contract; deterministic record_id/entity_id/content_hash. Add NEW/UNCHANGED/CHANGED/missing/fetch-failure tests. Dry-run locally then disposable DB if available.
-- **8-12h - Shared cloud proof:** Deploy reviewed image/job config only after PR approval. Run bounded dry-run, first real run, second unchanged run, inspect Cloud SQL counts/fields and ingestion_runs, capture one failure-safe proof if time permits.
-
-### Understand before coding
-- Never infer scholarship facts not present in the official page.
-- A parser failure must not wipe yesterday's valid scholarship data.
-- Normalize dates/status but preserve original source wording where needed.
-
-### Acceptance criteria
-- [ ] Collector tests green; no duplicate logical records on repeated run.
-- [ ] Stored sample has canonical official URL and required scholarship fields.
-- [ ] Two-run cloud evidence shows NEW then UNCHANGED.
-- [ ] Failed fetch preserves last-known-good or is explicitly blocked before unsafe write.
-
-### Evidence to hand off
-- PR/SHA, test counts, image digest if deployed.
-- Cloud execution IDs + DB sample query/count.
-- Source-health/field coverage note.
-
-### Do not / escalate
-- Do not scrape authenticated/private sources.
-- Do not mass-ingest before bounded sample proves parser/storage safety.
-
-### Copy-paste AI kickoff
-
-> Build the approved ANU Scholarships collector using the existing safe Courses ingestion patterns. Preserve canonical provenance and scholarship status/deadline/eligibility fields. Add fixture, idempotency and failed-fetch tests. After review, prove dry-run -> first write -> unchanged second run in shared Cloud SQL and hand off sample records to RAG.
-
-### Qasim integration checkpoint
-
-Before this day is considered closed, coordinate with Qasim on: **Scholarships vertical-slice release gate**. Shared contract/source/schema/cloud changes must be explicitly approved and evidenced.
-
-## Mon 14 Sep - Official ANU Jobs collector + temporal fields
-
-**Capacity:** 12h  
-**Outcome:** Implement and prove the official ANU Jobs collector with correct closing-date/source provenance and safe scheduled-refresh behavior.
-
-**Starting state:** Reusable scraper/storage primitives plus Scholarships cloud evidence.
-
-**Dependencies / stop:** Use jobs.anu.edu.au/jobs/search and detail pages within approved boundaries. Do not invent employment eligibility claims.
-
-### Work blocks
-- **0-4h - Fetch/parse:** Build bounded search/detail parser preserving title, type, location, classification, closing date, summary and canonical URL. Add fixtures for open, closed/expired and missing optional fields.
-- **4-8h - Normalize/test:** Normalize dates carefully while retaining original value; deterministic identity/content hash; NEW/UNCHANGED/CHANGED/fetch failure tests; source page changes should fail visibly, not silently produce empty data.
-- **8-12h - Cloud/schedule prep:** Run dry-run + bounded writes + repeat unchanged in Cloud SQL. Produce source-health counts and decide safe scheduler cadence with Qasim; do not create a high-frequency poll.
-
-### Understand before coding
-- Current jobs depend on correct date ingestion.
-- Empty source/parser result is suspicious and must not mass-mark records missing without sanity thresholds.
-
-### Acceptance criteria
-- [ ] Sample jobs stored with canonical URL and closing date.
-- [ ] Repeated ingestion idempotent.
-- [ ] Parser/fetch failure preserves last-known-good.
-- [ ] Run counts/source health suitable for scheduler.
-
-### Evidence to hand off
-- PR/SHA, execution IDs, DB sample/count, parser fixtures.
-
-### Do not / escalate
-- Do not scrape application/authenticated flows.
-- Do not mark all jobs missing after suspicious zero-result parse.
-
-### Copy-paste AI kickoff
-
-> Build the official ANU Jobs collector with title/type/location/classification/closing date/summary/canonical URL. Reuse safe idempotent storage and last-known-good guards. Prove bounded Cloud SQL writes and unchanged rerun, then provide source-health/cadence evidence for Scheduler.
-
-### Qasim integration checkpoint
-
-Before this day is considered closed, coordinate with Qasim on: **Jobs gate + scheduler/freshness decision**. Shared contract/source/schema/cloud changes must be explicitly approved and evidenced.
-
-## Tue 15 Sep - Heavy data day: Accommodation + Support collectors
-
-**Capacity:** 12h  
-**Outcome:** Use the day when Ben/Carmen are unavailable to build and prove the data layer for two domains, so Wednesday is mainly retrieval/UI integration.
-
-**Starting state:** Safe collector/storage/scheduler patterns proven for Courses/Scholarships/Jobs.
-
-**Dependencies / stop:** Approved ANU accommodation/residence pages only; never authenticated StarRez. Support uses approved ANU + approved ANUSA Student Assistance pages. Escalate source ambiguity.
-
-### Work blocks
-- **0-4h - Accommodation collector:** Implement bounded approved-page parser. Preserve residence/entity title, category, location, cost/fee wording where published, application/how-to-apply info, features and canonical URL. Explicitly represent unknown live vacancy.
-- **4-8h - Support collector:** Implement approved support-service parser preserving service/category, description, contact/location/hours only when published, audience/eligibility where present, canonical URL. Add source-specific fixtures and untrusted-content sanitization.
-- **8-12h - Safety + shared DB proof:** Run local full tests, idempotency/change/failure cases for both domains, then bounded cloud dry-run/write/repeat. Inspect counts/representative rows and ingestion_runs. Update source-health registry.
-
-### Understand before coding
-- Two domains in one day is acceptable only because storage primitives already exist; keep each parser independently testable.
-- Zero-result or drastic count drops should trip sanity guards, not erase current data.
-- Live residence vacancy is out of scope.
-
-### Acceptance criteria
-- [ ] Both collector suites green with fixtures.
-- [ ] Representative Cloud SQL rows have canonical approved URLs.
-- [ ] Repeated run is idempotent.
-- [ ] Failure/drastic-count guards preserve last-known-good.
-
-### Evidence to hand off
-- PR(s)/SHA(s), test counts, execution IDs.
-- DB samples/counts for both domains.
-- Source-health and known missing-field note for Carmen.
-
-### Do not / escalate
+**Do not / escalate:**
 - Do not scrape StarRez/login/application portals.
-- Do not infer accommodation availability or support hours.
-- Do not combine parsers so tightly that one source failure blocks the other.
+- Do not infer vacancy or hours.
+- Do not tightly couple parsers.
+- Do not mass-write until sample/failure proof is green.
 
-### Copy-paste AI kickoff
+**Copy-paste AI kickoff:**
 
-> Make Tuesday a data-heavy day: implement separate approved Accommodation and Support collectors using the existing safe ingestion primitives. Prove fixtures, idempotency, last-known-good and bounded shared-cloud writes for each. Preserve provenance and never claim live vacancy or unsupported service hours.
+> You are Will in askanu-scraper on V6 Day 12. Build Accommodation and Support only from the reviewed approved source registry. First freeze the entity universe and required source-present field denominator with Qasim/Carmen. For each domain, prove fixtures, dry-run, first write, unchanged rerun and fetch/parser/drastic-count failure before widening. Then expand in bounded batches toward >=99%. Accommodation preserves residence/category/location/catering/audience/room/rate wording/features/application/eligibility/contract/contact where published and never scrapes StarRez or invents vacancy. Support preserves service purpose/category/audience/contact/location/published hours/access/cost/referral where published. Keep parsers independent so one source failure cannot block the other. Publish raw counts and gaps.
 
-### Qasim integration checkpoint
+## Day 13 - Thu 17 Sep 2026 - 14h
 
-Before this day is considered closed, coordinate with Qasim on: **Data-first integration day + claims/source gate**. Shared contract/source/schema/cloud changes must be explicitly approved and evidenced.
+**Focus:** Scraper/data - five-domain freshness, completeness and recovery freeze
 
-## Wed 16 Sep - Six-domain source-health framework + Events baseline prep
+**Primary outcome:** Prove the five completed domains remain >=99% against current frozen snapshots and can refresh/fail/recover safely before Friday.
 
-**Capacity:** 12h  
-**Outcome:** Stabilize scheduled ingestion/source-health across five active domains and prepare the approved Events/Rubric collector work for Thursday.
+**Work map:**
+- **0-4h - Coverage + freshness rerun:** Recompute entity/field counts for Courses, Scholarships, Jobs, Accommodation, Support; inspect representative canonical URLs and suspicious deltas.
+- **4-8h - Failure/recovery drill:** Representative fetch/parser/drastic-count failures across collectors; confirm independent failure and last-known-good; fix only release-critical data defects.
+- **8-11h - Schedule/manual refresh state:** Verify safe cadence/manual-run pattern, runtime identity/config and source-health reporting without overlapping dangerous jobs.
+- **11-14h - Freeze + provenance pack:** Final bounded refresh with recovery margin; capture counts/execution IDs/source examples; pin scraper/job versions and parser-known-issues.
 
-**Starting state:** Courses, Scholarships, Jobs, Accommodation and Support collectors exist or are merging.
+**Acceptance criteria:**
+- Five-domain coverage remains >=99% or exact drift/blocker recorded.
+- Representative failure drills preserve last-known-good.
+- No suspicious run overwrites current data.
+- Source-health/refresh state is known and repeatable.
+- Scraper/job versions pinned.
 
-**Dependencies / stop:** Rubric public-search integration direction is approved in principle but exact endpoint/fields remain TBC until verified. Official ANU Events remains fallback/release-safe source.
-
-### Work blocks
-- **0-4h - Source-health consolidation:** Create/complete per-source health summary: last success, record count, added/changed/unchanged/missing, suspicious change flag. Verify schedule/cadence does not overlap dangerously.
-- **4-8h - Failure/coverage audit:** Run representative fetch/parser failure and suspicious-count tests across collectors; ensure independent sources fail independently and last-known-good remains.
-- **8-12h - Events investigation:** Inspect actual public ANU Events and approved Rubric/public-search network endpoint if documented. Capture request/response shape, pagination, IDs, canonical event URL fields, rate behavior. Build fixtures only; no live user-time calls and no production enablement before Qasim review.
-
-### Understand before coding
-- Source health is operational metadata, not user-facing truth.
-- Rubric is an ingestion source, never part of the synchronous question path.
-- Exact endpoint/contract must come from observed/approved behavior, not memory.
-
-### Acceptance criteria
-- [ ] Five-domain source-health snapshot is available.
-- [ ] Failure tests preserve valid data.
-- [ ] Events/Rubric endpoint investigation has concrete fixture/schema evidence or explicit blocker.
-
-### Evidence to hand off
-- Source-health report + execution IDs.
-- Events/Rubric fixture/request-shape note with sensitive tokens removed.
-
-### Do not / escalate
-- Do not store cookies/auth tokens.
-- Do not hit unsupported endpoints at high volume.
-- Do not enable a scraper from an undocumented guessed URL.
-
-### Copy-paste AI kickoff
-
-> Consolidate source health and failure safety for the five active domain collectors, then investigate the actual approved Events/Rubric public-search request. Capture schema/pagination/IDs/canonical URLs into fixtures with no secrets. Keep Rubric scheduled-ingestion-only and do not production-enable it until reviewed.
-
-### Qasim integration checkpoint
-
-Before this day is considered closed, coordinate with Qasim on: **Five-domain gate + conversation milestone + Events decision**. Shared contract/source/schema/cloud changes must be explicitly approved and evidenced.
-
-## Thu 17 Sep - Events/Rubric scheduled collector + full freshness/failure pass
-
-**Capacity:** 12h  
-**Outcome:** Deliver the sixth domain data path using the approved Events source strategy and prove it is scheduled, bounded, provenance-safe and independent of user request traffic.
-
-**Starting state:** Wednesday produced concrete endpoint/source evidence and Qasim selected Rubric scheduled ingestion or official Events fallback.
-
-**Dependencies / stop:** If Rubric endpoint/permission remains unclear, implement official ANU Events fallback and leave Rubric disabled. Never block Friday on an unstable unverified endpoint.
-
-### Work blocks
-- **0-4h - Events collector:** Implement selected source parser with event ID/title/start/end/timezone/location-or-format/category/summary/canonical URL. Handle pagination/bounded window and duplicates.
-- **4-8h - Cloud + schedule:** Fixture/idempotency/change/failure tests, bounded dry-run and real write, repeated unchanged run. Configure safe daily schedule/cadence only after source-health passes. No request-time external calls.
-- **8-12h - Six-domain freshness drill:** Run/inspect scheduled or manual refresh for all domains early enough to recover. Capture source-health, record counts, failure fallback and representative canonical URLs. Freeze parser changes except P0 after this block.
-
-### Understand before coding
-- Daily scheduled ingestion is intentionally decoupled from chat requests.
-- Events are highly time-sensitive; stored dates/timezone and refresh timestamp matter.
-- Rubric endpoint instability should degrade freshness, not take AskANU chat down.
-
-### Acceptance criteria
-- [ ] Events sample stored with canonical official URL and temporal fields.
-- [ ] Repeated run idempotent; failure preserves last-known-good.
-- [ ] Safe daily schedule exists or explicit approved manual fallback.
-- [ ] Six-domain source-health snapshot green/known-safe fallback.
-
-### Evidence to hand off
-- PR/SHA, image digest, execution IDs/scheduler config.
-- DB sample/counts + six-domain source-health report.
-
-### Do not / escalate
-- Do not call Rubric from RAG/App at question time.
-- Do not run risky broad ingestion immediately before Friday demo.
-
-### Copy-paste AI kickoff
-
-> Implement the selected Events source as a scheduled collector, never a synchronous chat dependency. Prove temporal fields, canonical provenance, idempotency and last-known-good in shared Cloud SQL, configure safe daily refresh if approved, then run a six-domain source-health/failure pass and freeze parser changes except P0.
-
-### Qasim integration checkpoint
-
-Before this day is considered closed, coordinate with Qasim on: **Six-domain release candidate + 72% gate**. Shared contract/source/schema/cloud changes must be explicitly approved and evidenced.
-
-## Fri 18 Sep - Pre-demo freshness/provenance + source feedback triage
-
-**Capacity:** 12h  
-**Outcome:** Refresh early, prove six-domain provenance/source health, then freeze collectors through the presentation.
-
-**Starting state:** Thursday collectors/schedules and last-known-good guards are proven.
-
-**Dependencies / stop:** Refresh early enough to recover. Avoid risky mass ingestion or parser edits close to demo.
-
-### Work blocks
-- **0-4h - Early refresh:** Run/verify bounded scheduled ingestion, inspect counts/source health and representative canonical URLs for six domains. Confirm Events freshness/time window.
-- **4-8h - Presentation stability:** Freeze source registry/parsers. Provide provenance/freshness evidence if asked. Monitor job health only.
-- **8-12h - Feedback triage:** Reproduce claimed missing/wrong data against official source and exact parser fixture. Create P0/P1/P2 source issues; update source-health snapshot.
-
-### Understand before coding
-- Freshness is only useful if safe.
-- A failed refresh should preserve known-good records.
-
-### Acceptance criteria
-- [ ] Pre-demo source health green or explicit safe fallback.
-- [ ] Representative canonical URLs valid for six domains.
-- [ ] No suspicious refresh overwrites good data.
-
-### Evidence to hand off
+**Evidence:**
 - Execution IDs/counts/source-health report.
-- Representative URLs and any parser issue fixtures.
+- Coverage rerun numerators/denominators.
+- Failure/recovery evidence.
+- Pinned scraper/job config + canonical URL samples.
 
-### Do not / escalate
-- Do not run a risky full crawl immediately before demo.
-- Do not enable a new source on stakeholder day.
+**Do not / escalate:**
+- Do not run risky mass ingestion late.
+- Do not add Rubric/new sources.
+- Do not manually overwrite DB to hide parser problems.
+- Do not relax sanity guards for demo convenience.
 
-### Copy-paste AI kickoff
+**Copy-paste AI kickoff:**
 
-> Run early safe refresh/source-health for all six domains, validate representative canonical URLs and Events freshness, then freeze collectors for the presentation. Afterward reproduce source feedback against the actual page and create fixtures/issues rather than editing live.
+> You are Will in askanu-scraper on V6 Day 13. Today is source/data stabilization for Friday. Recompute coverage for the five completed domains from their frozen source snapshots, inspect any delta and rerun only safe bounded refreshes with last-known-good guards. Exercise representative fetch/parser/drastic-count failures and prove one source cannot wipe another. Fix only P0/P1 coverage/parser defects. Do not add Rubric or a new source today. Freeze parser changes after the evidence block and provide Qasim exact execution IDs, counts, canonical URL samples, job/runtime config and known source risks.
 
-### Qasim integration checkpoint
+## Day 14 - Fri 18 Sep 2026 - 14h
 
-Before this day is considered closed, coordinate with Qasim on: **75% stakeholder milestone + V5 re-baseline**. Shared contract/source/schema/cloud changes must be explicitly approved and evidenced.
+**Focus:** Scraper/data - pre-demo source health + provenance support + feedback triage
 
-## 19 Sep - 3 Oct: 1-hour hardening/release rule
+**Primary outcome:** Refresh/verify safely, keep the five completed datasets stable through the presentation and convert data/source feedback into reproducible issues.
 
-- **Sat 19 Sep:** Feedback reproduction + top P0/P1 only - Each owner gets 1h: reproduce highest-priority accepted feedback; smallest tested fix or evidence-only issue.
-- **Sun 20 Sep:** Coverage gaps - One representative missing-data/retrieval/UI gap per owner; test before fix.
-- **Mon 21 Sep:** Security/privacy pass - RAG logs/history privacy, App safe rendering, scraper secret/source hygiene, Qasim IAM/revision audit.
-- **Tue 22 Sep:** Accessibility/mobile pass - Ben focuses a11y/mobile; others support only defects revealed by the pass.
-- **Wed 23 Sep:** Failure/recovery pass - Embedding/API failure, app upstream failure, scraper fetch/parser failure, rollback evidence.
-- **Thu 24 Sep:** Performance/cost pass - Bounded context/candidates, frontend network behavior, scraper cadence, cloud cost/limits.
-- **Fri 25 Sep:** Six-domain regression - One clean + one negative scenario/domain; fix only P0/P1.
-- **Sat 26 Sep:** Docs/runbooks - Update source registry, deployment/recovery, known issues and demo/release notes.
-- **Sun 27 Sep:** Freeze readiness - Highest remaining P0/P1 or verification PASS; no new feature.
-- **Mon 28 Sep:** FEATURE FREEZE - Snapshot exact versions/config/source health; bugs only.
-- **Tue 29 Sep:** Frozen regression - Contract/golden/UI/source subset; smallest bug fixes only.
-- **Wed 30 Sep:** Release-candidate drill - Rollback/fallback, scheduled freshness, public smoke.
-- **Thu 1 Oct:** Final security/source audit - IAM/secrets/logging/source provenance/schedules.
-- **Fri 2 Oct:** Release eve - Final regression, release notes, no optional changes.
-- **Sat 3 Oct:** FINAL RELEASE - Deploy/verify pinned release, monitor, publish outcome and known issues.
+**Work map:**
+- **0-3h - Pre-demo source health:** Check/refresh approved five-domain data early, inspect counts/suspicious deltas and representative canonical URLs.
+- **3-6h - Recovery margin:** If any source fails, prove last-known-good/fallback and stop before risky parser changes; provide provenance evidence to Qasim.
+- **6-10h - Presentation stability:** Monitor run/source state, answer source/provenance questions, do not alter source registry/parser unless P0.
+- **10-14h - Feedback triage:** Reproduce claimed missing/wrong data against approved source pages; capture fixtures/issues and prepare Saturday Events/source work.
+
+**Acceptance criteria:**
+- Pre-demo source health green or explicit safe fallback.
+- Representative canonical URLs valid for five completed domains.
+- No suspicious run overwrites current data.
+- Source/data feedback has actual source example/fixture.
+
+**Evidence:**
+- Execution IDs/counts/source-health report.
+- Representative URL validation.
+- Any P0 data fix PR/test.
+- Post-demo source/data issue list.
+
+**Do not / escalate:**
+- Do not run risky mass ingestion near demo.
+- Do not enable Rubric before approval.
+- Do not manually edit DB to hide parser failure.
+
+**Copy-paste AI kickoff:**
+
+> You are Will on V6 Day 14. Run approved-source checks early enough to recover before the GDG ANU presentation. Verify coverage/counts and representative canonical URLs for Courses, Scholarships, Jobs, Accommodation and Support. If a source is unhealthy, rely on last-known-good and report it rather than forcing a risky parser rewrite. During the presentation, do not expand sources or enable Rubric. Afterward, reproduce data feedback against the actual approved source and capture a fixture for real parser defects. Prepare factual source notes for Saturday Events/Rubric work.
+
+## Day 15 - Sat 19 Sep 2026 - 14h
+
+**Focus:** Scraper/data - Events/Rubric source decision, 99% event ingestion + feedback data fixes
+
+**Primary outcome:** Deliver the sixth domain data path with >=99% coverage of the frozen release window and safe freshness, using Rubric only if verified/approved.
+
+**Work map:**
+- **0-3h - Source/window freeze:** Inspect/verify official Events and any approved Rubric public-search endpoint. Freeze source, 42-day window (or approved natural window), IDs, pagination, fields and rate behavior.
+- **3-6h - Sample safety proof:** Fixtures, dry-run, small real write, unchanged rerun, duplicate/date/timezone/cancellation cases and fetch/parser failure last-known-good.
+- **6-10h - Broad window ingestion:** Traverse all approved pagination in window; progressively ingest toward >=99% entity + required-field coverage; inspect counts/source health.
+- **10-14h - Freshness + feedback:** Configure safe daily schedule or approved manual fallback only after source-health passes; fix accepted source/data feedback; publish six-domain source-health/coverage report.
+
+**Acceptance criteria:**
+- Events entity coverage >=99% or exact quantified blocker.
+- Required source-present fact capture >=99% or quantified blocker.
+- Unchanged/failure/duplicate/temporal cases pass.
+- Safe schedule exists or explicit approved manual fallback.
+- Rubric remains disabled unless approved with evidence.
+
+**Evidence:**
+- PR/SHA, image/job execution IDs.
+- Source/window/denominator record.
+- DB counts + field coverage + source-health report.
+- Scheduler/manual fallback config.
+- Accepted feedback data-fix evidence.
+
+**Do not / escalate:**
+- Do not guess Rubric endpoint/permission.
+- Do not call Events/Rubric from chat request path.
+- Do not run risky unbounded ingestion.
+- Do not store cookies/auth tokens.
+
+**Copy-paste AI kickoff:**
+
+> You are Will in askanu-scraper on V6 Day 15. First verify the Events source contract. Rubric may be used only if endpoint/permission/pagination/identity are understood and Qasim explicitly approves it; otherwise use official ANU Events and keep Rubric disabled. Freeze a bounded release window, recommended current Canberra date through 42 days unless the source has a better natural boundary. Build fixtures and prove dry-run/first write/unchanged/failure before broadening. Capture stable event ID, title, start/end/timezone, location/format, category/tags, organiser, description, registration, status/cancellation and canonical URL where published. Traverse all pagination in the window toward >=99%, then prove safe freshness and source health. Apply only accepted Friday data feedback.
+
+## Day 16 - Sun 20 Sep 2026 - 15h
+
+**Focus:** Scraper/data - final six-domain coverage, freshness, recovery and scheduler sweep
+
+**Primary outcome:** Close any remaining approved-source data gap, prove six-domain freshness/recovery and leave collectors boring to operate.
+
+**Work map:**
+- **0-3h - Six-domain coverage audit:** Recompute latest entity/field coverage, inspect excluded/rejected/duplicate reasons and rank gaps that are still safely fixable.
+- **3-7h - Close data gaps:** Fix highest-value approved parser/discovery/pagination gaps, rerun bounded ingestion and prove changed/unchanged behavior.
+- **7-11h - Failure + freshness:** Source fetch/parser/drastic-count/partial-source drills, schedule/manual refresh review, independent-source failure and recovery evidence.
+- **11-15h - Operational freeze:** Final safe refresh, source-health snapshot, canonical URL audit, runbook/docs, job/runtime config and one-hour backlog.
+
+**Acceptance criteria:**
+- No domain remains below 99% due to a fixable approved parser gap, or exact blocker recorded.
+- Changed/unchanged/failure/recovery behavior remains green.
+- Canonical URL/source-health audit passes.
+- Refresh/schedule/manual fallback state is explicit for every domain.
+- Remaining data work fits one-hour slices.
+
+**Evidence:**
+- Final scraper SHA/jobs/execution IDs.
+- Six-domain coverage/source-health report.
+- Failure/recovery evidence + runbook.
+- Known source gaps + one-hour backlog.
+
+**Do not / escalate:**
+- Do not add new sources casually.
+- Do not relax sanity guards.
+- Do not manually patch DB as normal operation.
+- Do not store auth tokens/cookies.
+
+**Copy-paste AI kickoff:**
+
+> You are Will in askanu-scraper on V6 Day 16, the final planned heavy data day. Recompute six-domain entity and required-field coverage against frozen denominators, then close only approved-source gaps that are still material and safe. Verify pagination/discovery/identity/canonical URLs, changed/unchanged hashes, many-to-zero guards and last-known-good. Exercise representative failures across sources and prove independent recovery. Review safe scheduler/manual refresh cadence; no broad IAM or unapproved sources. Finish with one clean source-health snapshot, exact execution IDs/counts/runbooks and a one-hour-sized data backlog.
+
+## 21 Sep - 3 Oct: one-hour hardening phase
+
+### Day 17 - Mon 21 Sep - SECURITY + PRIVACY AUDIT
+- **~45 min:** Secret/source-policy/malicious-source fixture check across collectors; no new source.
+- **~15 min proof:** Scraper security PASS/PR.
+
+### Day 18 - Tue 22 Sep - ACCESSIBILITY + MOBILE PASS
+- **~45 min:** Validate long titles/special chars/URLs/data display compatibility; fix normalization only if source-faithful.
+- **~15 min proof:** Data display-compatibility PASS/PR.
+
+### Day 19 - Wed 23 Sep - FAILURE + RECOVERY PASS
+- **~45 min:** Timeout/parser/drastic-count drill on one source; verify last-known-good and recovery rerun.
+- **~15 min proof:** Scraper recovery report.
+
+### Day 20 - Thu 24 Sep - PERFORMANCE + COST PASS
+- **~45 min:** Inspect scraper request counts/cadence/runtime for one expensive collector; bound if needed.
+- **~15 min proof:** Scraper cost/cadence note.
+
+### Day 21 - Fri 25 Sep - SIX-DOMAIN REGRESSION
+- **~45 min:** Inspect latest six-domain source-health/counts/URLs/hash/last_seen; no broad refresh if unnecessary.
+- **~15 min proof:** Source-health report.
+
+### Day 22 - Sat 26 Sep - DOCS + RUNBOOKS
+- **~45 min:** Update source registry, collector/run/failure/freshness notes and approved-source boundaries.
+- **~15 min proof:** Scraper runbook PR/PASS.
+
+### Day 23 - Sun 27 Sep - FREEZE READINESS
+- **~45 min:** Close top source/parser P0/P1; latest healthy source snapshot.
+- **~15 min proof:** Scraper freeze-readiness note.
+
+### Day 24 - Mon 28 Sep - FEATURE FREEZE
+- **~45 min:** Check source-registry diff/latest ingestion; no new source without release blocker.
+- **~15 min proof:** Scraper freeze note.
+
+### Day 25 - Tue 29 Sep - FROZEN REGRESSION
+- **~45 min:** Run frozen source-health/collector subset; no schema/source expansion.
+- **~15 min proof:** Scraper frozen-regression PASS/PR.
+
+### Day 26 - Wed 30 Sep - RELEASE-CANDIDATE DRILL
+- **~45 min:** Check safe scheduled/manual refresh + recovery; inspect counts.
+- **~15 min proof:** Scraper RC drill evidence.
+
+### Day 27 - Thu 1 Oct - FINAL SECURITY + SOURCE AUDIT
+- **~45 min:** Dependency/secret/source-policy scan; Rubric only if approved in final registry.
+- **~15 min proof:** Scraper final security/source report.
+
+### Day 28 - Fri 2 Oct - RELEASE EVE
+- **~45 min:** Final safe source-health check + representative canonical URL validation.
+- **~15 min proof:** Final source report.
+
+### Day 29 - Sat 3 Oct - FINAL RELEASE
+- **~45 min:** Confirm latest healthy source runs and no suspicious ingestion.
+- **~15 min proof:** Data final health.
