@@ -101,6 +101,38 @@ class CoursesParser(BaseParser):
 
         return normalize_url(default_url) or default_url
 
+    @staticmethod
+    def _source_section(soup: BeautifulSoup, *labels: str) -> str | None:
+        """Return faithful normalized text below a live-page section heading.
+
+        This deliberately keeps source prose/rules as text. It does not attempt
+        to interpret academic rules or add fields to the shared metadata shape.
+        """
+        wanted = {label.casefold() for label in labels}
+        heading = next(
+            (
+                node
+                for node in soup.find_all(["h2", "h3"])
+                if (normalize_text(node.get_text(" ", strip=True)) or "").casefold()
+                in wanted
+            ),
+            None,
+        )
+        if heading is None:
+            return None
+
+        parts: list[str] = []
+        for sibling in heading.next_siblings:
+            name = getattr(sibling, "name", None)
+            if name in {"h1", "h2", "h3"}:
+                break
+            if name is None:
+                continue
+            value = normalize_text(sibling.get_text(" ", strip=True))
+            if value and value not in parts:
+                parts.append(value)
+        return " ".join(parts) or None
+
     def _parse_course(self, soup: BeautifulSoup, url: str) -> CommonRecord | None:
         title_el = (
             soup.find("h1", class_="intro-title")
@@ -218,6 +250,16 @@ class CoursesParser(BaseParser):
         if desc_el:
             p_tag = desc_el.find("p")
             description = normalize_text(p_tag.get_text()) if p_tag else normalize_text(desc_el.get_text())
+        if not description:
+            description_meta = soup.find("meta", attrs={"name": "course-description"})
+            if description_meta and isinstance(description_meta.get("content"), str):
+                description = normalize_text(
+                    BeautifulSoup(description_meta["content"], "html.parser").get_text(
+                        " ", strip=True
+                    )
+                )
+
+        learning_outcomes = self._source_section(soup, "Learning Outcomes")
 
         # Requirements
         req_el = soup.find("div", class_="requirements")
@@ -585,6 +627,7 @@ class CoursesParser(BaseParser):
             f"Units: {units}" if units else None,
             f"Mode of Delivery: {delivery_mode}" if delivery_mode else None,
             f"Description: {description}" if description else None,
+            f"Learning Outcomes: {learning_outcomes}" if learning_outcomes else None,
             f"Prerequisites: {prerequisites}" if prerequisites else None,
             f"Corequisites: {corequisites}" if corequisites else None,
             f"Incompatibilities: {incompatibilities}" if incompatibilities else None,
@@ -670,6 +713,41 @@ class CoursesParser(BaseParser):
         duration = summary_data.get("Duration")
         delivery_mode = summary_data.get("Mode of Delivery")
 
+        live_summary = soup.select_one(".degree-summary.hide-mobile") or soup.select_one(
+            ".degree-summary"
+        )
+
+        def live_value(*labels: str) -> str | None:
+            if live_summary is None:
+                return None
+            wanted = {label.casefold() for label in labels}
+            for item in live_summary.select("li"):
+                heading = item.select_one(
+                    ".degree-summary__code-heading, "
+                    ".degree-summary__requirements-heading"
+                )
+                if heading is None:
+                    continue
+                heading_text = normalize_text(heading.get_text(" ", strip=True))
+                if not heading_text or heading_text.casefold() not in wanted:
+                    continue
+                value = item.select_one(".degree-summary__code-text, .tooltip-area")
+                if value is not None:
+                    normalized = normalize_text(value.get_text(" ", strip=True))
+                    if normalized:
+                        return normalized
+                item_text = normalize_text(item.get_text(" ", strip=True))
+                if item_text:
+                    remainder = item_text[len(heading_text):].strip()
+                    if remainder:
+                        return remainder
+            return None
+
+        career = career or live_value("Academic career")
+        units = units or live_value("Minimum", "Total units", "Unit value")
+        duration = duration or live_value("Length", "Duration")
+        delivery_mode = delivery_mode or live_value("Mode of delivery")
+
         # Fallback year from URL
         if not academic_year:
             year_match = re.search(r"/(\d{4})/", url)
@@ -686,6 +764,14 @@ class CoursesParser(BaseParser):
         if desc_el:
             p_tag = desc_el.find("p")
             overview = normalize_text(p_tag.get_text()) if p_tag else normalize_text(desc_el.get_text())
+        if not overview:
+            description_meta = soup.find("meta", attrs={"name": "program-description"})
+            if description_meta and isinstance(description_meta.get("content"), str):
+                overview = normalize_text(
+                    BeautifulSoup(description_meta["content"], "html.parser").get_text(
+                        " ", strip=True
+                    )
+                )
 
         # Learning outcomes
         outcomes_el = soup.find("div", class_="learning-outcomes")
@@ -699,6 +785,23 @@ class CoursesParser(BaseParser):
 
             if not outcomes:
                 outcomes = None
+        if not outcomes:
+            source_outcomes = self._source_section(soup, "Learning Outcomes")
+            if source_outcomes:
+                outcomes = [source_outcomes]
+
+        source_sections = {
+            "Program Requirements": self._source_section(
+                soup, "Program Requirements"
+            ),
+            "Admission Requirements": self._source_section(
+                soup, "Admission Requirements"
+            ),
+            "Prerequisites": self._source_section(soup, "Prerequisites"),
+            "Minors": self._source_section(soup, "Minors"),
+            "Elective Study": self._source_section(soup, "Elective Study"),
+            "Study Options": self._source_section(soup, "Study Options"),
+        }
 
         metadata: dict[str, Any] = {
             "entity_type": "program",
@@ -724,6 +827,11 @@ class CoursesParser(BaseParser):
         ]
         if outcomes:
             content_parts.append("Learning Outcomes: " + "; ".join(outcomes))
+        content_parts.extend(
+            f"{label}: {value}"
+            for label, value in source_sections.items()
+            if value
+        )
 
         content = "\n".join([p for p in content_parts if p is not None])
         content_hash = make_content_hash(content)
