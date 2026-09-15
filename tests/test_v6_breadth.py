@@ -45,7 +45,12 @@ class CatalogueUniverseFetcher(BaseFetcher):
             "GetProgramsResearch": (1, [[
                 {"AcademicPlanCode": "PHD", "ProgramAcademicYear": "2026"},
             ]]),
-            "GetProgramsNonAward": (0, [[]]),
+            "GetProgramsNonAward": (1, [[
+                {
+                    "AcademicPlanCode": "NAWARD",
+                    "ProgramAcademicYear": "2026",
+                },
+            ]]),
             # Deliberate upstream TotalCount anomaly: only three rows available.
             "GetMajors": (4, [[
                 {"SubPlanCode": "COMP-MAJ", "Year": 2026},
@@ -128,14 +133,15 @@ def test_courses_full_universe_enumerates_all_feeds_without_persisting(
 
     assert result.counts_by_type == {
         "course": 3,
-        "program": 4,
+        "program": 5,
         "major": 3,
         "minor": 1,
         "specialisation": 1,
     }
     assert "program:BFIN_2026" in result.duplicate_identities
     assert any("GetMajors: TotalCount=4, returned_rows=3" in item for item in result.anomalies)
-    assert any("GetProgramsNonAward" in item and "TotalCount=0" in item for item in result.anomalies)
+    assert result.source_totals is not None
+    assert result.source_totals["GetProgramsNonAward"] == 1
     assert result.persisted_candidates and all(
         item.entity_type.value in {"course", "program"}
         for item in result.persisted_candidates
@@ -209,6 +215,61 @@ class IncompletePrimaryFeedFetcher(BaseFetcher):
             },
         }
         return json.dumps({"Items": [rows[endpoint]], "TotalCount": 1})
+
+
+class ZeroPrimaryFeedFetcher(IncompletePrimaryFeedFetcher):
+    def fetch(self, url: str) -> str:
+        endpoint = urlsplit(url).path.rsplit("/", 1)[-1]
+        if endpoint == self.broken_endpoint:
+            return json.dumps({"Items": [], "TotalCount": 0})
+        return super().fetch(url)
+
+
+@pytest.mark.parametrize(
+    "broken_endpoint",
+    ["GetCourses", "GetProgramsUnderGraduate"],
+)
+def test_zero_primary_feed_is_unreconciled(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    broken_endpoint: str,
+) -> None:
+    collector = CoursesCollector(
+        fetcher=ZeroPrimaryFeedFetcher(broken_endpoint),
+        store=LocalDataStore(tmp_path / "store", dry_run=True),
+    )
+
+    result = collector.discover_full_catalogue(
+        academic_year="2026",
+        page_size=2,
+    )
+
+    assert result.primary_feeds_reconciled is False
+    assert result.unreconciled_primary_feeds == (broken_endpoint,)
+    assert any(
+        f"{broken_endpoint}: TotalCount=0" in anomaly
+        for anomaly in result.anomalies
+    )
+
+    assert list((tmp_path / "store" / "records").glob("*.json")) == []
+    assert list((tmp_path / "store" / "runs").glob("*.json")) == []
+
+    monkeypatch.setattr(
+        breadth,
+        "courses_report",
+        lambda _year, _page_size, _interval: {
+            "reconciled": result.primary_feeds_reconciled,
+            "unreconciled_primary_feeds": list(
+                result.unreconciled_primary_feeds
+            ),
+        },
+    )
+    exit_code = breadth.main(["--domain", "courses"])
+    output = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 1
+    assert output["status"] == "UNRECONCILED"
 
 
 @pytest.mark.parametrize(

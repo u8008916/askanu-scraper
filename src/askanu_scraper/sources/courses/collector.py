@@ -946,6 +946,7 @@ class CoursesCollector:
                 entity_type in {"course", "program"}
                 and (
                     feed_total is None
+                    or feed_total == 0
                     or feed_rows != feed_total
                     or len(feed_seen) != feed_total
                     or repeated_page
