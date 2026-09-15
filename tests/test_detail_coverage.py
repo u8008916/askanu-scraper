@@ -2,7 +2,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
+import pytest
+
+from askanu_scraper import detail_coverage
 from askanu_scraper.common.fetcher import BaseFetcher
 from askanu_scraper.detail_coverage import DetailCandidate, DetailCoverageAuditor
 
@@ -270,3 +274,178 @@ def test_job_uses_listing_and_detail_evidence_without_pd_fetch() -> None:
     assert job["fields"]["salary"]["coverage_percent"] == 100.0
     assert job["fields"]["role_requirements"]["source_present"] == 0
     assert result["pd_documents_fetched"] == 0
+
+
+
+def test_detail_discovery_refuses_unreconciled_scholarship_listing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeScholarshipsCollector:
+        def __init__(self, **_kwargs) -> None:
+            pass
+
+        def discover_full_listing(self, **_kwargs):
+            return SimpleNamespace(
+                headline_total_count=405,
+                discovered_candidate_count=404,
+                candidates=(),
+            )
+
+    monkeypatch.setattr(
+        detail_coverage,
+        "ScholarshipsCollector",
+        FakeScholarshipsCollector,
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="Scholarships listing is unreconciled",
+    ):
+        detail_coverage.discover_candidates(
+            "scholarships",
+            academic_year="2026",
+            max_listing_pages=100,
+            interval=0,
+        )
+
+
+def test_detail_discovery_refuses_missing_scholarship_total(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeScholarshipsCollector:
+        def __init__(self, **_kwargs) -> None:
+            pass
+
+        def discover_full_listing(self, **_kwargs):
+            return SimpleNamespace(
+                headline_total_count=None,
+                discovered_candidate_count=379,
+                candidates=(),
+            )
+
+    monkeypatch.setattr(
+        detail_coverage,
+        "ScholarshipsCollector",
+        FakeScholarshipsCollector,
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="Scholarships headline total is missing",
+    ):
+        detail_coverage.discover_candidates(
+            "scholarships",
+            academic_year="2026",
+            max_listing_pages=100,
+            interval=0,
+        )
+
+
+def test_detail_discovery_refuses_unreconciled_jobs_listing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeJobsCollector:
+        def __init__(self, **_kwargs) -> None:
+            pass
+
+        def discover_full_listing(self, **_kwargs):
+            return SimpleNamespace(
+                advertised_total_count=55,
+                candidates=[SimpleNamespace()] * 54,
+            )
+
+    monkeypatch.setattr(
+        detail_coverage,
+        "JobsCollector",
+        FakeJobsCollector,
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="Jobs listing is unreconciled",
+    ):
+        detail_coverage.discover_candidates(
+            "jobs",
+            academic_year="2026",
+            max_listing_pages=100,
+            interval=0,
+        )
+
+
+def test_detail_discovery_refuses_zero_jobs_total(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeJobsCollector:
+        def __init__(self, **_kwargs) -> None:
+            pass
+
+        def discover_full_listing(self, **_kwargs):
+            return SimpleNamespace(
+                advertised_total_count=0,
+                candidates=[],
+            )
+
+    monkeypatch.setattr(
+        detail_coverage,
+        "JobsCollector",
+        FakeJobsCollector,
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="Jobs advertised total is suspiciously zero",
+    ):
+        detail_coverage.discover_candidates(
+            "jobs",
+            academic_year="2026",
+            max_listing_pages=100,
+            interval=0,
+        )
+
+
+def test_detail_discovery_uses_dry_run_store_without_creating_local_data(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    observed: dict[str, object] = {}
+
+    class FakeCoursesCollector:
+        def __init__(
+            self,
+            *,
+            store,
+            min_request_interval_seconds,
+        ) -> None:
+            observed["dry_run"] = store.dry_run
+            observed["interval"] = min_request_interval_seconds
+
+        def discover_full_catalogue(self, *, academic_year):
+            observed["academic_year"] = academic_year
+            return SimpleNamespace(
+                primary_feeds_reconciled=True,
+                items=(),
+                counts_by_type={},
+            )
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        detail_coverage,
+        "CoursesCollector",
+        FakeCoursesCollector,
+    )
+
+    candidates, census = detail_coverage.discover_candidates(
+        "courses",
+        academic_year="2026",
+        max_listing_pages=100,
+        interval=0,
+    )
+
+    assert candidates == []
+    assert census == {"courses": {}}
+    assert observed == {
+        "dry_run": True,
+        "interval": 0,
+        "academic_year": "2026",
+    }
+    assert not (tmp_path / "local-data").exists()
