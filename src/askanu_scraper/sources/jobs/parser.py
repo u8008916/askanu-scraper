@@ -179,7 +179,9 @@ class JobsParser(BaseParser):
         metadata = listing_metadata or {}
         soup = BeautifulSoup(raw_content, "lxml")
         canonical_url = _canonical_url(soup, url)
-        title = _first_text(soup, ("h3.job-title", "h1 .editor-placeholder", "h1"))
+        title = _first_text(
+            soup, ("h3.job-title", "h1 .editor-placeholder", "h1")
+        ) or _listing_value(metadata, "title")
         job_id = _first_text(
             soup,
             (".job-component-requisition-identifier span", "[data-job-id]"),
