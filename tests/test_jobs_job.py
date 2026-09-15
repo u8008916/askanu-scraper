@@ -77,7 +77,10 @@ def test_jobs_config_has_safe_bounds_and_no_academic_year() -> None:
 
 @pytest.mark.parametrize(
     ("name", "value"),
-    [("SCRAPER_MAX_JOBS_LISTING_PAGES", "2"), ("SCRAPER_MAX_JOB_DETAILS", "11")],
+    [
+        ("SCRAPER_MAX_JOBS_LISTING_PAGES", "101"),
+        ("SCRAPER_MAX_JOB_DETAILS", "2001"),
+    ],
 )
 def test_jobs_config_rejects_unsafe_bounds(name: str, value: str) -> None:
     with pytest.raises(JobConfigurationError, match="between"):

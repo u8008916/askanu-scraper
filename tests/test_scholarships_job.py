@@ -105,17 +105,17 @@ def test_scholarship_config_does_not_require_academic_year() -> None:
             {
                 "SCRAPER_SOURCE_ID": SOURCE_ID,
                 "SCRAPER_DOMAIN": "scholarships",
-                "SCRAPER_MAX_SCHOLARSHIP_LISTING_PAGES": "2",
+                "SCRAPER_MAX_SCHOLARSHIP_LISTING_PAGES": "101",
             },
-            "between 1 and 1",
+            "between 1 and 100",
         ),
         (
             {
                 "SCRAPER_SOURCE_ID": SOURCE_ID,
                 "SCRAPER_DOMAIN": "scholarships",
-                "SCRAPER_MAX_SCHOLARSHIP_DETAILS": "11",
+                "SCRAPER_MAX_SCHOLARSHIP_DETAILS": "2001",
             },
-            "between 1 and 10",
+            "between 1 and 2000",
         ),
         (
             {

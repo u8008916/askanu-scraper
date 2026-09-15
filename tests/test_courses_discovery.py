@@ -329,8 +329,8 @@ def test_live_course_api_items_become_catalogue_candidates() -> None:
         "course:COMP1110_2026",
     ]
     assert [item.url for item in result.persisted_candidates] == [
-        "https://programsandcourses.anu.edu.au/2026/course/ARCH8046",
-        "https://programsandcourses.anu.edu.au/2026/course/COMP1110",
+        "https://programsandcourses.anu.edu.au/2026/course/arch8046",
+        "https://programsandcourses.anu.edu.au/2026/course/comp1110",
     ]
 
 
@@ -366,8 +366,8 @@ def test_live_program_api_items_become_catalogue_candidates() -> None:
         "program:BFIN_2026",
     ]
     assert [item.url for item in result.persisted_candidates] == [
-        "https://programsandcourses.anu.edu.au/2026/program/BACCT",
-        "https://programsandcourses.anu.edu.au/2026/program/BFIN",
+        "https://programsandcourses.anu.edu.au/2026/program/bacct",
+        "https://programsandcourses.anu.edu.au/2026/program/bfin",
     ]
 
 
@@ -458,6 +458,10 @@ def test_live_catalogue_run_uses_api_results_and_ingests_courses_and_programs(
         SECOND_COURSE_URL: rich_course_fixture_path.read_text(encoding="utf-8"),
         PROGRAM_URL: bacct_fixture_path.read_text(encoding="utf-8"),
         SECOND_PROGRAM_URL: bfin_fixture_path.read_text(encoding="utf-8"),
+        COURSE_URL.lower(): courses_fixture_path.read_text(encoding="utf-8"),
+        SECOND_COURSE_URL.lower(): rich_course_fixture_path.read_text(encoding="utf-8"),
+        PROGRAM_URL.lower(): bacct_fixture_path.read_text(encoding="utf-8"),
+        SECOND_PROGRAM_URL.lower(): bfin_fixture_path.read_text(encoding="utf-8"),
     }
 
     class LiveApiFixtureFetcher:

@@ -24,6 +24,8 @@ from askanu_scraper.common.normalizer import now_canberra
 from askanu_scraper.common.registry import assert_source_allowed
 from askanu_scraper.common.storage import DataStore, LocalDataStore
 from askanu_scraper.sources.courses.discovery import (
+    CatalogueEntityType,
+    CatalogueItem,
     CatalogueDiscoveryResult,
     CoursesCatalogueDiscovery,
 )
@@ -794,3 +796,192 @@ class CoursesCollector:
         )
 
         return run, saved_records, discovery
+
+    def discover_full_catalogue(
+        self,
+        *,
+        academic_year: str,
+        page_size: int = 100,
+        max_pages_per_feed: int = 100,
+    ) -> CatalogueDiscoveryResult:
+        """Enumerate the approved 2026 catalogue universe without persistence.
+
+        Courses, every Program career feed, and all three subplan feeds are
+        traversed independently. Program rows are unioned by logical Program
+        identity. Major/Minor/Specialisation remain discovery-only until their
+        shared persistence contract is approved.
+        """
+        if re.fullmatch(r"\d{4}", academic_year) is None:
+            raise ValueError("academic_year must be a four-digit year")
+        if not 1 <= page_size <= 500:
+            raise ValueError("page_size must be between 1 and 500")
+        if not 1 <= max_pages_per_feed <= 1000:
+            raise ValueError("max_pages_per_feed must be between 1 and 1000")
+
+        self._catalogue_request_count = 0
+        self._detail_request_count = 0
+        self.last_run_sanity = self._empty_sanity()
+        root = self._source.canonical_root.rstrip("/")
+        feeds = (
+            ("course", "data/CourseSearch/GetCourses", "FilterByCourses"),
+            ("program", "data/ProgramSearch/GetProgramsUnderGraduate", "FilterByUnderGraduate"),
+            ("program", "data/ProgramSearch/GetProgramsPostGraduate", "FilterByPostGraduate"),
+            ("program", "data/ProgramSearch/GetProgramsResearch", "FilterByResearch"),
+            ("program", "data/ProgramSearch/GetProgramsNonAward", "FilterByNonAward"),
+            ("major", "data/MajorSearch/GetMajors", "FilterByMajors"),
+            ("minor", "data/MinorSearch/GetMinors", "FilterByMinors"),
+            (
+                "specialisation",
+                "data/SpecialisationSearch/GetSpecialisations",
+                "FilterBySpecialisations",
+            ),
+        )
+
+        all_items: list[CatalogueItem] = []
+        duplicate_ids: list[str] = []
+        rejected: list[str] = []
+        source_totals: dict[str, int] = {}
+        raw_counts = {member.value: 0 for member in CatalogueEntityType}
+        raw_counts_by_feed: dict[str, int] = {}
+        unique_counts_by_feed: dict[str, int] = {}
+        unreconciled_primary_feeds: list[str] = []
+        anomalies: list[str] = []
+        global_seen: set[str] = set()
+
+        for entity_type, path, applied_filter in feeds:
+            endpoint = f"{root}/{path}"
+            feed_key = path.rsplit("/", 1)[-1]
+            feed_rows = 0
+            feed_total: int | None = None
+            previous_page_ids: tuple[str, ...] | None = None
+            feed_seen: set[str] = set()
+            repeated_page = False
+
+            for page_index in range(max_pages_per_feed):
+                params = {
+                    "AppliedFilter": applied_filter,
+                    "SelectedYear": academic_year,
+                    "PageIndex": str(page_index),
+                    "PageSize": str(page_size),
+                    "MaxPageSize": str(page_size),
+                    "ShowAll": "false",
+                }
+                url = endpoint + "?" + urlencode(params)
+                if not self._url_belongs_to_source(url):
+                    raise ValueError(
+                        f"Catalogue endpoint failed source validation: {endpoint}"
+                    )
+                try:
+                    payload = json.loads(self._catalogue_fetch(url))
+                except json.JSONDecodeError as exc:
+                    raise ValueError(
+                        f"{feed_key} page {page_index} returned invalid JSON"
+                    ) from exc
+                if not isinstance(payload, dict):
+                    raise ValueError(
+                        f"{feed_key} page {page_index} payload was not an object"
+                    )
+                total = payload.get("TotalCount")
+                if not isinstance(total, int) or total < 0:
+                    raise ValueError(f"{feed_key} has invalid TotalCount")
+                if feed_total is None:
+                    feed_total = total
+                    source_totals[feed_key] = total
+                elif total != feed_total:
+                    raise ValueError(
+                        f"{feed_key} TotalCount changed during pagination"
+                    )
+
+                page = self._discovery.discover_api_payload(
+                    payload,
+                    entity_type=entity_type,
+                    canonical_root=self._source.canonical_root,
+                )
+                raw_items = payload.get("Items")
+                assert isinstance(raw_items, list)
+                feed_rows += len(raw_items)
+                raw_counts[entity_type] += len(raw_items)
+                rejected.extend(
+                    f"{feed_key}:{reason}" for reason in page.rejected_links
+                )
+                duplicate_ids.extend(page.duplicate_identities)
+                page_ids = tuple(item.discovery_id for item in page.items)
+
+                if not raw_items:
+                    break
+                if previous_page_ids == page_ids:
+                    repeated_page = True
+                    anomalies.append(
+                        f"{feed_key}: repeated page at PageIndex={page_index}"
+                    )
+                    break
+                previous_page_ids = page_ids
+
+                for item in page.items:
+                    feed_seen.add(item.discovery_id)
+                    if item.discovery_id in global_seen:
+                        duplicate_ids.append(item.discovery_id)
+                    else:
+                        global_seen.add(item.discovery_id)
+                        all_items.append(item)
+
+                if feed_rows >= total:
+                    break
+            else:
+                raise ValueError(
+                    f"{feed_key} exceeded pagination safety bound"
+                )
+
+            if feed_total is not None and feed_rows != feed_total:
+                anomalies.append(
+                    f"{feed_key}: TotalCount={feed_total}, returned_rows={feed_rows}"
+                )
+            if feed_total == 0:
+                anomalies.append(
+                    f"{feed_key}: TotalCount=0 (suspicious-zero source snapshot)"
+                )
+            raw_counts_by_feed[feed_key] = feed_rows
+            unique_counts_by_feed[feed_key] = len(feed_seen)
+            if (
+                entity_type in {"course", "program"}
+                and (
+                    feed_total is None
+                    or feed_rows != feed_total
+                    or len(feed_seen) != feed_total
+                    or repeated_page
+                )
+            ):
+                unreconciled_primary_feeds.append(feed_key)
+
+        counts = {
+            member.value: sum(
+                item.entity_type == member for item in all_items
+            )
+            for member in CatalogueEntityType
+        }
+        result = CatalogueDiscoveryResult(
+            items=tuple(all_items),
+            counts_by_type=counts,
+            duplicate_identities=tuple(duplicate_ids),
+            rejected_links=tuple(rejected),
+            source_totals=source_totals,
+            raw_counts_by_type=raw_counts,
+            anomalies=tuple(anomalies),
+            raw_counts_by_feed=raw_counts_by_feed,
+            unique_counts_by_feed=unique_counts_by_feed,
+            unreconciled_primary_feeds=tuple(unreconciled_primary_feeds),
+        )
+        self._capture_sanity(result)
+        self.last_run_sanity["source_totals"] = source_totals
+        self.last_run_sanity["raw_counts_by_type"] = raw_counts
+        self.last_run_sanity["source_anomalies"] = list(anomalies)
+        self.last_run_sanity["raw_counts_by_feed"] = raw_counts_by_feed
+        self.last_run_sanity["unique_counts_by_feed"] = unique_counts_by_feed
+        self.last_run_sanity["unreconciled_primary_feeds"] = list(
+            unreconciled_primary_feeds
+        )
+        self.last_run_sanity["primary_feeds_reconciled"] = (
+            result.primary_feeds_reconciled
+        )
+        self.last_run_sanity["persistence_scope"] = ["course", "program"]
+        return result
