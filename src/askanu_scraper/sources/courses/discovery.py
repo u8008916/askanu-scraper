@@ -53,6 +53,14 @@ class CatalogueDiscoveryResult:
     source_totals: dict[str, int] | None = None
     raw_counts_by_type: dict[str, int] | None = None
     anomalies: tuple[str, ...] = ()
+    raw_counts_by_feed: dict[str, int] | None = None
+    unique_counts_by_feed: dict[str, int] | None = None
+    unreconciled_primary_feeds: tuple[str, ...] = ()
+
+    @property
+    def primary_feeds_reconciled(self) -> bool:
+        """Whether every Course/Program API feed completed consistently."""
+        return not self.unreconciled_primary_feeds
 
     @property
     def persisted_candidates(self) -> tuple[CatalogueItem, ...]:
@@ -224,7 +232,7 @@ class CoursesCatalogueDiscovery:
             canonical_url = normalize_url(
                 urljoin(
                     canonical_root,
-                    f"{year}/{requested_type.value}/{identifier}",
+                    f"{year}/{requested_type.value}/{identifier.lower()}",
                 )
             )
 

@@ -842,15 +842,20 @@ class CoursesCollector:
         rejected: list[str] = []
         source_totals: dict[str, int] = {}
         raw_counts = {member.value: 0 for member in CatalogueEntityType}
+        raw_counts_by_feed: dict[str, int] = {}
+        unique_counts_by_feed: dict[str, int] = {}
+        unreconciled_primary_feeds: list[str] = []
         anomalies: list[str] = []
         global_seen: set[str] = set()
 
-        for feed_number, (entity_type, path, applied_filter) in enumerate(feeds):
+        for entity_type, path, applied_filter in feeds:
             endpoint = f"{root}/{path}"
             feed_key = path.rsplit("/", 1)[-1]
             feed_rows = 0
             feed_total: int | None = None
             previous_page_ids: tuple[str, ...] | None = None
+            feed_seen: set[str] = set()
+            repeated_page = False
 
             for page_index in range(max_pages_per_feed):
                 params = {
@@ -905,6 +910,7 @@ class CoursesCollector:
                 if not raw_items:
                     break
                 if previous_page_ids == page_ids:
+                    repeated_page = True
                     anomalies.append(
                         f"{feed_key}: repeated page at PageIndex={page_index}"
                     )
@@ -912,6 +918,7 @@ class CoursesCollector:
                 previous_page_ids = page_ids
 
                 for item in page.items:
+                    feed_seen.add(item.discovery_id)
                     if item.discovery_id in global_seen:
                         duplicate_ids.append(item.discovery_id)
                     else:
@@ -933,6 +940,18 @@ class CoursesCollector:
                 anomalies.append(
                     f"{feed_key}: TotalCount=0 (suspicious-zero source snapshot)"
                 )
+            raw_counts_by_feed[feed_key] = feed_rows
+            unique_counts_by_feed[feed_key] = len(feed_seen)
+            if (
+                entity_type in {"course", "program"}
+                and (
+                    feed_total is None
+                    or feed_rows != feed_total
+                    or len(feed_seen) != feed_total
+                    or repeated_page
+                )
+            ):
+                unreconciled_primary_feeds.append(feed_key)
 
         counts = {
             member.value: sum(
@@ -948,10 +967,21 @@ class CoursesCollector:
             source_totals=source_totals,
             raw_counts_by_type=raw_counts,
             anomalies=tuple(anomalies),
+            raw_counts_by_feed=raw_counts_by_feed,
+            unique_counts_by_feed=unique_counts_by_feed,
+            unreconciled_primary_feeds=tuple(unreconciled_primary_feeds),
         )
         self._capture_sanity(result)
         self.last_run_sanity["source_totals"] = source_totals
         self.last_run_sanity["raw_counts_by_type"] = raw_counts
         self.last_run_sanity["source_anomalies"] = list(anomalies)
+        self.last_run_sanity["raw_counts_by_feed"] = raw_counts_by_feed
+        self.last_run_sanity["unique_counts_by_feed"] = unique_counts_by_feed
+        self.last_run_sanity["unreconciled_primary_feeds"] = list(
+            unreconciled_primary_feeds
+        )
+        self.last_run_sanity["primary_feeds_reconciled"] = (
+            result.primary_feeds_reconciled
+        )
         self.last_run_sanity["persistence_scope"] = ["course", "program"]
         return result

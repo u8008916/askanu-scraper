@@ -69,6 +69,8 @@ class BoundedFixtureFetcher(BaseFetcher):
             ),
             COURSE_URL: course_html,
             PROGRAM_URL: program_html,
+            COURSE_URL.lower(): course_html,
+            PROGRAM_URL.lower(): program_html,
         }
 
     def fetch(self, url: str) -> str:

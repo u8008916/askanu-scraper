@@ -7,10 +7,12 @@ from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
+from askanu_scraper import breadth
 from askanu_scraper.common.fetcher import BaseFetcher, MockFetcher
 from askanu_scraper.common.models import IngestionRunStatus
 from askanu_scraper.common.storage import LocalDataStore
 from askanu_scraper.sources.courses.collector import CoursesCollector
+from askanu_scraper.sources.courses.discovery import CoursesCatalogueDiscovery
 from askanu_scraper.sources.jobs import LISTING_URL as JOBS_LISTING_URL, JobsCollector
 from askanu_scraper.sources.scholarships import (
     LISTING_URL as SCHOLARSHIPS_LISTING_URL,
@@ -59,6 +61,60 @@ class CatalogueUniverseFetcher(BaseFetcher):
         return json.dumps({"Items": items, "TotalCount": total})
 
 
+@pytest.mark.parametrize(
+    ("entity_type", "raw_item", "identity", "url_path"),
+    [
+        (
+            "course",
+            {"CourseCode": " arch8046 ", "Year": 2026},
+            "ARCH8046",
+            "/2026/course/arch8046",
+        ),
+        (
+            "program",
+            {"AcademicPlanCode": " bacct ", "ProgramAcademicYear": "2026"},
+            "BACCT",
+            "/2026/program/bacct",
+        ),
+        (
+            "major",
+            {"SubPlanCode": " acct-maj ", "Year": 2026},
+            "ACCT-MAJ",
+            "/2026/major/acct-maj",
+        ),
+        (
+            "minor",
+            {"SubPlanCode": " aagr-min ", "Year": 2026},
+            "AAGR-MIN",
+            "/2026/minor/aagr-min",
+        ),
+        (
+            "specialisation",
+            {"SubPlanCode": " meas-spec ", "Year": 2026},
+            "MEAS-SPEC",
+            "/2026/specialisation/meas-spec",
+        ),
+    ],
+)
+def test_catalogue_api_identity_is_uppercase_and_url_path_is_lowercase(
+    entity_type: str,
+    raw_item: dict[str, object],
+    identity: str,
+    url_path: str,
+) -> None:
+    result = CoursesCatalogueDiscovery().discover_api_payload(
+        {"Items": [raw_item], "TotalCount": 1},
+        entity_type=entity_type,
+        canonical_root="https://programsandcourses.anu.edu.au/",
+    )
+
+    assert result.items[0].identifier == identity
+    assert result.items[0].url == (
+        "https://programsandcourses.anu.edu.au" + url_path
+    )
+    assert result.items[0].discovery_id == f"{entity_type}:{identity}_2026"
+
+
 def test_courses_full_universe_enumerates_all_feeds_without_persisting(
     tmp_path: Path,
 ) -> None:
@@ -84,6 +140,8 @@ def test_courses_full_universe_enumerates_all_feeds_without_persisting(
         item.entity_type.value in {"course", "program"}
         for item in result.persisted_candidates
     )
+    assert result.primary_feeds_reconciled is True
+    assert result.unreconciled_primary_feeds == ()
     assert list((tmp_path / "store" / "records").glob("*.json")) == []
     assert list((tmp_path / "store" / "runs").glob("*.json")) == []
     assert collector.last_run_sanity["persistence_scope"] == ["course", "program"]
@@ -104,6 +162,92 @@ def test_courses_full_universe_rejects_malformed_api_payload(tmp_path: Path) -> 
         collector.discover_full_catalogue(academic_year="2026")
     assert list((tmp_path / "store" / "records").glob("*.json")) == []
     assert list((tmp_path / "store" / "runs").glob("*.json")) == []
+
+
+class IncompletePrimaryFeedFetcher(BaseFetcher):
+    def __init__(self, broken_endpoint: str) -> None:
+        self.broken_endpoint = broken_endpoint
+
+    def fetch(self, url: str) -> str:
+        endpoint = urlsplit(url).path.rsplit("/", 1)[-1]
+        if endpoint == self.broken_endpoint:
+            if endpoint == "GetCourses":
+                items = [
+                    {"CourseCode": "COMP1100", "Year": 2026},
+                    {"CourseCode": "COMP1110", "Year": 2026},
+                ]
+            else:
+                items = [
+                    {"AcademicPlanCode": "BACCT", "ProgramAcademicYear": "2026"},
+                    {"AcademicPlanCode": "BFIN", "ProgramAcademicYear": "2026"},
+                ]
+            return json.dumps({"Items": items, "TotalCount": 3})
+
+        rows: dict[str, dict[str, object]] = {
+            "GetCourses": {"CourseCode": "MATH1005", "Year": 2026},
+            "GetProgramsUnderGraduate": {
+                "AcademicPlanCode": "BARTS",
+                "ProgramAcademicYear": "2026",
+            },
+            "GetProgramsPostGraduate": {
+                "AcademicPlanCode": "MCOMP",
+                "ProgramAcademicYear": "2026",
+            },
+            "GetProgramsResearch": {
+                "AcademicPlanCode": "PHD",
+                "ProgramAcademicYear": "2026",
+            },
+            "GetProgramsNonAward": {
+                "AcademicPlanCode": "NAWARD",
+                "ProgramAcademicYear": "2026",
+            },
+            "GetMajors": {"SubPlanCode": "COMP-MAJ", "Year": 2026},
+            "GetMinors": {"SubPlanCode": "STAT-MIN", "Year": 2026},
+            "GetSpecialisations": {
+                "SubPlanCode": "MEAS-SPEC",
+                "Year": 2026,
+            },
+        }
+        return json.dumps({"Items": [rows[endpoint]], "TotalCount": 1})
+
+
+@pytest.mark.parametrize(
+    "broken_endpoint",
+    ["GetCourses", "GetProgramsUnderGraduate"],
+)
+def test_incomplete_primary_feed_makes_breadth_command_unreconciled(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    broken_endpoint: str,
+) -> None:
+    collector = CoursesCollector(
+        fetcher=IncompletePrimaryFeedFetcher(broken_endpoint),
+        store=LocalDataStore(tmp_path / "store", dry_run=True),
+    )
+    result = collector.discover_full_catalogue(
+        academic_year="2026", page_size=2
+    )
+
+    assert result.primary_feeds_reconciled is False
+    assert result.unreconciled_primary_feeds == (broken_endpoint,)
+    assert any("repeated page" in anomaly for anomaly in result.anomalies)
+
+    monkeypatch.setattr(
+        breadth,
+        "courses_report",
+        lambda _year, _page_size, _interval: {
+            "reconciled": result.primary_feeds_reconciled,
+            "unreconciled_primary_feeds": list(
+                result.unreconciled_primary_feeds
+            ),
+        },
+    )
+    exit_code = breadth.main(["--domain", "courses"])
+    output = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 1
+    assert output["status"] == "UNRECONCILED"
 
 
 def _scholarship_card(url: str, text: str = "Open for applications") -> str:

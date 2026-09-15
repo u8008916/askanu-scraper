@@ -33,10 +33,16 @@ def courses_report(year: str, page_size: int, interval: float) -> dict[str, obje
         "academic_year": year,
         "unique_by_entity_type": result.counts_by_type,
         "raw_by_entity_type": result.raw_counts_by_type,
+        "raw_by_feed": result.raw_counts_by_feed,
+        "unique_by_feed": result.unique_counts_by_feed,
         "source_totals_by_feed": result.source_totals,
         "duplicate_count": len(result.duplicate_identities),
         "rejected_count": len(result.rejected_links),
         "source_anomalies": list(result.anomalies),
+        "unreconciled_primary_feeds": list(
+            result.unreconciled_primary_feeds
+        ),
+        "reconciled": result.primary_feeds_reconciled,
         "listing_requests": collector.last_run_sanity["request_count"],
         "persistence_scope": ["course", "program"],
         "persisted": False,
@@ -138,7 +144,6 @@ def main(argv: list[str] | None = None) -> int:
 
     reconciled = all(
         not isinstance(report.get(domain), dict)
-        or domain == "courses"
         or bool(report[domain].get("reconciled"))  # type: ignore[union-attr]
         for domain in selected
     )
