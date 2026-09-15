@@ -65,17 +65,38 @@ coverage, and persistence were not exercised by this listing-only census.
 
 ### Jobs
 
-At the first live listing-only run, traversal found 55 unique approved URLs,
-30 duplicate URLs caused by the documented base/`?page=1` overlap, and no
-rejections. The run occurred on 2026-09-15 and performed no detail fetch/write.
+The healthy-source retry at `2026-09-15T12:28:26.084740+10:00` reconciled:
 
-That run also exposed that the live advertised count is split across nested DOM
-elements and contains non-ASCII separators. The selector was corrected and a
-fixture test now covers that exact structure. The immediate verification retry
-received HTTP 202 with an empty body from the upstream source, so the corrected
-dynamic advertised-total reconciliation is **pending a healthy-source rerun**.
-Do not call Jobs production breadth accepted from this run alone, even though
-the unique URL numerator is 55.
+| Measure | Count |
+|---|---:|
+| Advertised current vacancies | 55 |
+| Approved unique URLs | 55 |
+| Base/`?page=1` overlap duplicates | 30 |
+| Rejected | 0 |
+
+Entity discovery is 55/55 (100.00%, gate 55): PASS. The live advertised count
+is split across nested DOM elements and contains non-ASCII separators; the
+updated selector and fixture test cover that structure. The run used three
+listing requests and performed no detail fetch/write.
+
+## Representative live detail-field audit
+
+One approved live detail record per domain was parsed through the normal
+collector boundary using a dry-run store. All three runs succeeded, produced
+non-empty deterministic content, retained canonical source URLs, and wrote no
+records or ingestion runs.
+
+- Course `COMP1100_2026`: required identity fields plus source-backed career,
+  units, delivery mode, assumed knowledge and offerings were captured.
+- Scholarship `anu-international-achievement-award`: all frozen metadata keys
+  were present; source-backed status, application, audience/filter, value,
+  selection and eligibility evidence was captured.
+- Job `563258`: all frozen metadata keys were present and source-backed category,
+  employment type, location, classification, salary, closing, status and summary
+  evidence was captured.
+
+This representative audit is not the >=99% full-detail field-coverage result.
+That denominator still requires the controlled detail traversal/review stage.
 
 ## Implemented safety and evidence behavior
 
@@ -107,5 +128,16 @@ the JSON report to stdout. It does not fetch details or write records/runs.
   canonical-URL contract and RAG migration are approved.
 - Do not broad-write any domain until detail parser/field coverage review,
   staged write, unchanged rerun, and last-known-good failure drill pass.
-- Jobs needs one healthy-source rerun of the corrected advertised-total parser.
 - Position Description documents remain out of scope.
+
+## Staged-write checklist
+
+- [ ] Qasim reviews the listing census and parser-field evidence.
+- [ ] Confirm the approved shared migration/runtime state and PostgreSQL gates.
+- [ ] Run a bounded PostgreSQL dry-run and inspect the summary.
+- [ ] Run the first staged write and inspect added/changed/rejected counts.
+- [ ] Inspect representative `source_records` and `ingestion_runs` rows.
+- [ ] Repeat the identical run and require `UNCHANGED` evidence.
+- [ ] Exercise fetch/parser/drastic-count failure and confirm last-known-good.
+- [ ] Recompute entity and required source-present field coverage.
+- [ ] Approve broader production execution only after every prior check passes.
