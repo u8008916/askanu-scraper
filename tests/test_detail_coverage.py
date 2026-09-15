@@ -120,6 +120,30 @@ def test_source_present_parser_miss_is_not_counted_as_absent() -> None:
     }
 
 
+def test_combined_live_requisite_section_has_independent_presence_detection() -> None:
+    url = "https://programsandcourses.anu.edu.au/2026/course/comp1110"
+    html = """
+    <div class="course-detail">
+      <h1 class="intro-title">Structured Programming</h1>
+      <table class="course-data">
+        <tr><th>Course Code</th><td>COMP1110</td></tr>
+        <tr><th>Academic Year</th><td>2026</td></tr>
+      </table>
+      <h2>Requisite and Incompatibility</h2>
+      <div>To enrol in this course you must have completed: COMP1100.
+      You are not able to enrol in this course if you have completed COMP1140.</div>
+    </div>
+    """
+    course = audit(
+        DetailCandidate("course", "COMP1110", url), pages={url: html}
+    )["entity_classes"]["course"]
+
+    assert course["fields"]["prerequisites"]["source_present"] == 1
+    assert course["fields"]["prerequisites"]["captured"] == 1
+    assert course["fields"]["incompatibilities"]["source_present"] == 1
+    assert course["fields"]["incompatibilities"]["captured"] == 1
+
+
 def test_source_absent_optional_field_has_no_false_failure() -> None:
     url = "https://programsandcourses.anu.edu.au/2026/course/comp1100"
     html = """

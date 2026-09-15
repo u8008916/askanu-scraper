@@ -212,15 +212,23 @@ def _source_presence(
             soup.select_one(".course-description, meta[name='course-description']")
         )
         result["learning_outcomes"] = _section_presence(soup, "Learning Outcomes")
-        result["prerequisites"] = bool(soup.select_one(".prerequisites")) or _section_presence(
-            soup, "Prerequisites"
-        )
-        result["corequisites"] = bool(soup.select_one(".corequisites")) or _section_presence(
-            soup, "Corequisites"
-        )
         requisite_text = _section_text(soup, "Requisite and Incompatibility") or ""
+        result["prerequisites"] = (
+            bool(soup.select_one(".prerequisites"))
+            or _section_presence(soup, "Prerequisites")
+            or bool(re.search(r"\bto enrol\b.+?\bcompleted\b", requisite_text, re.I))
+        )
+        result["corequisites"] = (
+            bool(soup.select_one(".corequisites"))
+            or _section_presence(soup, "Corequisites")
+            or bool(re.search(r"\b(?:co-?requisite|concurrently|must be enrolled)\b", requisite_text, re.I))
+        )
         result["incompatibilities"] = bool(soup.select_one(".incompatibilities")) or bool(
-            re.search(r"\bincompatib", requisite_text, re.IGNORECASE)
+            re.search(
+                r"(?:\bincompatib|\bnot able to enrol\b)",
+                requisite_text,
+                re.IGNORECASE,
+            )
         )
         result["assumed_knowledge"] = bool(soup.select_one(".assumed-knowledge")) or _section_presence(
             soup, "Assumed Knowledge"
