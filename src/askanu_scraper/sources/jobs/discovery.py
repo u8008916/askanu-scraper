@@ -114,6 +114,7 @@ class JobsDiscovery:
                 continue
             job_id = card.get("data-job-id")
             metadata: dict[str, object] = {
+                "title": normalize_text(link.get_text(" ", strip=True)),
                 "job_id": normalize_text(str(job_id)) if job_id else None,
                 "category": _text(card, (".job-component-category", ".category")),
                 "employment_types": _texts(

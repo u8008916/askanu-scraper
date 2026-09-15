@@ -110,14 +110,23 @@ def _current_detail_value(soup: BeautifulSoup, label: str) -> str | None:
     container = heading.parent
     if container is None:
         return None
-    if _text(container) == _text(heading) and container.parent is not None:
+    while _text(container) == _text(heading) and container.parent is not None:
         container = container.parent
 
-    values = [
-        value
-        for child in container.find_all(["p", "span"], recursive=False)
-        if (value := _text(child))
-    ]
+    values: list[str] = []
+    value_tags = {"p", "span", "li"}
+    for child in container.find_all(value_tags):
+        if heading in child.parents:
+            continue
+        if any(
+            parent is not container and parent.name in value_tags
+            for parent in child.parents
+            if parent is not container.parent
+        ):
+            continue
+        value = _text(child)
+        if value and value not in values:
+            values.append(value)
     return normalize_text(" ".join(values)) if values else None
 
 
@@ -138,26 +147,32 @@ def _section_text(soup: BeautifulSoup, *, current_id: str, legacy: str) -> str |
 
 
 def _canonical_url(soup: BeautifulSoup, fetched_url: str) -> str:
-    candidates: list[str] = []
+    fetched_canonical = normalize_scholarship_url(fetched_url)
     canonical = soup.find("link", rel=lambda value: value and "canonical" in value)
     if isinstance(canonical, Tag) and canonical.get("href"):
-        candidates.append(str(canonical["href"]))
+        normalized = normalize_url(str(canonical["href"]))
+        if normalized is None:
+            raise ParseError("Scholarship page canonical URL is malformed")
+        page_canonical = normalize_scholarship_url(normalized)
+        if page_canonical != fetched_canonical:
+            raise ParseError(
+                "Scholarship canonical URL does not match the fetched detail URL"
+            )
+        return page_canonical
 
     explicit = soup.select_one(".canonical-url a[href]")
     if isinstance(explicit, Tag):
-        candidates.append(str(explicit["href"]))
-
-    candidates.append(fetched_url)
-    for candidate in candidates:
-        normalized = normalize_url(candidate)
+        normalized = normalize_url(str(explicit["href"]))
         if normalized is None:
-            continue
-        try:
-            canonical_url = normalize_scholarship_url(normalized)
-        except ParseError:
-            continue
-        return canonical_url
-    raise ParseError("Scholarship page has no approved canonical detail URL")
+            raise ParseError("Scholarship page canonical URL is malformed")
+        page_canonical = normalize_scholarship_url(normalized)
+        if page_canonical != fetched_canonical:
+            raise ParseError(
+                "Scholarship canonical URL does not match the fetched detail URL"
+            )
+        return page_canonical
+
+    return fetched_canonical
 
 
 def _parse_yes_no(value: str | None) -> bool | None:

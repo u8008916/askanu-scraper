@@ -56,7 +56,11 @@ class HttpFetcher(BaseFetcher):
         try:
             response = self._session.get(url, timeout=self._timeout)
             response.raise_for_status()
+            if not response.text or not response.text.strip():
+                raise FetchError(f"Failed to fetch {url!r}: empty response body")
             return response.text
+        except FetchError:
+            raise
         except requests.RequestException as exc:
             raise FetchError(f"Failed to fetch {url!r}: {exc}") from exc
 

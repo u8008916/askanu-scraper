@@ -115,17 +115,7 @@ def _text(node: Tag | None) -> str | None:
 
 def _section_presence(soup: BeautifulSoup, *labels: str) -> bool:
     """Detect non-empty source sections without consulting parser output."""
-    wanted = {label.casefold() for label in labels}
-    for heading in soup.find_all(["h2", "h3"]):
-        if (_text(heading) or "").casefold() not in wanted:
-            continue
-        for sibling in heading.next_siblings:
-            name = getattr(sibling, "name", None)
-            if name in {"h1", "h2", "h3"}:
-                break
-            if name and _text(sibling):
-                return True
-    return False
+    return _section_text(soup, *labels) is not None
 
 
 def _section_text(soup: BeautifulSoup, *labels: str) -> str | None:
@@ -134,16 +124,67 @@ def _section_text(soup: BeautifulSoup, *labels: str) -> str | None:
     for heading in soup.find_all(["h2", "h3"]):
         if (_text(heading) or "").casefold() not in wanted:
             continue
+        stop_names = {"h1", "h2"}
+        if heading.name == "h3":
+            stop_names.add("h3")
         parts: list[str] = []
         for sibling in heading.next_siblings:
             name = getattr(sibling, "name", None)
-            if name in {"h1", "h2", "h3"}:
+            if name in stop_names:
                 break
             if name:
                 value = _text(sibling)
                 if value and value not in parts:
                     parts.append(value)
-        return " ".join(parts) or None
+        if parts:
+            return " ".join(parts)
+    return None
+
+
+def _meta_value(soup: BeautifulSoup, name: str) -> str | None:
+    node = soup.find("meta", attrs={"name": name})
+    value = normalize_text(str(node.get("content"))) if node and node.get("content") else None
+    return None if value is None or value.casefold() in {"none", "null", "n/a"} else value
+
+
+def _scholarship_value(soup: BeautifulSoup, label: str) -> str | None:
+    """Read non-placeholder source text paired with a Scholarship heading."""
+    expected = label.casefold()
+    for heading in soup.find_all(["h2", "h3", "h4"]):
+        if (_text(heading) or "").casefold().rstrip(":") != expected:
+            continue
+        container = heading.parent
+        if container is None:
+            continue
+        while _text(container) == _text(heading) and container.parent is not None:
+            container = container.parent
+        values: list[str] = []
+        value_tags = {"p", "span", "li"}
+        for node in container.find_all(value_tags):
+            if heading in node.parents:
+                continue
+            if any(
+                parent is not container and parent.name in value_tags
+                for parent in node.parents
+                if parent is not container.parent
+            ):
+                continue
+            value = _text(node)
+            if value and value not in {"-", "–", "—"} and value not in values:
+                values.append(value)
+        if values:
+            return " ".join(values)
+    return None
+
+
+def _scholarship_period(soup: BeautifulSoup) -> str | None:
+    for heading in soup.find_all(["h2", "h3", "h4"]):
+        if (_text(heading) or "").casefold().rstrip(":") != "application period":
+            continue
+        container = heading.parent
+        period = container.find_next_sibling("p") if container else None
+        value = _text(period)
+        return None if value in {None, "-", "–", "—"} else value
     return None
 
 
@@ -195,6 +236,7 @@ def _source_presence(
     result["provenance"] = True
     result["title"] = bool(
         soup.select_one("h1.intro-title, h1.intro__degree-title, h3.job-title, h1.banner-title")
+        or candidate.listing_metadata.get("title")
     )
     tables = _table_labels(soup)
 
@@ -211,19 +253,37 @@ def _source_presence(
             tables.get("mode of delivery") or _summary_value(soup, "Mode of delivery")
         )
         result["description"] = bool(
-            soup.select_one(".course-description, meta[name='course-description']")
+            _text(soup.select_one(".course-description"))
+            or _meta_value(soup, "course-description")
         )
         result["learning_outcomes"] = _section_presence(soup, "Learning Outcomes")
         requisite_text = _section_text(soup, "Requisite and Incompatibility") or ""
+        incompat_marker = re.search(
+            r"(?:\b(?:This course is incompatible with|Incompatible with|"
+            r"You are not able to enrol in this course if)\b|\bIncompatible:)",
+            requisite_text,
+            re.IGNORECASE,
+        )
+        prerequisite_text = (
+            requisite_text[:incompat_marker.start()]
+            if incompat_marker
+            else requisite_text
+        )
         result["prerequisites"] = (
             bool(soup.select_one(".prerequisites"))
             or _section_presence(soup, "Prerequisites")
-            or bool(re.search(r"\bto enrol\b.+?\bcompleted\b", requisite_text, re.I))
+            or bool(
+                re.search(
+                    r"\bto enrol in this course\b",
+                    prerequisite_text,
+                    re.I,
+                )
+            )
         )
         result["corequisites"] = (
             bool(soup.select_one(".corequisites"))
             or _section_presence(soup, "Corequisites")
-            or bool(re.search(r"\b(?:co-?requisite|concurrently|must be enrolled)\b", requisite_text, re.I))
+            or bool(re.search(r"\b(?:co-?requisite|concurrently enrolled)\b", requisite_text, re.I))
         )
         result["incompatibilities"] = bool(soup.select_one(".incompatibilities")) or bool(
             re.search(
@@ -235,14 +295,28 @@ def _source_presence(
         result["assumed_knowledge"] = bool(soup.select_one(".assumed-knowledge")) or _section_presence(
             soup, "Assumed Knowledge"
         )
-        result["offerings"] = bool(
-            soup.select(".offering-data tr:nth-of-type(n+2), .table-terms tr:nth-of-type(n+2)")
-        )
+        legacy_rows = soup.select(".offering-data tr:nth-of-type(n+2)")
+        tab_menu = soup.select_one(".course-tabs-menu")
+        current_year_rows = []
+        year_match = re.search(r"/(20\d{2})/", candidate.url)
+        if tab_menu is not None and year_match:
+            years = re.findall(r"\b20\d{2}\b", tab_menu.get_text(" ", strip=True))
+            if year_match.group(1) in years:
+                panel = soup.select_one(
+                    f"#course-tab-{years.index(year_match.group(1)) + 1}"
+                )
+                current_year_rows = (
+                    panel.select(".table-terms tr:nth-of-type(n+2)") if panel else []
+                )
+        result["offerings"] = bool(legacy_rows or current_year_rows)
     elif entity == "program":
         result["program_code"] = bool(re.search(r"/program/[^/]+$", candidate.url))
         result["duration"] = bool(tables.get("duration") or _summary_value(soup, "Length", "Duration"))
         result["delivery_mode"] = bool(tables.get("mode of delivery") or _summary_value(soup, "Mode of delivery"))
-        result["overview"] = bool(soup.select_one(".program-description, meta[name='program-description']"))
+        result["overview"] = bool(
+            _text(soup.select_one(".program-description"))
+            or _meta_value(soup, "program-description")
+        )
         section_map = {
             "learning_outcomes": ("Learning Outcomes",),
             "program_requirements": ("Program Requirements",),
@@ -268,31 +342,30 @@ def _source_presence(
             if field_name in result:
                 result[field_name] = _section_presence(soup, *labels)
     elif entity == "scholarship":
-        label_map = {
-            "featured": ("featured",),
-            "status": ("status", "application period"),
-            "application_required": ("application requirement",),
-            "study_stage": ("study stage",),
-            "student_type": ("student type",),
-            "study_level": ("study level",),
-            "area_of_study": ("study area", "field of study"),
-            "value": ("value",),
-            "selection_basis": ("selection basis", "selection bases"),
-            "opening_date": ("application period", "application opens"),
-            "closing_date": ("application period", "application closes"),
+        source_values = {
+            "featured": tables.get("featured"),
+            "status": tables.get("status") or _scholarship_value(soup, "Application period"),
+            "application_required": tables.get("application requirement") or _scholarship_value(soup, "Application requirement"),
+            "study_stage": tables.get("study stage"),
+            "student_type": tables.get("student type") or _scholarship_value(soup, "Student type"),
+            "study_level": tables.get("study level") or _scholarship_value(soup, "Study level"),
+            "area_of_study": tables.get("study area") or tables.get("field of study") or _scholarship_value(soup, "Field of study"),
+            "value": tables.get("value") or _scholarship_value(soup, "Value"),
+            "selection_basis": tables.get("selection basis") or tables.get("selection bases") or _scholarship_value(soup, "Selection bases"),
         }
-        text_lower = soup.get_text(" ", strip=True).casefold()
-        for field_name, labels in label_map.items():
-            result[field_name] = any(label in tables or label in text_lower for label in labels)
-        date_evidence = bool(
-            re.search(
-                r"\b(?:\d{1,2}\s+[A-Za-z]{3,9}\s+20\d{2}|20\d{2}-\d{2}-\d{2})\b",
-                soup.get_text(" ", strip=True),
-            )
+        for field_name, value in source_values.items():
+            result[field_name] = bool(value and value not in {"-", "–", "—"})
+        application_period = _scholarship_period(soup)
+        application_closes = tables.get("application closes")
+        result["opening_date"] = bool(
+            application_period and re.search(r"\s+to\s+", application_period, re.I)
         )
-        result["opening_date"] = result["opening_date"] and date_evidence
-        result["closing_date"] = result["closing_date"] and date_evidence
-        result["eligibility"] = bool(soup.select_one(".eligibility, #cs_block_3"))
+        result["closing_date"] = bool(
+            application_closes
+            or (application_period and re.search(r"\s+to\s+", application_period, re.I))
+        )
+        eligibility_node = soup.select_one("#cs_block_3 .text-field, .eligibility")
+        result["eligibility"] = bool(_text(eligibility_node))
         for field_name in ("featured", "status", "application_required"):
             if candidate.listing_metadata.get(field_name) is not None:
                 result[field_name] = True
@@ -403,6 +476,7 @@ class DetailCoverageAuditor:
     def audit(self, candidates: Sequence[DetailCandidate]) -> dict[str, object]:
         reports: dict[str, dict[str, object]] = {}
         seen: set[tuple[str, str]] = set()
+        blocked_classes: set[str] = set()
         last_fetch = False
         for candidate in candidates:
             report = reports.setdefault(candidate.entity_class, {
@@ -410,9 +484,12 @@ class DetailCoverageAuditor:
                 "approved_records": 0, "malformed_pages": 0,
                 "rejected_records": 0, "duplicate_identities": 0,
                 "canonical_mismatches": 0, "parser_exceptions": 0,
+                "consecutive_fetch_failures": 0, "stopped_early": False,
                 "source_shape_anomalies": [],
                 "fields": {name: FieldCount() for name in FIELDS[candidate.entity_class]},
             })
+            if candidate.entity_class in blocked_classes:
+                continue
             identity = (candidate.entity_class, candidate.identifier)
             if identity in seen:
                 report["duplicate_identities"] = int(report["duplicate_identities"]) + 1
@@ -429,24 +506,49 @@ class DetailCoverageAuditor:
                 if last_fetch and self._interval:
                     self._sleep(self._interval)
                 raw = self._fetcher.fetch(candidate.url)
+                if not raw or not raw.strip():
+                    raise FetchError("empty response body")
                 last_fetch = True
+                report["consecutive_fetch_failures"] = 0
                 report["detail_pages_fetched"] = int(report["detail_pages_fetched"]) + 1
             except FetchError as exc:
+                failures = int(report["consecutive_fetch_failures"]) + 1
+                report["consecutive_fetch_failures"] = failures
                 report["source_shape_anomalies"].append(f"{candidate.identifier}: fetch: {exc}")
+                if failures >= 3:
+                    report["stopped_early"] = True
+                    report["source_shape_anomalies"].append(
+                        "detail traversal stopped after three consecutive fetch failures"
+                    )
+                    blocked_classes.add(candidate.entity_class)
                 continue
             soup = BeautifulSoup(raw, "lxml")
             presence = _source_presence(candidate, soup)
             try:
                 values = self._extract(candidate, raw, soup)
             except (ParseError, ValueError, IndexError) as exc:
-                report["parser_exceptions"] = int(report["parser_exceptions"]) + 1
-                report["malformed_pages"] = int(report["malformed_pages"]) + 1
+                message = str(exc)
+                canonical_failure = "canonical" in message.casefold()
+                if canonical_failure:
+                    report["rejected_records"] = int(report["rejected_records"]) + 1
+                    report["canonical_mismatches"] = int(
+                        report["canonical_mismatches"]
+                    ) + 1
+                else:
+                    report["parser_exceptions"] = int(report["parser_exceptions"]) + 1
+                    report["malformed_pages"] = int(report["malformed_pages"]) + 1
                 report["source_shape_anomalies"].append(f"{candidate.identifier}: parse: {exc}")
+                if canonical_failure:
+                    # A rejected off-boundary/mismatched page is not an
+                    # approved-record field denominator.
+                    continue
                 values = {}
             if values:
                 report["approved_records"] = int(report["approved_records"]) + 1
-            if presence.get("canonical_url") and not values.get("canonical_url"):
-                report["canonical_mismatches"] = int(report["canonical_mismatches"]) + 1
+                if presence.get("canonical_url") and not values.get("canonical_url"):
+                    report["canonical_mismatches"] = int(
+                        report["canonical_mismatches"]
+                    ) + 1
             for name, counter in report["fields"].items():
                 if presence.get(name):
                     counter.source_present += 1
@@ -641,10 +743,22 @@ def main(argv: list[str] | None = None) -> int:
             min_request_interval_seconds=args.min_request_interval_seconds
         ).audit(selected)
         report["entity_census"] = census
-        report["full_detail_traversal"] = args.max_details_per_class is None
+        entity_reports = report.get("entity_classes", {})
+        stopped_early = (
+            isinstance(entity_reports, dict)
+            and any(
+                isinstance(value, dict) and bool(value.get("stopped_early"))
+                for value in entity_reports.values()
+            )
+        )
+        report["full_detail_traversal"] = (
+            args.max_details_per_class is None
+            and not stopped_early
+        )
         report["selected_detail_pages"] = len(selected)
+        report["status"] = "INCOMPLETE" if stopped_early else "SUCCESS"
         print(json.dumps(report, indent=2, sort_keys=True))
-        return 0
+        return 1 if stopped_early else 0
     except Exception as exc:
         print(json.dumps({
             "captured_at": now_canberra().isoformat(), "dry_run": True,
