@@ -1,7 +1,8 @@
 """Read-only V6 detail-page field coverage audit.
 
 The audit deliberately separates source-presence detection from parser output.
-It never instantiates a data store and therefore cannot write records or runs.
+It never invokes persistence; discovery collectors receive a dry-run local store
+that does not create record or ingestion-run output.
 Subplans are parsed into ephemeral evidence only; they are not CommonRecords.
 """
 from __future__ import annotations
@@ -22,6 +23,7 @@ from askanu_scraper.common.fetcher import BaseFetcher, FetchError, HttpFetcher
 from askanu_scraper.common.models import CommonRecord
 from askanu_scraper.common.normalizer import normalize_text, now_canberra
 from askanu_scraper.common.parser import ParseError
+from askanu_scraper.common.storage import LocalDataStore
 from askanu_scraper.sources.courses.collector import CoursesCollector
 from askanu_scraper.sources.courses.parser import CoursesParser
 from askanu_scraper.sources.jobs import JobsCollector
@@ -536,8 +538,12 @@ def discover_candidates(
 ) -> tuple[list[DetailCandidate], dict[str, object]]:
     candidates: list[DetailCandidate] = []
     census: dict[str, object] = {}
+    dry_run_store = LocalDataStore(dry_run=True)
     if domain in {"courses", "all"}:
-        result = CoursesCollector(min_request_interval_seconds=interval).discover_full_catalogue(
+        result = CoursesCollector(
+            store=dry_run_store,
+            min_request_interval_seconds=interval,
+        ).discover_full_catalogue(
             academic_year=academic_year
         )
         if not result.primary_feeds_reconciled:
@@ -548,21 +554,59 @@ def discover_candidates(
         )
         census["courses"] = result.counts_by_type
     if domain in {"scholarships", "all"}:
-        result = ScholarshipsCollector(min_request_interval_seconds=interval).discover_full_listing(
+        result = ScholarshipsCollector(
+            store=dry_run_store,
+            min_request_interval_seconds=interval,
+        ).discover_full_listing(
             max_listing_pages=max_listing_pages
         )
+        if result.headline_total_count is None:
+            raise RuntimeError(
+                "Scholarships headline total is missing; detail audit stopped"
+            )
+        if result.headline_total_count <= 0:
+            raise RuntimeError(
+                "Scholarships headline total is suspiciously zero; detail audit stopped"
+            )
+        if result.discovered_candidate_count != result.headline_total_count:
+            raise RuntimeError(
+                "Scholarships listing is unreconciled: "
+                f"headline_total={result.headline_total_count}, "
+                f"discovered={result.discovered_candidate_count}; "
+                "detail audit stopped"
+            )
         candidates.extend(
             DetailCandidate("scholarship", item.url.rsplit("/", 1)[-1], item.url, item.listing_metadata)
             for item in result.candidates
         )
         census["scholarships"] = {
             "headline_total": result.headline_total_count,
+            "discovered_total": result.discovered_candidate_count,
             "approved_unique": len(result.candidates),
+            "reconciled": True,
         }
     if domain in {"jobs", "all"}:
-        result = JobsCollector(min_request_interval_seconds=interval).discover_full_listing(
+        result = JobsCollector(
+            store=dry_run_store,
+            min_request_interval_seconds=interval,
+        ).discover_full_listing(
             max_listing_pages=max_listing_pages
         )
+        if result.advertised_total_count is None:
+            raise RuntimeError(
+                "Jobs advertised total is missing; detail audit stopped"
+            )
+        if result.advertised_total_count <= 0:
+            raise RuntimeError(
+                "Jobs advertised total is suspiciously zero; detail audit stopped"
+            )
+        if len(result.candidates) != result.advertised_total_count:
+            raise RuntimeError(
+                "Jobs listing is unreconciled: "
+                f"advertised_total={result.advertised_total_count}, "
+                f"approved_unique={len(result.candidates)}; "
+                "detail audit stopped"
+            )
         candidates.extend(
             DetailCandidate("job", item.url.rsplit("/", 1)[-1], item.url, item.listing_metadata)
             for item in result.candidates
@@ -570,6 +614,7 @@ def discover_candidates(
         census["jobs"] = {
             "advertised_total": result.advertised_total_count,
             "approved_unique": len(result.candidates),
+            "reconciled": True,
         }
     return candidates, census
 
