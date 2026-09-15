@@ -4,7 +4,7 @@ from __future__ import annotations
 import time
 import uuid
 from collections.abc import Callable
-from urllib.parse import urlparse
+from urllib.parse import urlencode, urlparse
 
 from pydantic import ValidationError
 
@@ -20,6 +20,7 @@ from askanu_scraper.common.parser import ParseError
 from askanu_scraper.common.registry import assert_source_allowed
 from askanu_scraper.common.storage import DataStore, LocalDataStore
 from askanu_scraper.sources.scholarships.discovery import (
+    ScholarshipCandidate,
     ScholarshipDiscoveryResult,
     ScholarshipsDiscovery,
 )
@@ -56,6 +57,7 @@ class ScholarshipsCollector:
         self._sleep = sleep_func or time.sleep
         self._request_count = 0
         self._detail_request_count = 0
+        self._listing_request_count = 0
         self.last_run_sanity: dict[str, object] = self._empty_sanity()
 
     @staticmethod
@@ -80,9 +82,9 @@ class ScholarshipsCollector:
         duplicate_record_ids: int = 0,
         duplicate_canonical_urls: int = 0,
     ) -> None:
-        self.last_run_sanity = {
+        sanity: dict[str, object] = {
             "request_count": self._request_count,
-            "listing_request_count": 1 if self._request_count else 0,
+            "listing_request_count": self._listing_request_count,
             "detail_request_count": self._detail_request_count,
             "discovered_candidate_count": (
                 discovery.discovered_candidate_count if discovery else 0
@@ -102,6 +104,16 @@ class ScholarshipsCollector:
             "duplicate_record_id_count": duplicate_record_ids,
             "duplicate_canonical_url_count": duplicate_canonical_urls,
         }
+        if discovery and discovery.headline_total_count is not None:
+            sanity.update({
+                "headline_total_count": discovery.headline_total_count,
+                "rejected_by_reason": discovery.rejected_by_reason or {},
+                "listing_reconciled": (
+                    discovery.discovered_candidate_count
+                    == discovery.headline_total_count
+                ),
+            })
+        self.last_run_sanity = sanity
 
     def _fetch(self, url: str, *, detail: bool = False) -> str:
         if self._request_count and self._min_request_interval_seconds > 0:
@@ -109,6 +121,8 @@ class ScholarshipsCollector:
         self._request_count += 1
         if detail:
             self._detail_request_count += 1
+        else:
+            self._listing_request_count += 1
         return self._fetcher.fetch(url)
 
     @staticmethod
@@ -187,20 +201,93 @@ class ScholarshipsCollector:
         raw = self._fetcher.fetch(url)
         return self._parser.parse(raw, url)
 
+    def discover_full_listing(
+        self,
+        *,
+        listing_url: str = LISTING_URL,
+        max_listing_pages: int = 100,
+        max_details: int | None = None,
+    ) -> ScholarshipDiscoveryResult:
+        """Enumerate and reconcile finder pages without fetching details/writing."""
+        if not self._is_listing_url(listing_url):
+            raise ValueError("Listing URL is outside the approved scholarship boundary")
+        if not 1 <= max_listing_pages <= 100:
+            raise ValueError("max_listing_pages must be between 1 and 100")
+        if max_details is not None and max_details < 1:
+            raise ValueError("max_details must be at least 1")
+
+        self._request_count = 0
+        self._detail_request_count = 0
+        self._listing_request_count = 0
+        self.last_run_sanity = self._empty_sanity()
+
+        page_results: list[ScholarshipDiscoveryResult] = []
+        first = self._discovery.discover(self._fetch(listing_url), listing_url)
+        page_results.append(first)
+        headline_total = first.headline_total_count
+        raw_seen = first.discovered_candidate_count
+        for page_number in range(1, max_listing_pages):
+            if headline_total is not None and raw_seen >= headline_total:
+                break
+            page_url = listing_url + "?" + urlencode({"page": page_number})
+            page = self._discovery.discover(self._fetch(page_url), page_url)
+            page_results.append(page)
+            raw_seen += page.discovered_candidate_count
+            if page.discovered_candidate_count == 0:
+                break
+
+        candidates: list[ScholarshipCandidate] = []
+        rejected: list[str] = []
+        duplicates: list[str] = []
+        seen_urls: set[str] = set()
+        over_limit = 0
+        for page in page_results:
+            rejected.extend(page.rejected_links)
+            duplicates.extend(page.duplicate_links)
+            over_limit += page.over_limit_count
+            for candidate in page.candidates:
+                if candidate.url in seen_urls:
+                    duplicates.append(candidate.url)
+                    rejected.append("duplicate-detail-link")
+                    continue
+                seen_urls.add(candidate.url)
+                if max_details is not None and len(candidates) >= max_details:
+                    over_limit += 1
+                    rejected.append("over-detail-limit")
+                    continue
+                candidates.append(candidate)
+        rejected_by_reason: dict[str, int] = {}
+        for reason in rejected:
+            rejected_by_reason[reason] = rejected_by_reason.get(reason, 0) + 1
+        result = ScholarshipDiscoveryResult(
+            candidates=tuple(candidates),
+            discovered_candidate_count=sum(
+                page.discovered_candidate_count for page in page_results
+            ),
+            rejected_links=tuple(rejected),
+            duplicate_links=tuple(duplicates),
+            over_limit_count=over_limit,
+            headline_total_count=headline_total,
+            rejected_by_reason=rejected_by_reason,
+        )
+        self._capture_sanity(result)
+        return result
+
     def run_listing(
         self,
         *,
         listing_url: str = LISTING_URL,
         max_listing_pages: int = 1,
-        max_details: int = 10,
+        max_details: int | None = 10,
     ) -> tuple[IngestionRun, list[CommonRecord], ScholarshipDiscoveryResult | None]:
-        if max_listing_pages != 1:
-            raise ValueError("Scholarship collection is limited to one listing page")
-        if not 1 <= max_details <= 10:
-            raise ValueError("max_details must be between 1 and 10")
+        if not 1 <= max_listing_pages <= 100:
+            raise ValueError("max_listing_pages must be between 1 and 100")
+        if max_details is not None and max_details < 1:
+            raise ValueError("max_details must be at least 1")
 
         self._request_count = 0
         self._detail_request_count = 0
+        self._listing_request_count = 0
         self.last_run_sanity = self._empty_sanity()
         run = IngestionRun(
             run_id=f"run_{uuid.uuid4().hex[:12]}",
@@ -239,10 +326,9 @@ class ScholarshipsCollector:
             return fail("Listing URL is outside the approved scholarship boundary")
 
         try:
-            listing_html = self._fetch(listing_url)
-            discovery = self._discovery.discover(
-                listing_html,
-                listing_url,
+            discovery = self.discover_full_listing(
+                listing_url=listing_url,
+                max_listing_pages=max_listing_pages,
                 max_details=max_details,
             )
         except FetchError as exc:
@@ -251,6 +337,25 @@ class ScholarshipsCollector:
             return fail(f"Listing discovery failed: {exc}")
 
         self._capture_sanity(discovery)
+        if (
+            max_listing_pages > 1
+            and discovery.headline_total_count is None
+        ):
+            return fail(
+                "Scholarship Finder headline total is missing or malformed",
+                discovery,
+                suspicious_zero=discovery.discovered_candidate_count == 0,
+            )
+        if (
+            max_listing_pages > 1
+            and discovery.headline_total_count is not None
+            and discovery.discovered_candidate_count != discovery.headline_total_count
+        ):
+            return fail(
+                "Scholarship listing census does not reconcile with headline total",
+                discovery,
+                suspicious_zero=discovery.discovered_candidate_count == 0,
+            )
         if not discovery.candidates:
             return fail(
                 "Scholarship listing produced zero approved detail candidates",

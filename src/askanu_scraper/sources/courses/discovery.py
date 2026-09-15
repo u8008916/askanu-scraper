@@ -50,6 +50,9 @@ class CatalogueDiscoveryResult:
     counts_by_type: dict[str, int]
     duplicate_identities: tuple[str, ...]
     rejected_links: tuple[str, ...]
+    source_totals: dict[str, int] | None = None
+    raw_counts_by_type: dict[str, int] | None = None
+    anomalies: tuple[str, ...] = ()
 
     @property
     def persisted_candidates(self) -> tuple[CatalogueItem, ...]:
@@ -150,11 +153,6 @@ class CoursesCatalogueDiscovery:
                 f"Unsupported catalogue API entity type: {entity_type!r}"
             ) from exc
 
-        if requested_type not in PERSISTED_ENTITY_TYPES:
-            raise ValueError(
-                "Live API persistence is only supported for course/program"
-            )
-
         raw_items = payload.get("Items")
         if not isinstance(raw_items, list):
             raise ValueError("Catalogue API payload must contain an Items list")
@@ -183,9 +181,25 @@ class CoursesCatalogueDiscovery:
                     rejected.append(f"api-item:{index}")
                     continue
 
-            else:
+            elif requested_type == CatalogueEntityType.PROGRAM:
                 raw_identifier = raw_item.get("AcademicPlanCode")
                 raw_year = raw_item.get("ProgramAcademicYear")
+
+                if not isinstance(raw_identifier, str):
+                    rejected.append(f"api-item:{index}")
+                    continue
+
+                identifier = raw_identifier.strip().upper()
+                if (
+                    not identifier
+                    or "/" in identifier
+                    or "\\" in identifier
+                ):
+                    rejected.append(f"api-item:{index}")
+                    continue
+            else:
+                raw_identifier = raw_item.get("SubPlanCode")
+                raw_year = raw_item.get("Year")
 
                 if not isinstance(raw_identifier, str):
                     rejected.append(f"api-item:{index}")
@@ -242,4 +256,11 @@ class CoursesCatalogueDiscovery:
             },
             duplicate_identities=tuple(duplicates),
             rejected_links=tuple(rejected),
+            source_totals=(
+                {requested_type.value: int(payload["TotalCount"])}
+                if isinstance(payload.get("TotalCount"), int)
+                and payload["TotalCount"] >= 0
+                else None
+            ),
+            raw_counts_by_type={requested_type.value: len(raw_items)},
         )

@@ -234,27 +234,27 @@ def load_config(
             "--max-scholarship-listing-pages"
         ),
         minimum=1,
-        maximum=1,
+        maximum=100,
     )
     max_scholarship_details = _parse_int(
         args.max_scholarship_details
         or env.get("SCRAPER_MAX_SCHOLARSHIP_DETAILS", "10"),
         name="SCRAPER_MAX_SCHOLARSHIP_DETAILS/--max-scholarship-details",
         minimum=1,
-        maximum=10,
+        maximum=2000,
     )
     max_jobs_listing_pages = _parse_int(
         args.max_jobs_listing_pages
         or env.get("SCRAPER_MAX_JOBS_LISTING_PAGES", "1"),
         name="SCRAPER_MAX_JOBS_LISTING_PAGES/--max-jobs-listing-pages",
         minimum=1,
-        maximum=1,
+        maximum=100,
     )
     max_job_details = _parse_int(
         args.max_job_details or env.get("SCRAPER_MAX_JOB_DETAILS", "10"),
         name="SCRAPER_MAX_JOB_DETAILS/--max-job-details",
         minimum=1,
-        maximum=10,
+        maximum=2000,
     )
 
     dry_run = (
