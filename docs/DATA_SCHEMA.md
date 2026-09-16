@@ -778,7 +778,56 @@ title is not identity.
 
 ---
 
-# 17. Missing/null value policy
+# 17. Proposed Accommodation metadata v1
+
+Status: **scraper-side proposal pending Qasim/Carmen cross-repo approval**.
+PostgreSQL/runtime enablement remains blocked.
+
+Accommodation records use:
+
+```text
+domain = "accommodation"
+source_id = "accommodation_anu_study"
+entity_id = <canonical residence URL slug>
+record_id = "accommodation:residence:<entity_id>"
+```
+
+`metadata_json` contains exactly: `entity_type` (`"residence"`), `category`,
+`location`, `catering_options`, `audiences`, `advertised_rate`, `cost_period`,
+`rooms`, `features`, `overview`, `accessibility`, `application_text`,
+`application_url`, `eligibility`, `contact`, and `vacancy_status`.
+
+`catering_options`, `audiences`, `rooms`, and `features` are arrays. Each room
+preserves the source pairing of `name`, `rate`, `contract`, `inclusions`, and
+`other_fees`; values remain text. `contact` contains `email`, `phone`,
+`location`, and explicitly published `hours`. Missing scalar evidence is null.
+Live vacancy is never inferred: `vacancy_status` stays null unless the approved
+public residence page explicitly publishes it. A published StarRez application
+URL may be retained as an outbound destination but is never fetched.
+
+# 18. Proposed Support metadata v1
+
+Status: **scraper-side proposal pending Qasim/Carmen cross-repo approval**.
+PostgreSQL/runtime enablement remains blocked.
+
+Support records use:
+
+```text
+domain = "support"
+source_id = "support_anusa_student_assistance"
+entity_id = <canonical top-level Student Assistance category slug>
+record_id = "support:service:<entity_id>"
+```
+
+`metadata_json` contains exactly: `entity_type` (`"support_service"`),
+`category`, `purpose`, `audiences`, `contact`, `hours`, `access`, `cost`,
+`topics`, and `referrals`. `contact` contains `email`, `phone`, and `location`.
+Hours, access, cost, contact, and referrals are populated only from published
+source facts. Missing scalar evidence is null. Source HTML is treated as
+untrusted content; executable elements are removed and never enter canonical
+content.
+
+# 19. Missing/null value policy
 
 Global rule:
 
@@ -822,7 +871,7 @@ record rather than publish a misleading normalized record.
 
 ---
 
-# 18. Datetimes and timezone
+# 20. Datetimes and timezone
 
 Serialized datetimes MUST be timezone-aware ISO-8601 values.
 
@@ -845,7 +894,7 @@ pages do not provide source-supported effective dates.
 
 ---
 
-# 19. Representative normalized course identity
+# 21. Representative normalized course identity
 
 The verified live COMP1100 collection has this identity:
 
@@ -870,7 +919,7 @@ normalized record instance and MUST NOT be invented in documentation.
 
 ---
 
-# 20. Source registry
+# 22. Source registry
 
 Source registry fields remain:
 
@@ -894,7 +943,7 @@ Rules:
 
 ---
 
-# 21. Ingestion run
+# 23. Ingestion run
 
 Ingestion-run fields remain:
 
@@ -937,7 +986,7 @@ do not wipe current data
 
 ---
 
-# 22. First DB / migration ownership
+# 24. First DB / migration ownership
 
 For the first Courses/Programs vertical slice:
 
@@ -966,7 +1015,7 @@ coordinating the affected repo(s).
 
 ---
 
-# 23. RAG implementation boundary
+# 25. RAG implementation boundary
 
 The RAG repository MUST NOT copy scraper implementation such as:
 
@@ -996,7 +1045,7 @@ schema-v1 top-level fields.
 
 ---
 
-# 24. Day 2 exact-retrieval expectations
+# 26. Day 2 exact-retrieval expectations
 
 For Courses/Programs exact retrieval:
 
@@ -1015,7 +1064,7 @@ The exact-retrieval layer does not require Gemini or vector search.
 
 ---
 
-# 25. Change workflow
+# 27. Change workflow
 
 Any future change to:
 

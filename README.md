@@ -76,6 +76,24 @@ contract alignment is merged/deployed and Qasim approves the shared
 migration/runtime/live-read gates. Cloud deployment uses a separate Jobs Cloud
 Run Job rather than replacing the Courses or Scholarships configuration.
 
+Accommodation and Support have separate Day 12 collectors and frozen public
+registries. Run their full dry-run bounds with:
+
+```powershell
+askanu-scraper-job --source-id accommodation_anu_study `
+  --domain accommodation --max-accommodation-details 19 --dry-run
+askanu-scraper-job --source-id support_anusa_student_assistance `
+  --domain support --max-support-details 6 --dry-run
+```
+
+Accommodation follows only the 19 public ANU residence pages and never fetches
+the linked StarRez portal. Support follows only the six top-level ANUSA Student
+Assistance categories; no additional ANU Support page is active. PostgreSQL
+writes require the respective
+`SCRAPER_ACCOMMODATION_POSTGRES_APPROVED=true` or
+`SCRAPER_SUPPORT_POSTGRES_APPROVED=true` gate after the shared contract and
+runtime migration are approved.
+
 The Day 6 container image defaults `SCRAPER_DRY_RUN=true`: Cloud Run executions
 must stay dry-run while `LocalDataStore` is the active persistence adapter,
 because its `/data` filesystem is not durable. Enable

@@ -1,0 +1,251 @@
+{
+  "captured_at": "2026-09-16T10:34:38.645885+10:00",
+  "mode": "live approved-source dry-run; no record/run persistence",
+  "coverage_method": "Denominator is every required fact explicitly present in the frozen pages under the v1 contracts; source-absent nullable fields are excluded. Identity and URL selectors, listing cards, detail sections, room table cells, category cards and external content links were reconciled independently by source-specific selectors.",
+  "accommodation": {
+    "frozen_entity_denominator": 19,
+    "entity_numerator": 19,
+    "entity_coverage_percent": 100.0,
+    "run": {
+      "run_id": "run_8648a3b2efc8",
+      "source_id": "accommodation_anu_study",
+      "started_at": "2026-09-16T10:34:38.646010+10:00",
+      "completed_at": "2026-09-16T10:34:45.061842+10:00",
+      "records_seen": 19,
+      "records_added": 19,
+      "records_changed": 0,
+      "records_unchanged": 0,
+      "records_missing": 0,
+      "status": "SUCCESS",
+      "error": null
+    },
+    "sanity": {
+      "request_count": 20,
+      "detail_request_count": 19,
+      "frozen_entity_count": 19,
+      "advertised_total_count": 19,
+      "discovered_candidate_count": 19,
+      "approved_candidate_count": 19,
+      "accepted_candidate_count": 19,
+      "rejected_candidate_count": 0,
+      "duplicate_candidate_count": 0,
+      "over_limit_candidate_count": 0,
+      "duplicate_record_id_count": 0,
+      "duplicate_canonical_url_count": 0
+    },
+    "field_coverage": {
+      "field_presence_by_entity": {
+        "category": 19,
+        "location": 0,
+        "catering_options": 19,
+        "audiences": 19,
+        "advertised_rate": 18,
+        "cost_period": 19,
+        "rooms": 19,
+        "features": 19,
+        "overview": 19,
+        "accessibility": 18,
+        "application_text": 14,
+        "application_url": 14,
+        "eligibility": 0,
+        "contact": 19,
+        "vacancy_status": 0
+      },
+      "room_count": 96,
+      "published_fact_numerator": 1086,
+      "published_fact_denominator": 1086,
+      "published_fact_coverage_percent": 100.0
+    },
+    "representative_rows": [
+      {
+        "record_id": "accommodation:residence:yukeembruk",
+        "canonical_url": "https://study.anu.edu.au/accommodation/our-residences/yukeembruk",
+        "title": "Yukeembruk",
+        "content_hash": "bbc87d145a03e4cb20e076ea8bd531e00ca48a09e20a0d8c4907f0063abb57ed"
+      },
+      {
+        "record_id": "accommodation:residence:davey-lodge",
+        "canonical_url": "https://study.anu.edu.au/accommodation/our-residences/davey-lodge",
+        "title": "Davey Lodge",
+        "content_hash": "fc7ac5706305ab1d8c5d00b49e05d48a4c0376dcada0e70a6d7e47d6c79cb5ae"
+      }
+    ],
+    "known_gaps": {
+      "location": [
+        "yukeembruk",
+        "davey-lodge",
+        "ursula-hall-laurus-wing",
+        "wamburun-hall",
+        "burton-garran-hall",
+        "bruce-hall-packard-wing",
+        "toad-hall",
+        "kinloch-lodge",
+        "warrumbul-lodge",
+        "fenner-hall",
+        "ursula-hall-main-wing",
+        "bruce-hall-main-wing",
+        "wright-hall",
+        "graduate-house",
+        "burgmann-college",
+        "lena-karmel-lodge",
+        "john-xxiii-college",
+        "burgmann-undergraduate-and-postgraduate-village",
+        "university-house"
+      ],
+      "advertised_rate": [
+        "john-xxiii-college"
+      ],
+      "accessibility": [
+        "john-xxiii-college"
+      ],
+      "application_text": [
+        "wamburun-hall",
+        "graduate-house",
+        "burgmann-college",
+        "john-xxiii-college",
+        "university-house"
+      ],
+      "application_url": [
+        "wamburun-hall",
+        "graduate-house",
+        "burgmann-college",
+        "john-xxiii-college",
+        "university-house"
+      ],
+      "eligibility": [
+        "yukeembruk",
+        "davey-lodge",
+        "ursula-hall-laurus-wing",
+        "wamburun-hall",
+        "burton-garran-hall",
+        "bruce-hall-packard-wing",
+        "toad-hall",
+        "kinloch-lodge",
+        "warrumbul-lodge",
+        "fenner-hall",
+        "ursula-hall-main-wing",
+        "bruce-hall-main-wing",
+        "wright-hall",
+        "graduate-house",
+        "burgmann-college",
+        "lena-karmel-lodge",
+        "john-xxiii-college",
+        "burgmann-undergraduate-and-postgraduate-village",
+        "university-house"
+      ],
+      "vacancy_status": [
+        "yukeembruk",
+        "davey-lodge",
+        "ursula-hall-laurus-wing",
+        "wamburun-hall",
+        "burton-garran-hall",
+        "bruce-hall-packard-wing",
+        "toad-hall",
+        "kinloch-lodge",
+        "warrumbul-lodge",
+        "fenner-hall",
+        "ursula-hall-main-wing",
+        "bruce-hall-main-wing",
+        "wright-hall",
+        "graduate-house",
+        "burgmann-college",
+        "lena-karmel-lodge",
+        "john-xxiii-college",
+        "burgmann-undergraduate-and-postgraduate-village",
+        "university-house"
+      ]
+    },
+    "gap_audit_run_id": "run_ce9846be297f"
+  },
+  "support": {
+    "frozen_entity_denominator": 6,
+    "entity_numerator": 6,
+    "entity_coverage_percent": 100.0,
+    "run": {
+      "run_id": "run_c63a11660ed9",
+      "source_id": "support_anusa_student_assistance",
+      "started_at": "2026-09-16T10:34:45.067289+10:00",
+      "completed_at": "2026-09-16T10:34:48.120895+10:00",
+      "records_seen": 6,
+      "records_added": 6,
+      "records_changed": 0,
+      "records_unchanged": 0,
+      "records_missing": 0,
+      "status": "SUCCESS",
+      "error": null
+    },
+    "sanity": {
+      "request_count": 7,
+      "detail_request_count": 6,
+      "frozen_entity_count": 6,
+      "discovered_candidate_count": 6,
+      "approved_candidate_count": 6,
+      "accepted_candidate_count": 6,
+      "rejected_candidate_count": 0,
+      "duplicate_candidate_count": 0,
+      "over_limit_candidate_count": 0,
+      "duplicate_record_id_count": 0,
+      "duplicate_canonical_url_count": 0
+    },
+    "field_coverage": {
+      "field_presence_by_entity": {
+        "category": 6,
+        "purpose": 6,
+        "audiences": 6,
+        "contact": 6,
+        "hours": 0,
+        "access": 0,
+        "cost": 6,
+        "topics": 4,
+        "referrals": 3
+      },
+      "topic_count": 29,
+      "referral_count": 8,
+      "published_fact_numerator": 163,
+      "published_fact_denominator": 163,
+      "published_fact_coverage_percent": 100.0
+    },
+    "representative_rows": [
+      {
+        "record_id": "support:service:academic",
+        "canonical_url": "https://anusa.com.au/student-assistance/academic/",
+        "title": "Academic Support",
+        "content_hash": "0abfa8db6ff6e50fbd61bd5799a264cb61c32f2432948f2bee4dcf25aab732a5"
+      },
+      {
+        "record_id": "support:service:accommodation",
+        "canonical_url": "https://anusa.com.au/student-assistance/accommodation/",
+        "title": "accommodation",
+        "content_hash": "64ee95416ee830cf79c01163d028576ed9d341b3d90d02a976f959890f3806df"
+      }
+    ],
+    "known_gaps": {
+      "hours": [
+        "academic",
+        "accommodation",
+        "financial",
+        "disciplinary",
+        "physical-and-mental-health",
+        "sexual-assault-harassment-support"
+      ],
+      "access": [
+        "academic",
+        "accommodation",
+        "financial",
+        "disciplinary",
+        "physical-and-mental-health",
+        "sexual-assault-harassment-support"
+      ],
+      "topics": [
+        "disciplinary",
+        "sexual-assault-harassment-support"
+      ],
+      "referrals": [
+        "academic",
+        "disciplinary",
+        "physical-and-mental-health"
+      ]
+    },
+    "gap_audit_run_id": "run_486460383810"
+  }
+}

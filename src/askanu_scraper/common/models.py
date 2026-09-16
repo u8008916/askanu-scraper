@@ -535,6 +535,257 @@ class CommonRecord(BaseModel):
                     )
                 if closing_date != parsed_closing_at.date().isoformat():
                     raise ValueError("Jobs closing_date and closing_at must agree")
+
+        is_accommodation_record = (
+            self.domain == Domain.ACCOMMODATION
+            or self.source_id == "accommodation_anu_study"
+            or self.record_id.startswith("accommodation:")
+            or entity_type == "residence"
+        )
+        if is_accommodation_record:
+            try:
+                accommodation_port = parsed_url.port
+            except ValueError as exc:
+                raise ValueError(
+                    "Accommodation canonical_url has an invalid port"
+                ) from exc
+            if self.domain != Domain.ACCOMMODATION:
+                raise ValueError("Accommodation records require domain 'accommodation'")
+            if self.source_id != "accommodation_anu_study":
+                raise ValueError(
+                    "Accommodation records require source_id 'accommodation_anu_study'"
+                )
+            if entity_type != "residence":
+                raise ValueError(
+                    "Accommodation metadata_json.entity_type must be 'residence'"
+                )
+            if re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", self.entity_id) is None:
+                raise ValueError("Accommodation entity_id must be a canonical URL slug")
+            if self.record_id != f"accommodation:residence:{self.entity_id}":
+                raise ValueError("Accommodation record_id does not match its identity")
+            if (
+                parsed_url.scheme != "https"
+                or parsed_url.hostname != "study.anu.edu.au"
+                or parsed_url.username is not None
+                or parsed_url.password is not None
+                or accommodation_port is not None
+                or parsed_url.path
+                != f"/accommodation/our-residences/{self.entity_id}"
+                or parsed_url.query
+                or parsed_url.fragment
+            ):
+                raise ValueError(
+                    "Accommodation canonical_url must be an approved residence URL"
+                )
+            expected_keys = {
+                "entity_type",
+                "category",
+                "location",
+                "catering_options",
+                "audiences",
+                "advertised_rate",
+                "cost_period",
+                "rooms",
+                "features",
+                "overview",
+                "accessibility",
+                "application_text",
+                "application_url",
+                "eligibility",
+                "contact",
+                "vacancy_status",
+            }
+            if set(metadata) != expected_keys:
+                raise ValueError(
+                    "Accommodation metadata_json must match the approved v1 fields"
+                )
+            for key in (
+                "category",
+                "location",
+                "advertised_rate",
+                "cost_period",
+                "overview",
+                "accessibility",
+                "application_text",
+                "eligibility",
+                "vacancy_status",
+            ):
+                value = metadata[key]
+                if value is not None and (
+                    not isinstance(value, str) or not value.strip()
+                ):
+                    raise ValueError(f"metadata_json.{key} must be a string or null")
+            for key in ("catering_options", "audiences", "features"):
+                values = metadata[key]
+                if not isinstance(values, list) or not all(
+                    isinstance(item, str) and item.strip() for item in values
+                ):
+                    raise ValueError(
+                        f"metadata_json.{key} must be an array of non-empty strings"
+                    )
+            rooms = metadata["rooms"]
+            room_keys = {"name", "rate", "contract", "inclusions", "other_fees"}
+            if not isinstance(rooms, list):
+                raise ValueError("metadata_json.rooms must be an array")
+            for room in rooms:
+                if not isinstance(room, dict) or set(room) != room_keys:
+                    raise ValueError(
+                        "Accommodation room entries must match the approved v1 fields"
+                    )
+                if not isinstance(room["name"], str) or not room["name"].strip():
+                    raise ValueError("Accommodation room names must be non-empty strings")
+                for key in room_keys - {"name"}:
+                    value = room[key]
+                    if value is not None and (
+                        not isinstance(value, str) or not value.strip()
+                    ):
+                        raise ValueError(
+                            f"Accommodation room {key} must be a string or null"
+                        )
+            contact = metadata["contact"]
+            contact_keys = {"email", "phone", "location", "hours"}
+            if not isinstance(contact, dict) or set(contact) != contact_keys:
+                raise ValueError(
+                    "Accommodation contact must match the approved v1 fields"
+                )
+            for key, value in contact.items():
+                if value is not None and (
+                    not isinstance(value, str) or not value.strip()
+                ):
+                    raise ValueError(
+                        f"Accommodation contact {key} must be a string or null"
+                    )
+            application_url = metadata["application_url"]
+            if application_url is not None:
+                if not isinstance(application_url, str):
+                    raise ValueError("Accommodation application_url must be a URL or null")
+                application_parsed = urlparse(application_url)
+                try:
+                    application_port = application_parsed.port
+                except ValueError as exc:
+                    raise ValueError(
+                        "Accommodation application_url has an invalid port"
+                    ) from exc
+                if (
+                    application_parsed.scheme != "https"
+                    or not application_parsed.hostname
+                    or not application_parsed.hostname.endswith(".starrezhousing.com")
+                    or application_parsed.username is not None
+                    or application_parsed.password is not None
+                    or application_port is not None
+                ):
+                    raise ValueError(
+                        "Accommodation application_url must be the published StarRez destination"
+                    )
+
+        is_support_record = (
+            self.domain == Domain.SUPPORT
+            or self.source_id == "support_anusa_student_assistance"
+            or self.record_id.startswith("support:")
+            or entity_type == "support_service"
+        )
+        if is_support_record:
+            try:
+                support_port = parsed_url.port
+            except ValueError as exc:
+                raise ValueError("Support canonical_url has an invalid port") from exc
+            if self.domain != Domain.SUPPORT:
+                raise ValueError("Support records require domain 'support'")
+            if self.source_id != "support_anusa_student_assistance":
+                raise ValueError(
+                    "Support records require source_id 'support_anusa_student_assistance'"
+                )
+            if entity_type != "support_service":
+                raise ValueError(
+                    "Support metadata_json.entity_type must be 'support_service'"
+                )
+            if re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", self.entity_id) is None:
+                raise ValueError("Support entity_id must be a canonical URL slug")
+            if self.record_id != f"support:service:{self.entity_id}":
+                raise ValueError("Support record_id does not match its identity")
+            if (
+                parsed_url.scheme != "https"
+                or parsed_url.hostname != "anusa.com.au"
+                or parsed_url.username is not None
+                or parsed_url.password is not None
+                or support_port is not None
+                or parsed_url.path != f"/student-assistance/{self.entity_id}/"
+                or parsed_url.query
+                or parsed_url.fragment
+            ):
+                raise ValueError(
+                    "Support canonical_url must be an approved ANUSA category URL"
+                )
+            expected_keys = {
+                "entity_type",
+                "category",
+                "purpose",
+                "audiences",
+                "contact",
+                "hours",
+                "access",
+                "cost",
+                "topics",
+                "referrals",
+            }
+            if set(metadata) != expected_keys:
+                raise ValueError("Support metadata_json must match the approved v1 fields")
+            for key in ("category", "purpose", "hours", "access", "cost"):
+                value = metadata[key]
+                if value is not None and (
+                    not isinstance(value, str) or not value.strip()
+                ):
+                    raise ValueError(f"metadata_json.{key} must be a string or null")
+            audiences = metadata["audiences"]
+            if not isinstance(audiences, list) or not all(
+                isinstance(item, str) and item.strip() for item in audiences
+            ):
+                raise ValueError(
+                    "metadata_json.audiences must be an array of non-empty strings"
+                )
+            contact = metadata["contact"]
+            if not isinstance(contact, dict) or set(contact) != {
+                "email",
+                "phone",
+                "location",
+            }:
+                raise ValueError("Support contact must match the approved v1 fields")
+            for key, value in contact.items():
+                if value is not None and (
+                    not isinstance(value, str) or not value.strip()
+                ):
+                    raise ValueError(f"Support contact {key} must be a string or null")
+            for list_key in ("topics", "referrals"):
+                values = metadata[list_key]
+                if not isinstance(values, list) or not all(
+                    isinstance(item, dict) for item in values
+                ):
+                    raise ValueError(f"Support {list_key} must be an array of objects")
+            for topic in metadata["topics"]:
+                if set(topic) != {"title", "description", "url"}:
+                    raise ValueError("Support topics must match the approved v1 fields")
+                if not isinstance(topic["title"], str) or not topic["title"].strip():
+                    raise ValueError("Support topic title must be a non-empty string")
+                if topic["description"] is not None and (
+                    not isinstance(topic["description"], str)
+                    or not topic["description"].strip()
+                ):
+                    raise ValueError("Support topic description must be a string or null")
+                topic_url = urlparse(topic["url"] if isinstance(topic["url"], str) else "")
+                if topic_url.scheme not in {"http", "https"} or not topic_url.netloc:
+                    raise ValueError("Support topic URL must be an HTTP(S) URL")
+            for referral in metadata["referrals"]:
+                if set(referral) != {"label", "url"}:
+                    raise ValueError(
+                        "Support referrals must match the approved v1 fields"
+                    )
+                if not isinstance(referral["label"], str) or not referral["label"].strip():
+                    raise ValueError("Support referral label must be a non-empty string")
+                referral_url = urlparse(
+                    referral["url"] if isinstance(referral["url"], str) else ""
+                )
+                if referral_url.scheme not in {"http", "https"} or not referral_url.netloc:
+                    raise ValueError("Support referral URL must be an HTTP(S) URL")
         return self
 
 

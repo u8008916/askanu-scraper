@@ -7,8 +7,8 @@ Only approved sources may enter production.
 | Courses | https://programsandcourses.anu.edu.au/ | Courses + programs + majors/minors/specialisations; preserve year/session/prerequisites/requirements/URL. | Daily |
 | Scholarships | https://study.anu.edu.au/scholarships and find-scholarship | Structured eligibility/status/application/deadline data. | Daily |
 | Jobs | https://jobs.anu.edu.au/jobs/search | Current/open roles; closing-date data; canonical URL. | Daily |
-| Accommodation | https://study.anu.edu.au/accommodation and /our-residences | Residence/catering/resident type/advertised rate/application info. | Daily |
-| Support | https://anusa.com.au/student-assistance/ + approved ANU support pages | Academic, financial, accommodation, disciplinary, physical/mental health, SASH, advocacy. | Daily |
+| Accommodation | https://study.anu.edu.au/accommodation/our-residences | Frozen 2026-09-16 public registry: 19 residence detail pages below this path. Preserve catering/resident type/rate and fee wording/features/application/contact; StarRez is link-only. | Daily |
+| Support | https://anusa.com.au/student-assistance/ | Frozen 2026-09-16 registry: the 6 top-level category pages linked by this page (Academic, Accommodation, Financial, Disciplinary, Physical and Mental Health, Sexual Assault and Sexual Harassment). | Daily |
 | Events | Official ANU Events/calendar | Release-safe fallback/primary source unless Rubric approval is obtained; remains the release source regardless of Rubric response. | Daily |
 | Rubric | `PENDING_APPROVAL`, non-production | No production use of undocumented/internal API without approved access. | Disabled unless approved |
 
@@ -24,7 +24,7 @@ This document records source policy; the machine-readable registry and enforceme
 - Define the machine-readable approved registry with stable `source_id`, parser mapping, and approval/active state. No collector may target a source absent from the eventual approved registry; registry presence alone does not grant production approval.
 - Agree a bounded source-fetch/rate policy before live requests. Request bounds and rate limits remain unresolved; daily poll cadence does not define those limits.
 - The Day 9 implementation uses a conservative pending-approval proof bound of one finder page, at most ten same-site detail pages and at least one second between live requests. This is not authorization for a broader crawl or Scheduler enablement.
-- Record the exact additional approved ANU Support source targets before collecting them. The general reference to ANU support pages does not approve arbitrary pages.
+- Record the exact additional approved ANU Support source targets before collecting them. The general reference to ANU support pages does not approve arbitrary pages. No additional ANU Support target is active in the Day 12 frozen universe.
 - Document the exact production Events target if different from the already approved official ANU Events/calendar fallback. Do not infer a new target or approval. Official ANU Events/calendar remains the release-safe baseline, and Rubric approval is non-blocking.
 
 Will owns registry/collector implementation; Qasim owns source-approval decisions and coordinates unresolved targets and policy. Rubric remains `PENDING_APPROVAL` and non-production until approved access is documented. No authenticated StarRez scraping is permitted. Failed or suspicious collection must preserve last-known-good data.
