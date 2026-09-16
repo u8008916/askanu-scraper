@@ -109,29 +109,31 @@ class CoursesParser(BaseParser):
         to interpret academic rules or add fields to the shared metadata shape.
         """
         wanted = {label.casefold() for label in labels}
-        heading = next(
-            (
-                node
-                for node in soup.find_all(["h2", "h3"])
-                if (normalize_text(node.get_text(" ", strip=True)) or "").casefold()
-                in wanted
-            ),
-            None,
-        )
-        if heading is None:
-            return None
-
-        parts: list[str] = []
-        for sibling in heading.next_siblings:
-            name = getattr(sibling, "name", None)
-            if name in {"h1", "h2", "h3"}:
-                break
-            if name is None:
+        for heading in soup.find_all(["h2", "h3"]):
+            if (
+                normalize_text(heading.get_text(" ", strip=True)) or ""
+            ).casefold() not in wanted:
                 continue
-            value = normalize_text(sibling.get_text(" ", strip=True))
-            if value and value not in parts:
-                parts.append(value)
-        return " ".join(parts) or None
+
+            # H3 headings are often subsections of the requested H2 on live
+            # program pages. Stop at the next heading of equal/higher rank,
+            # rather than discarding nested Study Options content.
+            stop_names = {"h1", "h2"}
+            if heading.name == "h3":
+                stop_names.add("h3")
+            parts: list[str] = []
+            for sibling in heading.next_siblings:
+                name = getattr(sibling, "name", None)
+                if name in stop_names:
+                    break
+                if name is None:
+                    continue
+                value = normalize_text(sibling.get_text(" ", strip=True))
+                if value and value not in parts:
+                    parts.append(value)
+            if parts:
+                return " ".join(parts)
+        return None
 
     def _parse_course(self, soup: BeautifulSoup, url: str) -> CommonRecord | None:
         title_el = (
@@ -326,11 +328,19 @@ class CoursesParser(BaseParser):
 
                 section_text = normalize_text(" ".join(section_parts)) or ""
 
+                incompat_marker = re.search(
+                    r"(?:\b(?:This course is incompatible with|Incompatible with|"
+                    r"You are not able to enrol in this course if)\b|\bIncompatible:)",
+                    section_text,
+                    re.IGNORECASE,
+                )
+
                 if prerequisites is None:
                     prereq_match = re.search(
-                        r"To enrol in this course you must have "
+                        r"To enrol in this course,?\s+you must have "
                         r"(?:successfully )?completed:?\s*(.+?)"
-                        r"(?=\.\s*You are not able to enrol|\.$|$)",
+                        r"(?=\.\s*(?:This course is incompatible|"
+                        r"Incompatible with|You are not able to enrol)|\.$|$)",
                         section_text,
                         re.IGNORECASE,
                     )
@@ -339,21 +349,43 @@ class CoursesParser(BaseParser):
                             normalize_text(prereq_match.group(1).rstrip("."))
                             or None
                         )
+                    else:
+                        prerequisite_part = (
+                            section_text[:incompat_marker.start()]
+                            if incompat_marker
+                            else section_text
+                        )
+                        if re.search(
+                            r"\bTo enrol in this course\b",
+                            prerequisite_part,
+                            re.I,
+                        ):
+                            prerequisites = normalize_text(prerequisite_part) or None
 
-                if incompatibilities is None:
+                if corequisites is None:
+                    concurrent_sentences = [
+                        sentence.strip()
+                        for sentence in re.split(r"(?<=\.)\s+", section_text)
+                        if re.search(r"\b(?:co-?requisite|concurrently enrolled)\b", sentence, re.I)
+                    ]
+                    if concurrent_sentences:
+                        corequisites = normalize_text(" ".join(concurrent_sentences)) or None
+
+                if incompatibilities is None and incompat_marker:
                     incompat_match = re.search(
+                        r"(?:This course is incompatible with|Incompatible with|"
+                        r"Incompatible:|"
                         r"You are not able to enrol in this course if you have "
-                        r"(?:successfully )?completed"
-                        r"(?: one of the following courses:)?\s*(.+?)"
-                        r"(?:\.\s*$|$)",
+                        r"(?:successfully )?completed)\s*(.+?)"
+                        r"(?=\.\s*(?:You will|To enrol)|\.$|$)",
                         section_text,
                         re.IGNORECASE,
                     )
-                    if incompat_match:
-                        incompatibilities = (
-                            normalize_text(incompat_match.group(1).rstrip("."))
-                            or None
-                        )
+                    incompatibilities = normalize_text(
+                        incompat_match.group(1).rstrip(".")
+                        if incompat_match
+                        else section_text[incompat_marker.start():]
+                    ) or None
 
                 break
 
