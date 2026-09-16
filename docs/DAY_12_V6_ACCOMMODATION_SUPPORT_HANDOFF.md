@@ -3,9 +3,10 @@
 Captured on 2026-09-16 (Australia/Sydney). The two collectors are independent,
 their approved public universes are frozen, fixture and live safety gates pass,
 and both live universes exceed the 99% entity and required source-present fact
-targets. Cloud SQL writes were not performed because the shared Accommodation
-and Support contracts still require Qasim/Carmen cross-repo approval and this
-workspace has no database runtime configuration.
+targets. Qasim and Carmen froze the cross-repo Accommodation v1 and Support v1
+contracts on 2026-09-16. Cloud SQL writes were not performed because Carmen's
+matching append-only RAG migration and the exact cross-repo validation gate are
+still pending, and this workspace has no database runtime configuration.
 
 ## Frozen source universes
 
@@ -18,20 +19,21 @@ The Support entities are Academic, Accommodation, Financial, Disciplinary,
 Physical and Mental Health, and Sexual Assault and Sexual Harassment. No
 additional ANU Support URL is active in this freeze.
 
-## Proposed shared contracts for Qasim/Carmen review
+## Frozen shared contracts
 
-These are **proposed scraper-side Accommodation v1 and Support v1 shared
-metadata contracts**. They are not yet approved cross-repo contracts. Both
-PostgreSQL approval flags remain off until Qasim and Carmen confirm an exact
-match or approve the smallest required alignment change.
+Qasim and Carmen approved these **Accommodation v1 and Support v1 shared
+metadata contracts** using the richer live-source-derived scraper records as
+the shared shape. Both PostgreSQL approval flags remain off until the matching
+RAG migration is ready and Qasim passes the exact cross-repo record-validation
+gate.
 
 Both domains use the common normalized-record envelope in `DATA_SCHEMA.md`.
 Missing scalar evidence is `null`; required identity fields are never replaced
 with placeholders.
 
-### Proposed Accommodation v1
+### Accommodation v1
 
-| Rule | Exact proposal |
+| Rule | Frozen contract |
 |---|---|
 | `domain` | `accommodation` |
 | `source_id` | `accommodation_anu_study` |
@@ -81,15 +83,15 @@ missing detail title, canonical-link mismatch, unaligned room-name/fee panels,
 duplicate identity/URL, or a listing count that does not reconcile to the
 frozen 19-entity universe. StarRez is always rejected as a collection target.
 
-### Proposed Support v1
+### Support v1
 
-| Rule | Exact proposal |
+| Rule | Frozen contract |
 |---|---|
 | `domain` | `support` |
 | `source_id` | `support_anusa_student_assistance` |
 | `metadata_json.entity_type` | `support_service` |
 | `entity_id` | Lowercase top-level category URL slug matching `[a-z0-9]+(?:-[a-z0-9]+)*` |
-| `record_id` | `support:service:<entity_id>` |
+| `record_id` | `support:support_service:<entity_id>` |
 | Canonical URL | Exactly `https://anusa.com.au/student-assistance/<entity_id>/`; no credentials, port, query, or fragment |
 
 `metadata_json` has exactly these keys and shapes:
@@ -109,7 +111,9 @@ frozen 19-entity universe. StarRez is always rejected as a collection target.
 
 `contact` has exactly `email`, `phone`, and `location`, each a string or null.
 A topic object has exactly `title` (required non-empty string), `description`
-(string or null), and `url` (HTTP(S) URL). A referral object has exactly
+(string or null), and `url` (an HTTPS URL inside the approved internal
+`/student-assistance/<category>/<topic>/...` boundary on `anusa.com.au` or
+`www.anusa.com.au`, without credentials, port, query, or fragment). A referral object has exactly
 `label` (required non-empty string) and `url` (HTTP(S) URL). Topic cards remain
 facts within their parent service and never become top-level Support entities.
 
@@ -121,7 +125,8 @@ service availability, emergency coverage, response times, guarantees,
 diagnoses, or personal/medical/legal advice.
 
 Published HTTP(S) external content links may be retained as referrals but are
-never fetched by this collector. A record is rejected for an invalid or
+never fetched by this collector. An arbitrary external URL is invalid in a
+topic object. A record is rejected for an invalid or
 mismatched domain/source/entity type/ID, a nested topic URL used as entity
 identity, an off-boundary or non-canonical category URL, missing main content or
 title, canonical-link mismatch, duplicate identity/URL, or a registry count
@@ -131,7 +136,10 @@ Support pages remain out of scope until their exact targets are approved.
 ## Live coverage and source health
 
 The final full traversals used dry-run stores, so the comparison path ran but no
-records or ingestion runs were persisted.
+records or ingestion runs were persisted. After contract freeze and parser
+hardening, bounded full-universe dry-runs passed again: Accommodation
+`run_c0f811d93144` accepted 19/19, and Support `run_301fc527c88c` accepted 6/6,
+with no rejected or duplicate records.
 
 | Domain | Run ID | Requests | Parsed / denominator | Entity coverage | Required published facts | Rejected / duplicate |
 |---|---|---:|---:|---:|---:|---:|
@@ -175,12 +183,13 @@ written to a local durable store and the identical request was repeated.
 | Domain | First local write | Result | Identical rerun | Result | Stable sample |
 |---|---|---|---|---|---|
 | Accommodation | `run_5d0d93c31832` | 1 NEW | `run_9fe3c41e8c82` | 1 UNCHANGED | `accommodation:residence:yukeembruk`, hash `bbc87d145a03e4cb20e076ea8bd531e00ca48a09e20a0d8c4907f0063abb57ed` |
-| Support | `run_10f06e1e81c5` | 1 NEW | `run_3eb9aa062054` | 1 UNCHANGED | `support:service:academic`, hash `0abfa8db6ff6e50fbd61bd5799a264cb61c32f2432948f2bee4dcf25aab732a5` |
+| Support | `run_10f06e1e81c5` | 1 NEW | `run_3eb9aa062054` | 1 UNCHANGED | Historical pre-freeze ID `support:service:academic`; frozen ID is `support:support_service:academic`. Content hash `0abfa8db6ff6e50fbd61bd5799a264cb61c32f2432948f2bee4dcf25aab732a5` is unchanged. |
 
-The Cloud-style one-shot CLI path also passed in dry-run mode:
+The Cloud-style one-shot CLI path also passed in dry-run mode. The latest
+post-freeze full-universe runs are:
 
-- Accommodation: `run_344541a7afd7`, exit 0, 19-card census, one parsed detail.
-- Support: `run_b83f64612e75`, exit 0, six-card census, one parsed detail.
+- Accommodation: `run_c0f811d93144`, exit 0, 19-card census, 19 parsed details.
+- Support: `run_301fc527c88c`, exit 0, six-card census, six parsed details.
 
 ## Failure and safety evidence
 
@@ -194,23 +203,27 @@ The focused Day 12 tests cover:
 - frozen-count mismatch before any detail request;
 - duplicate identity/URL checks and atomic batch persistence;
 - strict approved detail URL boundaries;
-- executable/untrusted source markup removal;
+- executable/untrusted source markup removal, including Accommodation iframe content;
+- frozen Support identity with explicit rejection of the old `support:service:<slug>` form;
+- Support topic URLs restricted to internal Student Assistance pages while
+  source-published external referral URLs remain valid;
 - StarRez retained only as an outbound application URL and never fetched;
 - missing Support hours/access and Accommodation vacancy remaining null; and
 - PostgreSQL approval gates rejecting both domains before fetch/connection.
 
-Full test result: **273 passed**. Focused Day 12 result: **21 passed** (six
-parser tests plus 15 collector/job tests).
+Full test result after rebasing onto merged Courses PR #27: **279 passed**.
+Focused Day 12 result: **24 passed** (nine parser tests plus 15 collector/job
+tests).
 
 ## Cloud and DB gate
 
 There is no Cloud execution ID or Cloud SQL row count for these two domains.
 That is an explicit blocker, not omitted evidence:
 
-- `docs/DECISION_LOG.md` records the v1 contracts as pending Qasim/Carmen
-  cross-repo approval.
-- The RAG/shared migration has not been shown to accept these exact metadata
+- `docs/DECISION_LOG.md` records Qasim/Carmen approval of the frozen v1
   contracts.
+- The matching append-only RAG migration and exact cross-repo record-validation
+  gate have not completed.
 - `DATABASE_URL`, `PGHOST`, `PGDATABASE`, `PGUSER`, and
   `GOOGLE_CLOUD_PROJECT` are unset in this workspace.
 - The one-shot job defaults both
@@ -225,6 +238,7 @@ for `UNCHANGED`, run the failure drill, and only then set the full 19/6 bounds.
 ## Revision evidence
 
 PR #26 is on branch `will/v6-day12-accommodation-support`. The branch contains
-one Day 12 commit over squash-merged scraper main `5873826`; it does not carry
-the superseded pre-squash Day 11 commit. Use the commit containing this handoff
-as the implementation SHA.
+the rebased Day 12 implementation plus its frozen-contract alignment commit over
+scraper main `9c19b94`, which includes Qasim's merged bare-incompatibility fix
+from PR #27. It does not carry the superseded pre-squash Day 11 commit. Use the
+commit containing this handoff as the implementation SHA.

@@ -1,6 +1,15 @@
 {
   "captured_at": "2026-09-16T10:34:38.645885+10:00",
   "mode": "live approved-source dry-run; no record/run persistence",
+  "contract_alignment": "Qasim/Carmen froze the same 19/6 source universes and field denominators. Support representative record IDs were deterministically updated to domain:entity_type:entity_id; content hashes and fact coverage are unchanged.",
+  "post_freeze_revalidation": {
+    "accommodation_run_id": "run_c0f811d93144",
+    "accommodation_records_seen": 19,
+    "support_run_id": "run_301fc527c88c",
+    "support_records_seen": 6,
+    "rejected_records": 0,
+    "duplicate_records": 0
+  },
   "coverage_method": "Denominator is every required fact explicitly present in the frozen pages under the v1 contracts; source-absent nullable fields are excluded. Identity and URL selectors, listing cards, detail sections, room table cells, category cards and external content links were reconciled independently by source-specific selectors.",
   "accommodation": {
     "frozen_entity_denominator": 19,
@@ -207,13 +216,13 @@
     },
     "representative_rows": [
       {
-        "record_id": "support:service:academic",
+        "record_id": "support:support_service:academic",
         "canonical_url": "https://anusa.com.au/student-assistance/academic/",
         "title": "Academic Support",
         "content_hash": "0abfa8db6ff6e50fbd61bd5799a264cb61c32f2432948f2bee4dcf25aab732a5"
       },
       {
-        "record_id": "support:service:accommodation",
+        "record_id": "support:support_service:accommodation",
         "canonical_url": "https://anusa.com.au/student-assistance/accommodation/",
         "title": "accommodation",
         "content_hash": "64ee95416ee830cf79c01163d028576ed9d341b3d90d02a976f959890f3806df"

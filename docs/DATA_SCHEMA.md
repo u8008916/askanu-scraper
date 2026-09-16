@@ -778,10 +778,11 @@ title is not identity.
 
 ---
 
-# 17. Proposed Accommodation metadata v1
+# 17. Accommodation metadata v1
 
-Status: **scraper-side proposal pending Qasim/Carmen cross-repo approval**.
-PostgreSQL/runtime enablement remains blocked.
+Status: **frozen by Qasim and Carmen on 2026-09-16**. PostgreSQL/runtime
+enablement remains blocked pending the matching RAG migration and exact
+cross-repo record-validation gate.
 
 Accommodation records use:
 
@@ -805,10 +806,11 @@ Live vacancy is never inferred: `vacancy_status` stays null unless the approved
 public residence page explicitly publishes it. A published StarRez application
 URL may be retained as an outbound destination but is never fetched.
 
-# 18. Proposed Support metadata v1
+# 18. Support metadata v1
 
-Status: **scraper-side proposal pending Qasim/Carmen cross-repo approval**.
-PostgreSQL/runtime enablement remains blocked.
+Status: **frozen by Qasim and Carmen on 2026-09-16**. PostgreSQL/runtime
+enablement remains blocked pending the matching RAG migration and exact
+cross-repo record-validation gate.
 
 Support records use:
 
@@ -816,7 +818,7 @@ Support records use:
 domain = "support"
 source_id = "support_anusa_student_assistance"
 entity_id = <canonical top-level Student Assistance category slug>
-record_id = "support:service:<entity_id>"
+record_id = "support:support_service:<entity_id>"
 ```
 
 `metadata_json` contains exactly: `entity_type` (`"support_service"`),
@@ -825,7 +827,9 @@ record_id = "support:service:<entity_id>"
 Hours, access, cost, contact, and referrals are populated only from published
 source facts. Missing scalar evidence is null. Source HTML is treated as
 untrusted content; executable elements are removed and never enter canonical
-content.
+content. Topic URLs must stay inside the approved internal ANUSA Student
+Assistance topic boundary. Published external HTTP(S) links may be retained as
+referrals only and are never fetched by this collector.
 
 # 19. Missing/null value policy
 

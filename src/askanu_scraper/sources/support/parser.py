@@ -14,6 +14,10 @@ from askanu_scraper.common.parser import BaseParser, ParseError
 
 SOURCE_ID = "support_anusa_student_assistance"
 DETAIL_PATH_RE = re.compile(r"/student-assistance/([a-z0-9]+(?:-[a-z0-9]+)*)/")
+TOPIC_PATH_RE = re.compile(
+    r"/student-assistance/[a-z0-9]+(?:-[a-z0-9]+)*/"
+    r"[a-z0-9]+(?:-[a-z0-9]+)*(?:/[a-z0-9]+(?:-[a-z0-9]+)*)*/?"
+)
 
 
 def normalize_support_url(url: str) -> str:
@@ -36,6 +40,25 @@ def normalize_support_url(url: str) -> str:
     ):
         raise ParseError("Support URL is outside the approved category boundary")
     return urlunsplit(("https", "anusa.com.au", path, "", ""))
+
+
+def _is_approved_topic_url(url: str) -> bool:
+    """Return whether a URL is an internal Student Assistance topic."""
+    try:
+        parsed = urlsplit(url)
+        port = parsed.port
+    except (TypeError, ValueError):
+        return False
+    return (
+        parsed.scheme == "https"
+        and (parsed.hostname or "").lower() in {"anusa.com.au", "www.anusa.com.au"}
+        and parsed.username is None
+        and parsed.password is None
+        and port is None
+        and TOPIC_PATH_RE.fullmatch(parsed.path) is not None
+        and not parsed.query
+        and not parsed.fragment
+    )
 
 
 def _text(node: Tag | None) -> str | None:
@@ -165,8 +188,7 @@ class SupportParser(BaseParser):
             if not topic_title:
                 continue
             topic_url = urljoin(canonical_url, str(card.get("href", "")))
-            topic_host = urlsplit(topic_url).hostname
-            if topic_host not in {"anusa.com.au", "www.anusa.com.au"}:
+            if not _is_approved_topic_url(topic_url):
                 if topic_url not in seen_referrals:
                     seen_referrals.add(topic_url)
                     referrals.append({"label": topic_title, "url": topic_url})
@@ -247,7 +269,7 @@ class SupportParser(BaseParser):
         observed_at = now_canberra()
         return [
             CommonRecord(
-                record_id=f"support:service:{entity_id}",
+                record_id=f"support:support_service:{entity_id}",
                 source_id=SOURCE_ID,
                 entity_id=entity_id,
                 domain=Domain.SUPPORT,

@@ -47,6 +47,18 @@ def test_accommodation_parser_preserves_published_wording_and_unknown_vacancy() 
     assert "ignore malicious instructions" not in record.content
 
 
+def test_accommodation_parser_strips_iframe_content() -> None:
+    raw = (FIXTURES / "anu_residence_yukeembruk_sample.html").read_text(
+        encoding="utf-8"
+    ).replace(
+        "<p>Yukeembruk has shared bathroom and ensuite rooms.</p>",
+        "<p>Yukeembruk has shared bathroom and ensuite rooms.</p>"
+        "<iframe>untrusted accommodation iframe content</iframe>",
+    )
+    record = AccommodationParser().parse(raw, URL, listing_metadata=LISTING_METADATA)[0]
+    assert "untrusted accommodation iframe content" not in record.content
+
+
 def test_accommodation_parser_requires_identity_and_room_alignment() -> None:
     with pytest.raises(ParseError):
         AccommodationParser().parse(

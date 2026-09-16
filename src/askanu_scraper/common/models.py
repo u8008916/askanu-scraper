@@ -701,7 +701,7 @@ class CommonRecord(BaseModel):
                 )
             if re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", self.entity_id) is None:
                 raise ValueError("Support entity_id must be a canonical URL slug")
-            if self.record_id != f"support:service:{self.entity_id}":
+            if self.record_id != f"support:support_service:{self.entity_id}":
                 raise ValueError("Support record_id does not match its identity")
             if (
                 parsed_url.scheme != "https"
@@ -772,8 +772,29 @@ class CommonRecord(BaseModel):
                 ):
                     raise ValueError("Support topic description must be a string or null")
                 topic_url = urlparse(topic["url"] if isinstance(topic["url"], str) else "")
-                if topic_url.scheme not in {"http", "https"} or not topic_url.netloc:
-                    raise ValueError("Support topic URL must be an HTTP(S) URL")
+                try:
+                    topic_port = topic_url.port
+                except ValueError as exc:
+                    raise ValueError("Support topic URL has an invalid port") from exc
+                if (
+                    topic_url.scheme != "https"
+                    or (topic_url.hostname or "").lower()
+                    not in {"anusa.com.au", "www.anusa.com.au"}
+                    or topic_url.username is not None
+                    or topic_url.password is not None
+                    or topic_port is not None
+                    or re.fullmatch(
+                        r"/student-assistance/[a-z0-9]+(?:-[a-z0-9]+)*/"
+                        r"[a-z0-9]+(?:-[a-z0-9]+)*(?:/[a-z0-9]+(?:-[a-z0-9]+)*)*/?",
+                        topic_url.path,
+                    )
+                    is None
+                    or topic_url.query
+                    or topic_url.fragment
+                ):
+                    raise ValueError(
+                        "Support topic URL must be an approved internal Student Assistance URL"
+                    )
             for referral in metadata["referrals"]:
                 if set(referral) != {"label", "url"}:
                     raise ValueError(

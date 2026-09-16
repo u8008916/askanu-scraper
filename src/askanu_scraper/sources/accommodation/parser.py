@@ -166,7 +166,7 @@ class AccommodationParser(BaseParser):
     ) -> list[CommonRecord]:
         metadata = listing_metadata or {}
         soup = BeautifulSoup(raw_content, "lxml")
-        for node in soup.select("script, style, noscript, template"):
+        for node in soup.select("script, style, noscript, template, iframe"):
             node.decompose()
         canonical_url = _canonical_url(soup, url)
         entity_match = DETAIL_PATH_RE.fullmatch(urlsplit(canonical_url).path)
