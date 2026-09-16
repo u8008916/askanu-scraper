@@ -289,3 +289,48 @@ def test_detail_command_fails_when_traversal_stops_early(
 
     assert detail_coverage.main(["--domain", "jobs"]) == 1
     assert '"status": "INCOMPLETE"' in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    ("code", "source_text", "expected_incompatibility"),
+    [
+        (
+            "ENVS6342",
+            "To enrol in this course students should have either completed "
+            "ENVS6223 or ENVS6224. Incompatible ENVS3042.",
+            "ENVS3042",
+        ),
+        (
+            "ENVS2001",
+            "To enrol in this course you must have successfully completed "
+            "48 units towards a degree. Incompatible ENVS6201.",
+            "ENVS6201",
+        ),
+        (
+            "CHEM2208",
+            "To enrol in this course you must have completed CHEM1201 and "
+            "BIOL1004. Incompatible CHEM6228",
+            "CHEM6228",
+        ),
+    ],
+)
+def test_course_bare_incompatible_variant_is_split_from_prerequisites(
+    code: str,
+    source_text: str,
+    expected_incompatibility: str,
+) -> None:
+    html = f"""
+    <h1>{code} Test Course</h1>
+    <h2>Requisite and Incompatibility</h2>
+    <p>{source_text}</p>
+    """
+
+    record = CoursesParser().parse(
+        html,
+        f"https://programsandcourses.anu.edu.au/2026/course/{code.lower()}",
+    )[0]
+
+    assert record.metadata_json["incompatibilities"] == expected_incompatibility
+    assert "Incompatible" not in (
+        record.metadata_json.get("prerequisites") or ""
+    )

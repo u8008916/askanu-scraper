@@ -329,8 +329,9 @@ class CoursesParser(BaseParser):
                 section_text = normalize_text(" ".join(section_parts)) or ""
 
                 incompat_marker = re.search(
-                    r"(?:\b(?:This course is incompatible with|Incompatible with|"
-                    r"You are not able to enrol in this course if)\b|\bIncompatible:)",
+                    r"(?:\bThis course is incompatible with\b|"
+                    r"\bIncompatible\b(?:\s+with\b|:)?|"
+                    r"\bYou are not able to enrol in this course if\b)",
                     section_text,
                     re.IGNORECASE,
                 )
@@ -340,7 +341,8 @@ class CoursesParser(BaseParser):
                         r"To enrol in this course,?\s+you must have "
                         r"(?:successfully )?completed:?\s*(.+?)"
                         r"(?=\.\s*(?:This course is incompatible|"
-                        r"Incompatible with|You are not able to enrol)|\.$|$)",
+                        r"Incompatible(?:\s+with|:)?|"
+                        r"You are not able to enrol)|\.$|$)",
                         section_text,
                         re.IGNORECASE,
                     )
@@ -373,8 +375,8 @@ class CoursesParser(BaseParser):
 
                 if incompatibilities is None and incompat_marker:
                     incompat_match = re.search(
-                        r"(?:This course is incompatible with|Incompatible with|"
-                        r"Incompatible:|"
+                        r"(?:This course is incompatible with|"
+                        r"Incompatible(?:\s+with|:)?|"
                         r"You are not able to enrol in this course if you have "
                         r"(?:successfully )?completed)\s*(.+?)"
                         r"(?=\.\s*(?:You will|To enrol)|\.$|$)",
