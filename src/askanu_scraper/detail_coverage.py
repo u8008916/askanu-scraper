@@ -357,12 +357,33 @@ def _source_presence(
             result[field_name] = bool(value and value not in {"-", "–", "—"})
         application_period = _scholarship_period(soup)
         application_closes = tables.get("application closes")
+
+        # Structured ISO dates are source-present only when the source
+        # explicitly supplies a calendar year. Yearless ranges such as
+        # "04-Sep to 31-Oct" are preserved in canonical content but must not
+        # be counted as structured-date evidence because doing so would
+        # require inventing a year.
+        opening_source = None
+        closing_source = application_closes
+
+        if application_period:
+            pieces = re.split(
+                r"\s+to\s+",
+                application_period,
+                maxsplit=1,
+                flags=re.I,
+            )
+            if len(pieces) == 2:
+                opening_source = normalize_text(pieces[0])
+                closing_source = normalize_text(pieces[1])
+
+        explicit_year = re.compile(r"\b(?:19|20)\d{2}\b")
+
         result["opening_date"] = bool(
-            application_period and re.search(r"\s+to\s+", application_period, re.I)
+            opening_source and explicit_year.search(opening_source)
         )
         result["closing_date"] = bool(
-            application_closes
-            or (application_period and re.search(r"\s+to\s+", application_period, re.I))
+            closing_source and explicit_year.search(closing_source)
         )
         eligibility_node = soup.select_one("#cs_block_3 .text-field, .eligibility")
         result["eligibility"] = bool(_text(eligibility_node))
