@@ -18,6 +18,7 @@ class FakeSession:
     def __init__(self, outcomes: list[object]) -> None:
         self.outcomes = list(outcomes)
         self.calls = 0
+        self.headers = {}
 
     def get(self, url: str, timeout: int):
         self.calls += 1
@@ -29,17 +30,24 @@ class FakeSession:
         return outcome
 
 
-def make_fetcher(outcomes: list[object]) -> tuple[HttpFetcher, FakeSession]:
+def make_fetcher(
+    outcomes: list[object],
+    monkeypatch,
+) -> tuple[HttpFetcher, FakeSession]:
     fetcher = HttpFetcher(timeout=1)
     session = FakeSession(outcomes)
     fetcher._session = session
+    monkeypatch.setattr(fetcher, "_reset_session", lambda: None)
     return fetcher, session
 
 
 def test_valid_response_succeeds_without_retry(monkeypatch):
     monkeypatch.setattr("askanu_scraper.common.fetcher.time.sleep", lambda _: None)
 
-    fetcher, session = make_fetcher([FakeResponse("<html>ok</html>")])
+    fetcher, session = make_fetcher(
+        [FakeResponse("<html>ok</html>")],
+        monkeypatch,
+    )
 
     assert fetcher.fetch("https://example.com") == "<html>ok</html>"
     assert session.calls == 1
@@ -56,7 +64,8 @@ def test_empty_response_retries_then_succeeds(monkeypatch):
         [
             FakeResponse(""),
             FakeResponse("<html>ok</html>"),
-        ]
+        ],
+        monkeypatch,
     )
 
     assert fetcher.fetch("https://example.com") == "<html>ok</html>"
@@ -75,7 +84,8 @@ def test_request_exception_retries_then_succeeds(monkeypatch):
         [
             requests.ConnectionError("temporary failure"),
             FakeResponse("<html>ok</html>"),
-        ]
+        ],
+        monkeypatch,
     )
 
     assert fetcher.fetch("https://example.com") == "<html>ok</html>"
@@ -95,7 +105,8 @@ def test_empty_response_exhausts_retry_budget(monkeypatch):
             FakeResponse(""),
             FakeResponse("   "),
             FakeResponse(""),
-        ]
+        ],
+        monkeypatch,
     )
 
     with pytest.raises(FetchError, match="empty response body"):
@@ -117,7 +128,8 @@ def test_request_exception_exhausts_retry_budget(monkeypatch):
             requests.ConnectionError("failure one"),
             requests.ConnectionError("failure two"),
             requests.ConnectionError("failure three"),
-        ]
+        ],
+        monkeypatch,
     )
 
     with pytest.raises(FetchError, match="failure three"):
@@ -125,3 +137,56 @@ def test_request_exception_exhausts_retry_budget(monkeypatch):
 
     assert session.calls == 3
     assert sleeps == [1.0, 2.0]
+
+
+def test_reset_session_replaces_session_and_preserves_user_agent(monkeypatch):
+    created_sessions = []
+
+    class ReplacementSession:
+        def __init__(self):
+            self.headers = {}
+            created_sessions.append(self)
+
+    fetcher = HttpFetcher(user_agent="AskANU-Test/1.0", timeout=1)
+    original_session = fetcher._session
+
+    monkeypatch.setattr(
+        "askanu_scraper.common.fetcher.requests.Session",
+        ReplacementSession,
+    )
+
+    fetcher._reset_session()
+
+    assert fetcher._session is not original_session
+    assert fetcher._session is created_sessions[0]
+    assert fetcher._session.headers["User-Agent"] == "AskANU-Test/1.0"
+
+
+def test_empty_response_resets_session_before_retry(monkeypatch):
+    sleeps = []
+    replacement = FakeSession([FakeResponse("<html>ok</html>")])
+
+    class ReplacementSessionFactory:
+        def __call__(self):
+            return replacement
+
+    monkeypatch.setattr(
+        "askanu_scraper.common.fetcher.time.sleep",
+        lambda delay: sleeps.append(delay),
+    )
+
+    fetcher = HttpFetcher(user_agent="AskANU/0.1", timeout=1)
+    first_session = FakeSession([FakeResponse("")])
+    fetcher._session = first_session
+
+    monkeypatch.setattr(
+        "askanu_scraper.common.fetcher.requests.Session",
+        ReplacementSessionFactory(),
+    )
+
+    assert fetcher.fetch("https://example.com") == "<html>ok</html>"
+
+    assert first_session.calls == 1
+    assert replacement.calls == 1
+    assert replacement.headers["User-Agent"] == "AskANU/0.1"
+    assert sleeps == [1.0]

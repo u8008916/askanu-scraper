@@ -55,6 +55,11 @@ class HttpFetcher(BaseFetcher):
         self._session = requests.Session()
         self._session.headers.update({"User-Agent": self._user_agent})
 
+    def _reset_session(self) -> None:
+        """Replace the HTTP session while preserving the configured user-agent."""
+        self._session = requests.Session()
+        self._session.headers.update({"User-Agent": self._user_agent})
+
     def fetch(self, url: str) -> str:
         last_error: Exception | None = None
 
@@ -74,6 +79,7 @@ class HttpFetcher(BaseFetcher):
                 last_error = exc
 
                 if attempt < self.MAX_ATTEMPTS - 1:
+                    self._reset_session()
                     delay = self.INITIAL_RETRY_DELAY * (2 ** attempt)
                     time.sleep(delay)
 
