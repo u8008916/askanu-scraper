@@ -12,6 +12,7 @@ Rules:
 from __future__ import annotations
 
 import os
+import time
 from abc import ABC, abstractmethod
 from pathlib import Path
 
@@ -39,6 +40,8 @@ class HttpFetcher(BaseFetcher):
     """
 
     DEFAULT_TIMEOUT = 30  # seconds
+    MAX_ATTEMPTS = 3
+    INITIAL_RETRY_DELAY = 1.0  # seconds
 
     def __init__(
         self,
@@ -53,16 +56,31 @@ class HttpFetcher(BaseFetcher):
         self._session.headers.update({"User-Agent": self._user_agent})
 
     def fetch(self, url: str) -> str:
-        try:
-            response = self._session.get(url, timeout=self._timeout)
-            response.raise_for_status()
-            if not response.text or not response.text.strip():
-                raise FetchError(f"Failed to fetch {url!r}: empty response body")
-            return response.text
-        except FetchError:
-            raise
-        except requests.RequestException as exc:
-            raise FetchError(f"Failed to fetch {url!r}: {exc}") from exc
+        last_error: Exception | None = None
+
+        for attempt in range(self.MAX_ATTEMPTS):
+            try:
+                response = self._session.get(url, timeout=self._timeout)
+                response.raise_for_status()
+
+                if not response.text or not response.text.strip():
+                    raise FetchError(
+                        f"Failed to fetch {url!r}: empty response body"
+                    )
+
+                return response.text
+
+            except (FetchError, requests.RequestException) as exc:
+                last_error = exc
+
+                if attempt < self.MAX_ATTEMPTS - 1:
+                    delay = self.INITIAL_RETRY_DELAY * (2 ** attempt)
+                    time.sleep(delay)
+
+        if isinstance(last_error, FetchError):
+            raise last_error
+
+        raise FetchError(f"Failed to fetch {url!r}: {last_error}") from last_error
 
 
 class MockFetcher(BaseFetcher):
