@@ -394,14 +394,14 @@ def test_inactive_source_is_rejected_before_fetch(tmp_path: Path) -> None:
 def test_approved_but_unimplemented_domain_is_rejected_before_fetch(
     tmp_path: Path,
 ) -> None:
-    accommodation = replace(
+    events = replace(
         make_config(tmp_path),
-        source_id="accommodation_anu_study",
-        domain="accommodation",
+        source_id="events_anu_official",
+        domain="events",
     )
 
-    with pytest.raises(JobConfigurationError, match="Only the approved Courses"):
-        execute_job(accommodation, fetcher=AlwaysFailFetcher(), environ={})
+    with pytest.raises(JobConfigurationError, match="selected approved collector"):
+        execute_job(events, fetcher=AlwaysFailFetcher(), environ={})
 
 
 def test_suspicious_zero_is_nonzero_and_writes_no_records(

@@ -64,7 +64,10 @@ _REGISTRY: dict[str, SourceRegistryEntry] = {
             poll_cadence=PollCadence.DAILY,
             parser_name="askanu_scraper.sources.accommodation.parser.AccommodationParser",
             active=True,
-            notes="Residence/catering/resident type/advertised rate/application info.",
+            notes=(
+                "Frozen 2026-09-16 public registry of 19 residence detail pages. "
+                "StarRez remains an outbound link and is never fetched."
+            ),
         ),
         SourceRegistryEntry(
             source_id="support_anusa_student_assistance",
@@ -75,9 +78,9 @@ _REGISTRY: dict[str, SourceRegistryEntry] = {
             parser_name="askanu_scraper.sources.support.parser.SupportParser",
             active=True,
             notes=(
-                "ANUSA student assistance categories, service descriptions, "
-                "contact/action URLs and only explicit hours. "
-                "Supplementary to official ANU support pages."
+                "Frozen 2026-09-16 registry of six top-level ANUSA Student "
+                "Assistance categories. Additional ANU Support targets require "
+                "exact approval before registry activation."
             ),
         ),
         SourceRegistryEntry(

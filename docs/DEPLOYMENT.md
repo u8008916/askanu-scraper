@@ -69,13 +69,18 @@ domain    = scholarships
 
 source_id = jobs_anu_search
 domain    = jobs
+
+source_id = accommodation_anu_study
+domain    = accommodation
+
+source_id = support_anusa_student_assistance
+domain    = support
 ```
 
 All selections pass through the machine-readable approved-source registry.
-Other approved domains remain unsupported until their collectors are
-implemented. Rubric stays inactive and cannot be selected. Scholarships and
-Jobs are each limited to one public listing page and at most ten same-site
-details.
+Events remains unsupported and Rubric stays inactive. Accommodation is bounded
+to its frozen 19-page public registry; Support is bounded to its frozen six-page
+ANUSA registry.
 
 ### Environment contract
 
@@ -93,6 +98,10 @@ details.
 | `SCRAPER_MAX_JOBS_LISTING_PAGES` | `1` | Fixed one-page Jobs discovery bound; other values are rejected. |
 | `SCRAPER_MAX_JOB_DETAILS` | `10` | Public Jobs detail bound; valid range 1-10. |
 | `SCRAPER_JOBS_POSTGRES_APPROVED` | `false` | Set true only after frozen Jobs v1 alignment and the migration/runtime grants and bounded live-read gate are approved. |
+| `SCRAPER_MAX_ACCOMMODATION_DETAILS` | `10` | Approved public residence detail bound; valid range 1-19. |
+| `SCRAPER_ACCOMMODATION_POSTGRES_APPROVED` | `false` | Keep false until Qasim's final review and a separately approved migration `20260916_0008` runtime/write gate. |
+| `SCRAPER_MAX_SUPPORT_DETAILS` | `6` | Approved ANUSA category detail bound; valid range 1-6. |
+| `SCRAPER_SUPPORT_POSTGRES_APPROVED` | `false` | Keep false until Qasim's final review and a separately approved migration `20260916_0008` runtime/write gate. |
 | `SCRAPER_DRY_RUN` | `true` in the Day 6 container (`false` application default) | Compare normally but suppress all local writes. |
 | `SCRAPER_STORAGE_PATH` | `local-data` (`/data` in container) | Existing local JSON handoff. |
 | `SCRAPER_STORAGE_BACKEND` | `local` | Set to `postgres` only for the reviewed shared Cloud SQL adapter. |
