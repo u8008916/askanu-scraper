@@ -113,9 +113,11 @@ frozen 19-entity universe. StarRez is always rejected as a collection target.
 A topic object has exactly `title` (required non-empty string), `description`
 (string or null), and `url` (an HTTPS URL inside the approved internal
 `/student-assistance/<category>/<topic>/...` boundary on `anusa.com.au` or
-`www.anusa.com.au`, without credentials, port, query, or fragment). A referral object has exactly
-`label` (required non-empty string) and `url` (HTTP(S) URL). Topic cards remain
-facts within their parent service and never become top-level Support entities.
+`www.anusa.com.au`, without credentials, port, query, or fragment). A referral
+object has exactly `label` (required non-empty string) and `url` (a
+credential-free external HTTP(S) URL). Referral destinations on `anusa.com.au`
+or `www.anusa.com.au` are rejected case-insensitively. Topic cards remain facts
+within their parent service and never become top-level Support entities.
 
 Purpose/category/audience/contact/location/cost/topics/referrals are stored only
 when published. Hours and access are service-level facts only when the category
@@ -124,9 +126,10 @@ a referred service are not attributed to ANUSA. The scraper never invents
 service availability, emergency coverage, response times, guarantees,
 diagnoses, or personal/medical/legal advice.
 
-Published HTTP(S) external content links may be retained as referrals but are
-never fetched by this collector. An arbitrary external URL is invalid in a
-topic object. A record is rejected for an invalid or
+Published credential-free HTTP(S) external content links may be retained as
+referrals but are never fetched by this collector. Internal ANUSA destinations
+and URLs containing credentials are invalid referrals. An arbitrary external
+URL is invalid in a topic object. A record is rejected for an invalid or
 mismatched domain/source/entity type/ID, a nested topic URL used as entity
 identity, an off-boundary or non-canonical category URL, missing main content or
 title, canonical-link mismatch, duplicate identity/URL, or a registry count
@@ -138,7 +141,8 @@ Support pages remain out of scope until their exact targets are approved.
 The final full traversals used dry-run stores, so the comparison path ran but no
 records or ingestion runs were persisted. After contract freeze and parser
 hardening, bounded full-universe dry-runs passed again: Accommodation
-`run_c0f811d93144` accepted 19/19, and Support `run_301fc527c88c` accepted 6/6,
+`run_c0f811d93144` accepted 19/19, and Support `run_790c9603ca2c` accepted 6/6
+after final referral-boundary hardening,
 with no rejected or duplicate records.
 
 | Domain | Run ID | Requests | Parsed / denominator | Entity coverage | Required published facts | Rejected / duplicate |
@@ -189,7 +193,7 @@ The Cloud-style one-shot CLI path also passed in dry-run mode. The latest
 post-freeze full-universe runs are:
 
 - Accommodation: `run_c0f811d93144`, exit 0, 19-card census, 19 parsed details.
-- Support: `run_301fc527c88c`, exit 0, six-card census, six parsed details.
+- Support: `run_790c9603ca2c`, exit 0, six-card census, six parsed details.
 
 ## Failure and safety evidence
 
@@ -207,23 +211,30 @@ The focused Day 12 tests cover:
 - frozen Support identity with explicit rejection of the old `support:service:<slug>` form;
 - Support topic URLs restricted to internal Student Assistance pages while
   source-published external referral URLs remain valid;
+- Support referral URLs restricted to credential-free external HTTP(S)
+  destinations, with lowercase, uppercase, and mixed-case ANUSA hosts rejected;
 - StarRez retained only as an outbound application URL and never fetched;
 - missing Support hours/access and Accommodation vacancy remaining null; and
 - PostgreSQL approval gates rejecting both domains before fetch/connection.
 
-Full test result after rebasing onto merged Courses PR #27: **279 passed**.
-Focused Day 12 result: **24 passed** (nine parser tests plus 15 collector/job
+Full test result after the final referral-boundary hardening: **291 passed**.
+Focused Day 12 result: **34 passed** (19 parser tests plus 15 collector/job
 tests).
+
+Exact serialized fixture records passed the merged RAG contract at migration
+`20260916_0008`: `accommodation:residence:yukeembruk` and
+`support:support_service:academic` both round-tripped without shape changes.
 
 ## Cloud and DB gate
 
 There is no Cloud execution ID or Cloud SQL row count for these two domains.
-That is an explicit blocker, not omitted evidence:
+That is intentional closeout evidence: Qasim explicitly prohibited production
+writes, migrations, indexing, scheduling, and deployment during this review.
 
 - `docs/DECISION_LOG.md` records Qasim/Carmen approval of the frozen v1
   contracts.
-- The matching append-only RAG migration and exact cross-repo record-validation
-  gate have not completed.
+- The matching append-only RAG migration `20260916_0008` is merged at RAG commit
+  `ccd93b3`, and the exact cross-repo serialized-record gate passes.
 - `DATABASE_URL`, `PGHOST`, `PGDATABASE`, `PGUSER`, and
   `GOOGLE_CLOUD_PROJECT` are unset in this workspace.
 - The one-shot job defaults both
@@ -231,14 +242,14 @@ That is an explicit blocker, not omitted evidence:
   `SCRAPER_SUPPORT_POSTGRES_APPROVED` to false and rejects PostgreSQL before
   collection unless the matching gate is explicitly approved.
 
-After approval and migration deployment, run one bounded PostgreSQL dry-run,
-one single-record write, inspect `source_records` and `ingestion_runs`, repeat
-for `UNCHANGED`, run the failure drill, and only then set the full 19/6 bounds.
+Both PostgreSQL flags remain false pending Qasim's final review. Any later
+runtime enablement requires a separately approved bounded PostgreSQL dry-run,
+single-record write/read-back, `UNCHANGED` rerun, and failure drill.
 
 ## Revision evidence
 
 PR #26 is on branch `will/v6-day12-accommodation-support`. The branch contains
 the rebased Day 12 implementation plus its frozen-contract alignment commit over
-scraper main `9c19b94`, which includes Qasim's merged bare-incompatibility fix
-from PR #27. It does not carry the superseded pre-squash Day 11 commit. Use the
-commit containing this handoff as the implementation SHA.
+scraper main `b119294`, which includes the merged Day 11 fixes from PRs #27 and
+#28. It does not carry the superseded pre-squash Day 11 commit. Use the commit
+containing this handoff as the implementation SHA.

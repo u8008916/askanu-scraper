@@ -780,9 +780,9 @@ title is not identity.
 
 # 17. Accommodation metadata v1
 
-Status: **frozen by Qasim and Carmen on 2026-09-16**. PostgreSQL/runtime
-enablement remains blocked pending the matching RAG migration and exact
-cross-repo record-validation gate.
+Status: **frozen by Qasim and Carmen on 2026-09-16**. The matching RAG migration
+`20260916_0008` is merged and exact serialized-record validation passes.
+PostgreSQL/runtime enablement remains blocked pending Qasim's final review.
 
 Accommodation records use:
 
@@ -808,9 +808,9 @@ URL may be retained as an outbound destination but is never fetched.
 
 # 18. Support metadata v1
 
-Status: **frozen by Qasim and Carmen on 2026-09-16**. PostgreSQL/runtime
-enablement remains blocked pending the matching RAG migration and exact
-cross-repo record-validation gate.
+Status: **frozen by Qasim and Carmen on 2026-09-16**. The matching RAG migration
+`20260916_0008` is merged and exact serialized-record validation passes.
+PostgreSQL/runtime enablement remains blocked pending Qasim's final review.
 
 Support records use:
 
@@ -828,8 +828,10 @@ Hours, access, cost, contact, and referrals are populated only from published
 source facts. Missing scalar evidence is null. Source HTML is treated as
 untrusted content; executable elements are removed and never enter canonical
 content. Topic URLs must stay inside the approved internal ANUSA Student
-Assistance topic boundary. Published external HTTP(S) links may be retained as
-referrals only and are never fetched by this collector.
+Assistance topic boundary. Referral URLs must be credential-free external
+HTTP(S) destinations; `anusa.com.au` and `www.anusa.com.au` are rejected
+case-insensitively. Published valid referrals are never fetched by this
+collector.
 
 # 19. Missing/null value policy
 

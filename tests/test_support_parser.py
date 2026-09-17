@@ -81,6 +81,75 @@ def test_external_url_is_rejected_as_topic_but_allowed_as_referral() -> None:
     assert validated.metadata_json["referrals"][0]["url"] == external_url
 
 
+@pytest.mark.parametrize(
+    "internal_url",
+    [
+        "https://anusa.com.au/student-assistance/academic/other/",
+        "https://www.anusa.com.au/student-assistance/academic/other/",
+        "https://ANUSA.COM.AU/student-assistance/academic/other/",
+        "https://WWW.ANUSA.COM.AU/student-assistance/academic/other/",
+        "https://AnUsA.CoM.Au/student-assistance/academic/other/",
+        "https://wWw.AnUsA.cOm.Au/student-assistance/academic/other/",
+    ],
+)
+def test_support_referral_rejects_internal_anusa_hosts_case_insensitively(
+    internal_url: str,
+) -> None:
+    record = SupportParser().parse(
+        (FIXTURES / "anusa_academic_sample.html").read_text(encoding="utf-8"),
+        URL,
+        listing_metadata=LISTING_METADATA,
+    )[0]
+    payload = record.model_dump()
+    payload["metadata_json"]["referrals"] = [
+        {"label": "Internal ANUSA page", "url": internal_url}
+    ]
+    with pytest.raises(ValueError, match="external credential-free HTTP"):
+        CommonRecord.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    "credential_url",
+    [
+        "https://user@example.org/referral",
+        "https://user:secret@example.org/referral",
+        "http://user@external.example/referral",
+    ],
+)
+def test_support_referral_rejects_credentials(credential_url: str) -> None:
+    record = SupportParser().parse(
+        (FIXTURES / "anusa_academic_sample.html").read_text(encoding="utf-8"),
+        URL,
+        listing_metadata=LISTING_METADATA,
+    )[0]
+    payload = record.model_dump()
+    payload["metadata_json"]["referrals"] = [
+        {"label": "Credential URL", "url": credential_url}
+    ]
+    with pytest.raises(ValueError, match="external credential-free HTTP"):
+        CommonRecord.model_validate(payload)
+
+
+def test_support_parser_omits_internal_and_credential_bearing_referrals() -> None:
+    raw = (FIXTURES / "anusa_academic_sample.html").read_text(encoding="utf-8").replace(
+        "</main>",
+        """
+        <a href="https://AnUsA.CoM.Au/about">Internal mixed-case link</a>
+        <a href="https://user:secret@example.org/referral">Credential link</a>
+        <a class="elementor-cta" href="https://WWW.ANUSA.COM.AU/about">
+          <span class="elementor-cta__title">Internal card</span>
+        </a>
+        </main>
+        """,
+    )
+    record = SupportParser().parse(raw, URL, listing_metadata=LISTING_METADATA)[0]
+    referral_urls = {item["url"] for item in record.metadata_json["referrals"]}
+
+    assert referral_urls == {
+        "https://www.anu.edu.au/students/program-administration/assessments-exams"
+    }
+
+
 def test_support_parser_does_not_infer_missing_hours() -> None:
     record = SupportParser().parse(
         (FIXTURES / "anusa_financial_sample.html").read_text(encoding="utf-8"),

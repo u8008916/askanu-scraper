@@ -99,9 +99,9 @@ ANUSA registry.
 | `SCRAPER_MAX_JOB_DETAILS` | `10` | Public Jobs detail bound; valid range 1-10. |
 | `SCRAPER_JOBS_POSTGRES_APPROVED` | `false` | Set true only after frozen Jobs v1 alignment and the migration/runtime grants and bounded live-read gate are approved. |
 | `SCRAPER_MAX_ACCOMMODATION_DETAILS` | `10` | Approved public residence detail bound; valid range 1-19. |
-| `SCRAPER_ACCOMMODATION_POSTGRES_APPROVED` | `false` | Set true only after Accommodation v1 cross-repo schema/migration/runtime approval. |
+| `SCRAPER_ACCOMMODATION_POSTGRES_APPROVED` | `false` | Keep false until Qasim's final review and a separately approved migration `20260916_0008` runtime/write gate. |
 | `SCRAPER_MAX_SUPPORT_DETAILS` | `6` | Approved ANUSA category detail bound; valid range 1-6. |
-| `SCRAPER_SUPPORT_POSTGRES_APPROVED` | `false` | Set true only after Support v1 cross-repo schema/migration/runtime approval. |
+| `SCRAPER_SUPPORT_POSTGRES_APPROVED` | `false` | Keep false until Qasim's final review and a separately approved migration `20260916_0008` runtime/write gate. |
 | `SCRAPER_DRY_RUN` | `true` in the Day 6 container (`false` application default) | Compare normally but suppress all local writes. |
 | `SCRAPER_STORAGE_PATH` | `local-data` (`/data` in container) | Existing local JSON handoff. |
 | `SCRAPER_STORAGE_BACKEND` | `local` | Set to `postgres` only for the reviewed shared Cloud SQL adapter. |

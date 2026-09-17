@@ -805,8 +805,21 @@ class CommonRecord(BaseModel):
                 referral_url = urlparse(
                     referral["url"] if isinstance(referral["url"], str) else ""
                 )
-                if referral_url.scheme not in {"http", "https"} or not referral_url.netloc:
-                    raise ValueError("Support referral URL must be an HTTP(S) URL")
+                try:
+                    referral_url.port
+                except ValueError as exc:
+                    raise ValueError("Support referral URL has an invalid port") from exc
+                referral_host = (referral_url.hostname or "").casefold()
+                if (
+                    referral_url.scheme.casefold() not in {"http", "https"}
+                    or not referral_host
+                    or referral_host in {"anusa.com.au", "www.anusa.com.au"}
+                    or referral_url.username is not None
+                    or referral_url.password is not None
+                ):
+                    raise ValueError(
+                        "Support referral URL must be an external credential-free HTTP(S) URL"
+                    )
         return self
 
 

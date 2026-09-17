@@ -18,6 +18,7 @@ TOPIC_PATH_RE = re.compile(
     r"/student-assistance/[a-z0-9]+(?:-[a-z0-9]+)*/"
     r"[a-z0-9]+(?:-[a-z0-9]+)*(?:/[a-z0-9]+(?:-[a-z0-9]+)*)*/?"
 )
+INTERNAL_ANUSA_HOSTS = {"anusa.com.au", "www.anusa.com.au"}
 
 
 def normalize_support_url(url: str) -> str:
@@ -51,13 +52,30 @@ def _is_approved_topic_url(url: str) -> bool:
         return False
     return (
         parsed.scheme == "https"
-        and (parsed.hostname or "").lower() in {"anusa.com.au", "www.anusa.com.au"}
+        and (parsed.hostname or "").lower() in INTERNAL_ANUSA_HOSTS
         and parsed.username is None
         and parsed.password is None
         and port is None
         and TOPIC_PATH_RE.fullmatch(parsed.path) is not None
         and not parsed.query
         and not parsed.fragment
+    )
+
+
+def _is_external_referral_url(url: str) -> bool:
+    """Return whether a published URL is safe external referral evidence."""
+    try:
+        parsed = urlsplit(url)
+        parsed.port
+    except (TypeError, ValueError):
+        return False
+    host = (parsed.hostname or "").casefold()
+    return (
+        parsed.scheme.casefold() in {"http", "https"}
+        and bool(host)
+        and host not in INTERNAL_ANUSA_HOSTS
+        and parsed.username is None
+        and parsed.password is None
     )
 
 
@@ -189,6 +207,8 @@ class SupportParser(BaseParser):
                 continue
             topic_url = urljoin(canonical_url, str(card.get("href", "")))
             if not _is_approved_topic_url(topic_url):
+                if not _is_external_referral_url(topic_url):
+                    continue
                 if topic_url not in seen_referrals:
                     seen_referrals.add(topic_url)
                     referrals.append({"label": topic_title, "url": topic_url})
@@ -203,11 +223,7 @@ class SupportParser(BaseParser):
 
         for anchor in main.select('a[href]'):
             href = urljoin(canonical_url, str(anchor.get("href", "")))
-            parsed = urlsplit(href)
-            if (
-                parsed.scheme not in {"http", "https"}
-                or parsed.hostname in {"anusa.com.au", "www.anusa.com.au"}
-            ):
+            if not _is_external_referral_url(href):
                 continue
             label = _text(anchor)
             if not label or href in seen_referrals:
