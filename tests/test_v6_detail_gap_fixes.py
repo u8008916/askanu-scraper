@@ -231,8 +231,19 @@ def test_http_fetcher_rejects_http_200_empty_body(monkeypatch: pytest.MonkeyPatc
         def raise_for_status() -> None:
             return None
 
+    class EmptySession:
+        def __init__(self) -> None:
+            self.headers = {}
+
+        def get(self, *_args, **_kwargs):
+            return EmptyResponse()
+
+    monkeypatch.setattr(
+        "askanu_scraper.common.fetcher.requests.Session",
+        EmptySession,
+    )
+
     fetcher = HttpFetcher()
-    monkeypatch.setattr(fetcher._session, "get", lambda *_args, **_kwargs: EmptyResponse())
 
     with pytest.raises(FetchError, match="empty response body"):
         fetcher.fetch("https://jobs.anu.edu.au/jobs/source-backed-role")
