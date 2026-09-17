@@ -1,0 +1,399 @@
+{
+  "schema_version": "1",
+  "captured_at": "2026-09-17T12:09:11+10:00",
+  "evidence_kind": "demo candidate evidence; not a production data lock",
+  "branch": "will/v6-day13-data-stability",
+  "base_merge_commit": "93def34b0e53a6d8951987ba52281457fd9d28cc",
+  "implementation_commit": "75e4304c1a261b5896b46269f80c07e0d4cf9d12",
+  "rag_capability_source": {
+    "repository": "u8008916/askanu-rag",
+    "commit": "ccd93b37510b585f734e8dd38f23f52ae8042c61",
+    "documents": [
+      "docs/V6_DAY11_RETRIEVAL_AUDIT.md",
+      "docs/V6_DAY12_ACCOMMODATION_SUPPORT_HANDOFF.md",
+      "tests/test_day12_capabilities.py"
+    ],
+    "note": "No single six-domain golden-question artifact exists. The frozen RAG capability matrices are used verbatim as the capability source; Events remains reserved and unimplemented."
+  },
+  "constraints": {
+    "production_writes": 0,
+    "cloud_jobs_triggered": 0,
+    "scheduler_changes": 0,
+    "deployments": 0,
+    "schema_changes": 0,
+    "new_sources": 0,
+    "rubric_requests": 0,
+    "starrez_requests": 0
+  },
+  "coverage": [
+    {
+      "domain": "courses",
+      "source_id": "courses_programs_and_courses",
+      "entity_denominators": {
+        "course": 500,
+        "program": 393,
+        "major": 109,
+        "minor": 126,
+        "specialisation": 128
+      },
+      "last_full_entity_counts": {
+        "course": 500,
+        "program": 393,
+        "major": 109,
+        "minor": 126,
+        "specialisation": 128
+      },
+      "entity_coverage_percent": 100.0,
+      "required_source_fact_coverage": "not re-claimed: post-fix full-detail denominator is not present in merged evidence",
+      "freshness": "Day 11 census plus Day 13 bounded live sample",
+      "affected_capabilities": [
+        "exact course/program lookup",
+        "prerequisites/incompatibilities/assumed knowledge",
+        "offerings/session",
+        "major/minor/specialisation requirements"
+      ],
+      "gap_classification": "stale_data",
+      "severity": "P1",
+      "owner": "Will",
+      "disposition": "Keep frozen entity counts; do not claim fresh 99% field coverage until a reviewed full-detail audit is merged."
+    },
+    {
+      "domain": "scholarships",
+      "source_id": "scholarships_anu_finder",
+      "entity_denominator": 379,
+      "last_full_entity_count": 379,
+      "entity_coverage_percent": 100.0,
+      "day13_headline_total": 405,
+      "required_source_fact_coverage": "not re-claimed: Day 13 run was one-page/one-detail and intentionally unreconciled",
+      "freshness": "Day 11 census plus Day 13 bounded live sample",
+      "affected_capabilities": [
+        "exact/filter lookup",
+        "eligibility/status",
+        "opening/closing date",
+        "value/selection/application evidence"
+      ],
+      "gap_classification": "stale_data",
+      "severity": "P1",
+      "owner": "Will",
+      "disposition": "Preserve the frozen universe; schedule a reviewed full-detail evidence refresh outside the demo freeze."
+    },
+    {
+      "domain": "jobs",
+      "source_id": "jobs_anu_search",
+      "day11_snapshot_denominator": 55,
+      "day13_advertised_total": 50,
+      "day13_sample_records": 1,
+      "required_source_fact_coverage": "representative sample passed; full current 50-record detail denominator was not traversed",
+      "freshness": "Day 13 bounded live sample",
+      "affected_capabilities": [
+        "current job listing",
+        "exact job lookup",
+        "employment/location/classification/salary",
+        "closing date and status"
+      ],
+      "gap_classification": "stale_data",
+      "severity": "P1",
+      "owner": "Will",
+      "disposition": "Treat 50 as a timestamped source drift, not a deletion signal; reconcile only in a separately reviewed read-only census."
+    },
+    {
+      "domain": "accommodation",
+      "source_id": "accommodation_anu_study",
+      "entity_denominator": 19,
+      "day12_entity_count": 19,
+      "entity_coverage_percent": 100.0,
+      "published_fact_numerator": 1086,
+      "published_fact_denominator": 1086,
+      "published_fact_coverage_percent": 100.0,
+      "freshness": "Day 12 full audit plus Day 13 bounded live sample confirming 19 listing entities",
+      "affected_capabilities": [
+        "residence lookup/comparison",
+        "room/rate/contract/features",
+        "application/contact/eligibility",
+        "explicit unknown vacancy"
+      ],
+      "gap_classification": null,
+      "severity": null,
+      "owner": "Will",
+      "disposition": "Freeze."
+    },
+    {
+      "domain": "support",
+      "source_id": "support_anusa_student_assistance",
+      "entity_denominator": 6,
+      "day12_entity_count": 6,
+      "entity_coverage_percent": 100.0,
+      "published_fact_numerator": 163,
+      "published_fact_denominator": 163,
+      "published_fact_coverage_percent": 100.0,
+      "freshness": "Day 12 full audit plus Day 13 bounded live sample confirming 6 listing entities",
+      "affected_capabilities": [
+        "service/purpose/category lookup",
+        "contact/cost/topic/referral",
+        "missing hours/access",
+        "high-stakes fail-closed behavior"
+      ],
+      "gap_classification": null,
+      "severity": null,
+      "owner": "Will",
+      "disposition": "Freeze."
+    },
+    {
+      "domain": "events",
+      "source_id": "events_anu_official",
+      "entity_denominator": null,
+      "entity_count": 0,
+      "required_source_fact_coverage": "unavailable",
+      "freshness": "no runnable collector",
+      "affected_capabilities": [
+        "event discovery",
+        "temporal filtering",
+        "event provenance"
+      ],
+      "gap_classification": "parser",
+      "severity": "BLOCKED",
+      "owner": "Will with Qasim source approval",
+      "disposition": "Defer to Day 15; exact official production target and parser remain unresolved. Rubric stays disabled."
+    }
+  ],
+  "bounded_live_dry_runs": [
+    {
+      "domain": "courses",
+      "run_id": "run_dc7a12ea9431",
+      "status": "SUCCESS",
+      "dry_run": true,
+      "persisted": false,
+      "records_seen": 2,
+      "request_count": 4,
+      "duplicate_record_id_count": 0,
+      "duplicate_canonical_url_count": 0
+    },
+    {
+      "domain": "scholarships",
+      "run_id": "run_417fa17bae54",
+      "status": "SUCCESS",
+      "dry_run": true,
+      "persisted": false,
+      "records_seen": 1,
+      "request_count": 2,
+      "duplicate_record_id_count": 0,
+      "duplicate_canonical_url_count": 0,
+      "listing_reconciled": false
+    },
+    {
+      "domain": "jobs",
+      "run_id": "run_d90a630b31d1",
+      "status": "SUCCESS",
+      "dry_run": true,
+      "persisted": false,
+      "records_seen": 1,
+      "request_count": 2,
+      "advertised_total_count": 50,
+      "duplicate_record_id_count": 0,
+      "duplicate_canonical_url_count": 0,
+      "listing_reconciled": false
+    },
+    {
+      "domain": "accommodation",
+      "run_id": "run_51d1c7f07088",
+      "status": "SUCCESS",
+      "dry_run": true,
+      "persisted": false,
+      "records_seen": 1,
+      "request_count": 2,
+      "advertised_total_count": 19,
+      "duplicate_record_id_count": 0,
+      "duplicate_canonical_url_count": 0
+    },
+    {
+      "domain": "support",
+      "run_id": "run_98201f5aaaf6",
+      "status": "SUCCESS",
+      "dry_run": true,
+      "persisted": false,
+      "records_seen": 1,
+      "request_count": 2,
+      "advertised_total_count": 6,
+      "duplicate_record_id_count": 0,
+      "duplicate_canonical_url_count": 0
+    }
+  ],
+  "representative_records": [
+    {
+      "domain": "courses",
+      "record_id": "courses:course:COMP1100_2026",
+      "canonical_url": "https://programsandcourses.anu.edu.au/2026/course/COMP1100",
+      "content_hash": "1b40797d053cdd79f5c6cbdecb05b11c8f92411f9056bbd6c931e0a19b9fe480",
+      "hash_evidence": "current committed fixture normalization"
+    },
+    {
+      "domain": "scholarships",
+      "record_id": "scholarships:scholarship:anu-international-achievement-award",
+      "canonical_url": "https://study.anu.edu.au/scholarships/find-scholarship/anu-international-achievement-award",
+      "content_hash": "cc38668de1b9371461f6cfc0422d15ae8f58d49191b005c0462e07160970648a",
+      "hash_evidence": "current committed fixture normalization"
+    },
+    {
+      "domain": "jobs",
+      "record_id": "jobs:job:563693",
+      "canonical_url": "https://jobs.anu.edu.au/jobs/senior-consultant-user-experience-hr-systems-projects-canberra-act-act-australia",
+      "content_hash": "548d2b2eb5d745da1c53d3d1417379c52389759c8cf4b9d034f897a1b328bf47",
+      "hash_evidence": "current committed fixture normalization"
+    },
+    {
+      "domain": "accommodation",
+      "record_id": "accommodation:residence:yukeembruk",
+      "canonical_url": "https://study.anu.edu.au/accommodation/our-residences/yukeembruk",
+      "content_hash": "bbc87d145a03e4cb20e076ea8bd531e00ca48a09e20a0d8c4907f0063abb57ed",
+      "hash_evidence": "Day 12 live full-universe dry-run and current fixture"
+    },
+    {
+      "domain": "support",
+      "record_id": "support:support_service:academic",
+      "canonical_url": "https://anusa.com.au/student-assistance/academic/",
+      "content_hash": "0abfa8db6ff6e50fbd61bd5799a264cb61c32f2432948f2bee4dcf25aab732a5",
+      "hash_evidence": "Day 12 live full-universe dry-run and current fixture"
+    },
+    {
+      "domain": "events",
+      "record_id": null,
+      "canonical_url": null,
+      "content_hash": null,
+      "hash_evidence": "No record exists; none was fabricated."
+    }
+  ],
+  "failure_recovery": {
+    "focused_test_result": "17 passed",
+    "full_test_result": "308 passed",
+    "test_file": "tests/test_day13_failure_recovery.py",
+    "scenarios": [
+      {
+        "scenario": "HTTP 5xx",
+        "domains": ["courses", "scholarships", "jobs", "accommodation", "support"],
+        "observed_status": "FAILED",
+        "last_known_good": "preserved",
+        "recovery": "SUCCESS/UNCHANGED"
+      },
+      {
+        "scenario": "timeout",
+        "domains": ["courses", "scholarships", "jobs", "accommodation", "support"],
+        "observed_status": "FAILED",
+        "last_known_good": "preserved",
+        "recovery": "SUCCESS/UNCHANGED"
+      },
+      {
+        "scenario": "malformed page/parser failure",
+        "domains": ["courses", "scholarships", "jobs", "accommodation", "support"],
+        "observed_status": "FAILED",
+        "last_known_good": "preserved",
+        "recovery": "SUCCESS/UNCHANGED"
+      },
+      {
+        "scenario": "atomic run-row/database failure",
+        "domains": ["shared storage boundary; Courses representative"],
+        "observed_status": "FAILED",
+        "last_known_good": "byte-for-byte logical state preserved",
+        "recovery": "SUCCESS/UNCHANGED"
+      },
+      {
+        "scenario": "many-to-zero",
+        "domains": ["courses", "scholarships", "jobs", "accommodation", "support"],
+        "observed_status": "SUSPICIOUS_ZERO",
+        "last_known_good": "preserved by existing collector tests",
+        "recovery": "covered by healthy unchanged paths"
+      }
+    ]
+  },
+  "operational_snapshot": {
+    "project": "askanu-dev-gdg",
+    "region": "australia-southeast1",
+    "job": "askanu-scraper",
+    "job_generation": 5,
+    "job_ready": true,
+    "configured_image_digest": "sha256:f52a4c9cc3e1bc05598ddb8d23093dae50ad7753de5c478424964ea29150512f",
+    "latest_execution_image_digest": "sha256:1cdfae38e1f31f588e0448fcecfe52fdf919d9e52fcfbdbc30f560efe7c0a890",
+    "image_discrepancy_requires_owner_review": true,
+    "runtime_service_account": "askanu-scraper-runtime@askanu-dev-gdg.iam.gserviceaccount.com",
+    "job_timeout_seconds": 600,
+    "request_timeout_seconds": 30,
+    "task_max_retries": 0,
+    "dry_run": true,
+    "configured_source_id": "courses_programs_and_courses",
+    "configured_bounds": {
+      "courses": 1,
+      "programs": 1,
+      "minimum_request_interval_seconds": 1
+    },
+    "latest_execution": {
+      "execution_id": "askanu-scraper-ddvgg",
+      "created_at": "2026-09-16T17:15:03.472985Z",
+      "completed_at": "2026-09-16T17:15:21.356526Z",
+      "status": "SUCCESS",
+      "total_duration_seconds": 14.34,
+      "run_id": "run_ce642261c16b",
+      "run_duration_ms": 5708,
+      "records_seen": 2,
+      "records_added_in_dry_run_comparison": 2,
+      "records_changed": 0,
+      "records_unchanged": 0,
+      "request_count": 4,
+      "persisted": false
+    },
+    "recent_executions": "10/10 most recent listed executions succeeded",
+    "scheduler_visibility": "PERMISSION_DENIED for cloudscheduler.jobs.get; existence/configuration/retry policy not claimed",
+    "scheduler_execution_inference": "Recent executions were created by askanu-scraper-scheduler@askanu-dev-gdg.iam.gserviceaccount.com at approximately 03:15 Australia/Canberra; this does not substitute for Scheduler configuration access.",
+    "production_dataset_read": "not performed; no current persisted ingestion run or dataset is claimed"
+  },
+  "supporting_artifacts": [
+    {
+      "path": "day12-coverage-evidence.json",
+      "sha256": "d3eed2f3c73b7307d5bc06bd01f73c8d0e56fe3ac872141ff2248ba2483c5455"
+    },
+    {
+      "path": "docs/DAY_11_V6_BREADTH_HANDOFF.md",
+      "sha256": "732f4339e8578cf55d2c7c8811d8f0b9845657df39bf56dcbe166f50ff482a32"
+    },
+    {
+      "path": "docs/DAY_12_V6_ACCOMMODATION_SUPPORT_HANDOFF.md",
+      "sha256": "3b5c3f59204617aaf4a317c983376e44cf80de4ccd7fa773f717752249cf4837"
+    }
+  ],
+  "prioritized_issues": [
+    {
+      "priority": "P1",
+      "issue": "Events has no runnable approved-source collector or frozen denominator.",
+      "owner": "Will/Qasim",
+      "action": "Resolve the exact official source target and implement on Day 15; keep Rubric disabled."
+    },
+    {
+      "priority": "P1",
+      "issue": "Courses, Scholarships, and Jobs lack a current merged full-detail field-coverage artifact after their latest fixes.",
+      "owner": "Will",
+      "action": "Run a reviewed full-detail audit after the demo freeze; do not infer coverage from one-record samples."
+    },
+    {
+      "priority": "P1",
+      "issue": "Jobs advertised total changed from the Day 11 snapshot of 55 to 50.",
+      "owner": "Will",
+      "action": "Treat as timestamped source drift and reconcile read-only; never convert the delta directly into destructive missing records."
+    },
+    {
+      "priority": "P1",
+      "issue": "Cloud Job configured image and latest execution image evidence disagree.",
+      "owner": "Qasim",
+      "action": "Reconcile immutable digest/job revision before any deployment decision."
+    },
+    {
+      "priority": "P1",
+      "issue": "No read-only access to current persisted demo rows/ingestion_runs was exercised.",
+      "owner": "Qasim",
+      "action": "Confirm the actual demo dataset separately; this artifact remains candidate evidence only."
+    },
+    {
+      "priority": "P2",
+      "issue": "Scheduler configuration cannot be described with the current principal.",
+      "owner": "Qasim",
+      "action": "Provide a read-only Scheduler description; do not change the schedule during freeze."
+    }
+  ]
+}
