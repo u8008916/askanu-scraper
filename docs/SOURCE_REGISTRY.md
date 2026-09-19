@@ -9,8 +9,8 @@ Only approved sources may enter production.
 | Jobs | https://jobs.anu.edu.au/jobs/search | Current/open roles; closing-date data; canonical URL. | Daily |
 | Accommodation | https://study.anu.edu.au/accommodation/our-residences | Frozen 2026-09-16 public registry: 19 residence detail pages below this path. Preserve catering/resident type/rate and fee wording/features/application/contact; StarRez is link-only. | Daily |
 | Support | https://anusa.com.au/student-assistance/ | Frozen 2026-09-16 registry: the 6 top-level category pages linked by this page (Academic, Accommodation, Financial, Disciplinary, Physical and Mental Health, Sexual Assault and Sexual Harassment). | Daily |
-| Events | Official ANU Events/calendar | Release-safe fallback/primary source unless Rubric approval is obtained; remains the release source regardless of Rubric response. | Daily |
-| Rubric | `PENDING_APPROVAL`, non-production | No production use of undocumented/internal API without approved access. | Disabled unless approved |
+| Events | https://www.anu.edu.au/events | Official-only Upcoming Events source. Traverse advertised `?page=0` onward with a hard cap and >=1 second request spacing; accept exact same-origin `/events/<slug>` details only. Frozen 2026-09-19 through 2026-10-31 inclusive snapshot: 30 unique overlapping events from 34 cards/33 unique links. | Daily (manual fallback until schedule approval) |
+| Rubric | https://campus.hellorubric.com | `APPROVED_BOUNDED_UNSUPPORTED`: written permission reported by Qasim for paced/cached AskANU ingestion. Community/society Events chat source, not an official-ANU classification. Exact search endpoint capture is required; no guessed endpoint, cookies, tokens, request-time RAG call, or production write without the separate release gate. | Daily proposal; manual dry-run until reviewed |
 
 StarRez authenticated/application portal is an external destination, not a scraping target.
 
@@ -25,6 +25,6 @@ This document records source policy; the machine-readable registry and enforceme
 - Agree a bounded source-fetch/rate policy before live requests. Request bounds and rate limits remain unresolved; daily poll cadence does not define those limits.
 - The Day 9 implementation uses a conservative pending-approval proof bound of one finder page, at most ten same-site detail pages and at least one second between live requests. This is not authorization for a broader crawl or Scheduler enablement.
 - Record the exact additional approved ANU Support source targets before collecting them. The general reference to ANU support pages does not approve arbitrary pages. No additional ANU Support target is active in the Day 12 frozen universe.
-- Document the exact production Events target if different from the already approved official ANU Events/calendar fallback. Do not infer a new target or approval. Official ANU Events/calendar remains the release-safe baseline, and Rubric approval is non-blocking.
+- Official and Rubric PostgreSQL writes and any Cloud Run Job/Scheduler remain gated on the append-only migration plus Qasim/Carmen approval. Official collection has a complete dry-run; Rubric has fixture proof but its exact sanitized search-endpoint capture and live denominator are still missing.
 
-Will owns registry/collector implementation; Qasim owns source-approval decisions and coordinates unresolved targets and policy. Rubric remains `PENDING_APPROVAL` and non-production until approved access is documented. No authenticated StarRez scraping is permitted. Failed or suspicious collection must preserve last-known-good data.
+Will owns registry/collector implementation; Qasim owns source approval, the missing exact Rubric endpoint artifact and production release. Rubric approval does not make its unsupported API stable or its records official ANU events. No authenticated StarRez scraping is permitted. Failed or suspicious collection must preserve last-known-good data.

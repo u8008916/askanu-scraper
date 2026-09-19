@@ -833,7 +833,71 @@ HTTP(S) destinations; `anusa.com.au` and `www.anusa.com.au` are rejected
 case-insensitively. Published valid referrals are never fetched by this
 collector.
 
-# 19. Missing/null value policy
+# 19. Events metadata v1
+
+Status: **implemented locally; shared migration and production write approval
+pending Qasim/Carmen**. Official ANU Events has complete source dry-run
+evidence. Rubric is approved for bounded ingestion but its exact search
+endpoint artifact and live frozen-window denominator remain blockers.
+
+Events records use:
+
+```text
+domain = "events"
+source_id = "events_anu_official"
+entity_id = <numeric Drupal node ID>
+record_id = "events:event:<entity_id>"
+```
+
+Rubric community-event records use:
+
+```text
+domain = "events"
+source_id = "rubric_unified_search"
+entity_id = "rubric:<numeric Rubric event ID>"
+record_id = "events:event:rubric:<numeric Rubric event ID>"
+```
+
+The canonical URL is an exact credential-free, query-free and fragment-free
+`https://www.anu.edu.au/events/<slug>` URL. The article
+`data-history-node-id` and page metadata `entityId` must both exist and agree.
+The Rubric canonical URL is exactly
+`https://campus.hellorubric.com/?eid=<numeric event ID>`.
+
+`metadata_json` contains exactly: `entity_type` (`"event"`), `event_id`,
+`start_date`, `end_date`, `start_at`, `end_at`, `timezone`, `location`,
+`format`, `categories`, `tags`, `organiser`, `description`,
+`registration_links`, `status`, and `cancellation_text`. Categories, tags and
+registration links are arrays; a registration link contains only `label` and
+a credential-free HTTP(S) `url`, which is retained but never fetched.
+`end_date`, `end_at`, and top-level `effective_to` may remain null when Rubric
+publishes a start but no end. No end time is inferred.
+
+Displayed HTML is authoritative for dates and times. Calendar dates and exact
+times use `Australia/Canberra`, including daylight-saving transitions. Exact
+times are mirrored into top-level `effective_from` and `effective_to`. For
+date-only evidence both exact-time fields and both effective fields remain
+null. Multiple explicitly displayed occurrences use the earliest published
+start and latest published end. `status` is null unless a status is explicit;
+explicit cancellations remain ingestible with `status = "cancelled"` and the
+published wording in `cancellation_text`. Contact people are not inferred to
+be organisers, and format is not inferred from location.
+
+The release snapshot is Canberra-local 2026-09-19 through 2026-10-31
+inclusive, evaluated by interval overlap. Its recomputed frozen denominator is
+30 for the official source only. Rubric requires a separately reconciled live
+denominator; the observed all-search count of 119 is not that denominator. The
+official source `.ics` time disagreement observed on 2026-09-18 is recorded as
+an anomaly; ICS values do not populate normalized times.
+
+`source_id` is the authoritative provenance/classification field. Rubric being
+an approved ingestion source does not make a Rubric society event an official
+ANU event. Dedicated Upcoming Events retrieval filters to
+`events_anu_official`; conversational Events retrieval may use both stored
+sources. Rubric `eventStatus`, `ticketsPossiblyAvailable`, ticket-sale windows
+and event end times are not interchangeable and must not be overinterpreted.
+
+# 20. Missing/null value policy
 
 Global rule:
 
@@ -870,6 +934,9 @@ Scholarship filter arrays are the explicit exception: missing `study_stage`,
 Jobs `employment_types` is also always an array; missing evidence is `[]` under
 the approved Jobs v1 contract.
 
+Events `categories`, `tags`, and `registration_links` are also always arrays;
+missing source evidence is `[]` under the Events v1 contract.
+
 Required identity fields must not be silently replaced with placeholders.
 
 If required identity cannot be established, the scraper must reject/flag the
@@ -877,7 +944,7 @@ record rather than publish a misleading normalized record.
 
 ---
 
-# 20. Datetimes and timezone
+# 21. Datetimes and timezone
 
 Serialized datetimes MUST be timezone-aware ISO-8601 values.
 
@@ -900,7 +967,7 @@ pages do not provide source-supported effective dates.
 
 ---
 
-# 21. Representative normalized course identity
+# 22. Representative normalized course identity
 
 The verified live COMP1100 collection has this identity:
 
@@ -925,7 +992,7 @@ normalized record instance and MUST NOT be invented in documentation.
 
 ---
 
-# 22. Source registry
+# 23. Source registry
 
 Source registry fields remain:
 
@@ -936,6 +1003,7 @@ domain
 authority_rank
 poll_cadence
 parser_name
+approval_status
 active
 notes
 ```
@@ -943,13 +1011,14 @@ notes
 Rules:
 
 - only approved/active production sources may be collected,
-- pending-approval sources remain inactive,
-- Rubric remains `PENDING_APPROVAL` / non-production until explicitly approved,
-- do not use undocumented/internal Rubric APIs.
+- bounded unsupported sources retain explicit risk classification,
+- Rubric uses `APPROVED_BOUNDED_UNSUPPORTED` based on Qasim's permission handoff,
+- source approval never bypasses migration/write/deployment release gates, and
+- unsupported Rubric endpoints are ingestion-only and never called by RAG requests.
 
 ---
 
-# 23. Ingestion run
+# 24. Ingestion run
 
 Ingestion-run fields remain:
 
@@ -992,7 +1061,7 @@ do not wipe current data
 
 ---
 
-# 24. First DB / migration ownership
+# 25. First DB / migration ownership
 
 For the first Courses/Programs vertical slice:
 
@@ -1021,7 +1090,7 @@ coordinating the affected repo(s).
 
 ---
 
-# 25. RAG implementation boundary
+# 26. RAG implementation boundary
 
 The RAG repository MUST NOT copy scraper implementation such as:
 
@@ -1051,7 +1120,7 @@ schema-v1 top-level fields.
 
 ---
 
-# 26. Day 2 exact-retrieval expectations
+# 27. Day 2 exact-retrieval expectations
 
 For Courses/Programs exact retrieval:
 
@@ -1070,7 +1139,7 @@ The exact-retrieval layer does not require Gemini or vector search.
 
 ---
 
-# 27. Change workflow
+# 28. Change workflow
 
 Any future change to:
 

@@ -1,0 +1,20 @@
+{
+  "_fixture_note": "Synthetic sanitized contract fixture preserving only fields documented from the captured event 78459 response.",
+  "success": true,
+  "data": {
+    "eventId": "78459",
+    "eventName": "ANU Community Bonfire Night",
+    "eventTime": "2026-09-20T18:00:00+10:00",
+    "eventEndTime": "2026-09-20T21:00:00+10:00",
+    "eventAddress": "ANU Acton campus",
+    "eventOrganizer": "ANU International Students Association",
+    "eventURL": "https://example.org/anuisa/bonfire-registration",
+    "eventDescription": "<p>A community event for ANU students.</p><script>bad()</script>",
+    "eventStatus": "Online",
+    "draft": false,
+    "ticketStatus": "Available",
+    "ticketTypeDetails": [
+      {"name": "General", "amount": 500, "amountPrettyPrint": "$5.00", "ticketsPossiblyAvailable": 9989}
+    ]
+  }
+}

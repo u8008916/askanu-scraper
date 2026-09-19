@@ -43,7 +43,8 @@ Three separate repos. Do not convert to a monorepo.
 - Accommodation: ANU Accommodation
 - Support: ANUSA Student Assistance + approved ANU support pages
 - Events: official ANU Events/calendar
-- Rubric: disabled for production unless approved API/feed/integration access is obtained
+- Rubric: the original gate is superseded by the 2026-09-20
+  `APPROVED_BOUNDED_UNSUPPORTED` decision; production writes remain separately gated
 
 ## Scholarship display
 Show up to 9 open Featured scholarships. If fewer than 9 are available, fill remaining slots with other open scholarships ordered by nearest known deadline. Do not call them “most popular” without a real popularity metric.

@@ -78,7 +78,10 @@ domain    = support
 ```
 
 All selections pass through the machine-readable approved-source registry.
-Events remains unsupported and Rubric stays inactive. Accommodation is bounded
+Official ANU Events is supported for bounded local/dry-run collection. Rubric
+is approved only for bounded unsupported ingestion and remains blocked on its
+exact search-endpoint capture plus an independent PostgreSQL release gate.
+Accommodation is bounded
 to its frozen 19-page public registry; Support is bounded to its frozen six-page
 ANUSA registry.
 
@@ -102,6 +105,16 @@ ANUSA registry.
 | `SCRAPER_ACCOMMODATION_POSTGRES_APPROVED` | `false` | Keep false until Qasim's final review and a separately approved migration `20260916_0008` runtime/write gate. |
 | `SCRAPER_MAX_SUPPORT_DETAILS` | `6` | Approved ANUSA category detail bound; valid range 1-6. |
 | `SCRAPER_SUPPORT_POSTGRES_APPROVED` | `false` | Keep false until Qasim's final review and a separately approved migration `20260916_0008` runtime/write gate. |
+| `SCRAPER_MAX_EVENTS_LISTING_PAGES` | `10` | Hard cap; the 2026-09-18 source snapshot advertises six pages (`page=0` through `page=5`). |
+| `SCRAPER_MAX_EVENT_DETAILS` | `100` | Bound applied after same-origin link deduplication. |
+| `SCRAPER_EVENTS_WINDOW_START` | current Canberra date | Frozen release runs set `2026-09-19`. |
+| `SCRAPER_EVENTS_WINDOW_DAYS` | `43` | Frozen release interval ends `2026-10-31` inclusive. |
+| `SCRAPER_EXPECTED_EVENT_COUNT` | unset | Frozen release runs set the recomputed denominator `30`; below 99% fails before persistence. |
+| `SCRAPER_EVENTS_POSTGRES_APPROVED` | `false` | Keep false until the Events migration and Qasim/Carmen approval reference are verified. |
+| `SCRAPER_RUBRIC_SEARCH_ENDPOINT` | unset | Exact reviewed Rubric search capture; no guessed default. |
+| `SCRAPER_MAX_RUBRIC_LISTING_PAGES` | `20` | Hard pagination cap for unsupported Rubric discovery. |
+| `SCRAPER_MAX_RUBRIC_DETAILS` | `250` | Deduplicated per-run detail cap. |
+| `SCRAPER_RUBRIC_POSTGRES_APPROVED` | `false` | Keep false until Qasim reviews the migration, complete dry-run and release GO. |
 | `SCRAPER_DRY_RUN` | `true` in the Day 6 container (`false` application default) | Compare normally but suppress all local writes. |
 | `SCRAPER_STORAGE_PATH` | `local-data` (`/data` in container) | Existing local JSON handoff. |
 | `SCRAPER_STORAGE_BACKEND` | `local` | Set to `postgres` only for the reviewed shared Cloud SQL adapter. |
@@ -208,3 +221,14 @@ executions remain dry-run until the RAG migration after `20260914_0003`, runtime
 grants and frozen-contract validation are verified. Scheduler activation is a
 later Qasim-owned release decision after PostgreSQL `NEW` -> `UNCHANGED`,
 failure-preservation and RAG live-read evidence passes.
+
+Events likewise proposes a separate `askanu-scraper-events` Cloud Run Job and
+a daily `03:45` `Australia/Canberra` schedule, offset from the existing 03:15
+job. This is a proposal only: do not deploy, create the schedule, or enable
+PostgreSQL until the Events migration, runtime grants and Qasim/Carmen approval
+are evidenced. Until then the bounded command in the README is the manual
+read-only fallback.
+
+Rubric must not share or overwrite that job configuration until its exact
+endpoint artifact, frozen denominator and migration are reviewed. Any future
+Rubric job remains ingestion-only; no RAG request path may invoke it.

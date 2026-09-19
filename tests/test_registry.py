@@ -2,18 +2,15 @@
 Tests for the approved source registry.
 
 Key invariants:
-- Every V3 approved domain has exactly one active source registered.
-- No collector may target a source that is missing or has active=False.
-- Rubric is registered but active=False (PENDING_APPROVAL).
-- assert_source_allowed() raises UnapprovedSourceError for:
-    - unregistered source IDs
-    - registered but inactive sources (e.g. Rubric)
+- Every V3 domain has an active approved source.
+- Rubric is explicitly approved for bounded unsupported ingestion.
+- Production writes remain protected by a separate job gate.
 """
 from __future__ import annotations
 
 import pytest
 
-from askanu_scraper.common.models import Domain, PollCadence
+from askanu_scraper.common.models import Domain, PollCadence, SourceApprovalStatus
 from askanu_scraper.common.registry import (
     UnapprovedSourceError,
     assert_source_allowed,
@@ -32,6 +29,7 @@ EXPECTED_APPROVED_SOURCES = {
     "accommodation_anu_study",
     "support_anusa_student_assistance",
     "events_anu_official",
+    "rubric_unified_search",
 }
 
 
@@ -103,36 +101,41 @@ def test_assert_source_allowed_raises_for_unknown_source() -> None:
         assert_source_allowed("some_invented_source")
 
 
-def test_assert_source_allowed_raises_for_rubric() -> None:
-    """
-    Rubric is PENDING_APPROVAL (active=False).
-    assert_source_allowed must reject it even though it is registered.
-    """
-    with pytest.raises(UnapprovedSourceError):
-        assert_source_allowed("rubric_unified_search")
+def test_assert_source_allowed_returns_bounded_rubric() -> None:
+    rubric = assert_source_allowed("rubric_unified_search")
+    assert rubric.active is True
+    assert rubric.approval_status == SourceApprovalStatus.APPROVED_BOUNDED_UNSUPPORTED
 
 
-def test_get_source_returns_rubric_entry_but_inactive() -> None:
-    """get_source can retrieve Rubric's entry for inspection but it is inactive."""
+def test_get_source_records_rubric_as_unsupported_and_change_sensitive() -> None:
     rubric = get_source("rubric_unified_search")
-    assert rubric.active is False
-    assert "PENDING_APPROVAL" in rubric.notes
+    assert rubric.active is True
+    assert "internal/unsupported" in rubric.notes
+    assert "PostgreSQL" in rubric.notes
 
 
-def test_rubric_not_in_approved_sources() -> None:
-    """Rubric does not appear in get_approved_sources()."""
+def test_rubric_is_in_bounded_approved_sources() -> None:
     active_ids = {s.source_id for s in get_approved_sources()}
-    assert "rubric_unified_search" not in active_ids
+    assert "rubric_unified_search" in active_ids
 
 
 # ---------------------------------------------------------------------------
-# Rubric adapter isolation
+# Rubric adapter configuration isolation
 # ---------------------------------------------------------------------------
 
-def test_rubric_adapter_raises_unapproved_error() -> None:
-    """RubricAdapter.collect() always raises UnapprovedSourceError."""
+def test_rubric_adapter_requires_captured_search_endpoint() -> None:
     from askanu_scraper.sources.events.rubric_adapter import RubricAdapter
 
-    adapter = RubricAdapter()
-    with pytest.raises(UnapprovedSourceError):
-        adapter.collect()
+    adapter = RubricAdapter(search_endpoint=None, sleep_func=lambda _: None)
+    with pytest.raises(ValueError, match="capture is unavailable"):
+        adapter.discover()
+
+
+def test_rubric_rejects_unreviewed_endpoint_before_request() -> None:
+    from askanu_scraper.sources.events.rubric_adapter import RubricAdapter
+
+    with pytest.raises(ValueError, match="outside the approved Rubric API boundary"):
+        RubricAdapter(
+            search_endpoint="https://rubric.example/internal",
+            sleep_func=lambda _: None,
+        )

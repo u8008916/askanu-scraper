@@ -36,6 +36,14 @@ class PollCadence(str, Enum):
     DISABLED = "DISABLED"
 
 
+class SourceApprovalStatus(str, Enum):
+    """Operational approval state for a registered source."""
+
+    APPROVED = "APPROVED"
+    APPROVED_BOUNDED_UNSUPPORTED = "APPROVED_BOUNDED_UNSUPPORTED"
+    PENDING_APPROVAL = "PENDING_APPROVAL"
+
+
 class RecordStatus(str, Enum):
     NEW = "NEW"
     CHANGED = "CHANGED"
@@ -71,6 +79,10 @@ class SourceRegistryEntry(BaseModel):
     )
     poll_cadence: PollCadence = Field(default=PollCadence.DAILY)
     parser_name: str = Field(description="Dotted module path of the parser class.")
+    approval_status: SourceApprovalStatus = Field(
+        default=SourceApprovalStatus.APPROVED,
+        description="Reviewed source-policy status; independent of release/write gates.",
+    )
     active: bool = Field(
         description=(
             "If False, no collector may target this source in production. "
@@ -820,6 +832,156 @@ class CommonRecord(BaseModel):
                     raise ValueError(
                         "Support referral URL must be an external credential-free HTTP(S) URL"
                     )
+
+        is_event_record = (
+            self.domain == Domain.EVENTS
+            or self.source_id == "events_anu_official"
+            or self.record_id.startswith("events:")
+            or entity_type == "event"
+        )
+        if is_event_record:
+            if self.domain != Domain.EVENTS:
+                raise ValueError("Event records require domain 'events'")
+            if self.source_id not in {"events_anu_official", "rubric_unified_search"}:
+                raise ValueError("Event records require an approved Events source_id")
+            if entity_type != "event":
+                raise ValueError("Events metadata_json.entity_type must be 'event'")
+            if self.source_id == "events_anu_official":
+                if re.fullmatch(r"[0-9]+", self.entity_id) is None:
+                    raise ValueError("Official Event entity_id must be the numeric Drupal node ID")
+                expected_event_id = self.entity_id
+                expected_record_id = f"events:event:{self.entity_id}"
+            else:
+                rubric_match = re.fullmatch(r"rubric:([0-9]+)", self.entity_id)
+                if rubric_match is None:
+                    raise ValueError("Rubric Event entity_id must be rubric:<numeric event ID>")
+                expected_event_id = rubric_match.group(1)
+                expected_record_id = f"events:event:rubric:{expected_event_id}"
+            if self.record_id != expected_record_id:
+                raise ValueError("Event record_id does not match its source identity")
+            try:
+                event_port = parsed_url.port
+            except ValueError as exc:
+                raise ValueError("Event canonical_url has an invalid port") from exc
+            common_url_invalid = (
+                parsed_url.scheme != "https"
+                or parsed_url.username is not None
+                or parsed_url.password is not None
+                or event_port is not None
+                or parsed_url.fragment
+            )
+            if self.source_id == "events_anu_official":
+                invalid_event_url = (
+                    parsed_url.hostname != "www.anu.edu.au"
+                    or re.fullmatch(r"/events/[a-z0-9]+(?:-[a-z0-9]+)*", parsed_url.path)
+                    is None
+                    or bool(parsed_url.query)
+                )
+            else:
+                expected_query = f"eid={expected_event_id}"
+                invalid_event_url = (
+                    parsed_url.hostname != "campus.hellorubric.com"
+                    or parsed_url.path != "/"
+                    or parsed_url.query != expected_query
+                )
+            if common_url_invalid or invalid_event_url:
+                raise ValueError("Event canonical_url does not match its approved source identity")
+            expected_keys = {
+                "entity_type", "event_id", "start_date", "end_date", "start_at",
+                "end_at", "timezone", "location", "format", "categories", "tags",
+                "organiser", "description", "registration_links", "status",
+                "cancellation_text",
+            }
+            if set(metadata) != expected_keys:
+                raise ValueError("Events metadata_json must match the approved v1 fields")
+            if metadata["event_id"] != expected_event_id:
+                raise ValueError("metadata_json.event_id must match the source event ID")
+            if metadata["timezone"] != "Australia/Canberra":
+                raise ValueError("Events timezone must be Australia/Canberra")
+            parsed_dates: dict[str, date | None] = {}
+            for key in ("start_date", "end_date"):
+                value = metadata[key]
+                if key == "end_date" and value is None:
+                    parsed_dates[key] = None
+                    continue
+                if not isinstance(value, str):
+                    raise ValueError(f"metadata_json.{key} must be an ISO date or allowed null")
+                try:
+                    parsed_dates[key] = date.fromisoformat(value)
+                except ValueError as exc:
+                    raise ValueError(f"metadata_json.{key} must be an ISO date") from exc
+                if parsed_dates[key].isoformat() != value:
+                    raise ValueError(f"metadata_json.{key} must be an ISO date")
+            if (
+                parsed_dates["end_date"] is not None
+                and parsed_dates["end_date"] < parsed_dates["start_date"]
+            ):
+                raise ValueError("Event end_date must not precede start_date")
+            parsed_times: dict[str, datetime | None] = {}
+            for key in ("start_at", "end_at"):
+                value = metadata[key]
+                if value is None:
+                    parsed_times[key] = None
+                    continue
+                if not isinstance(value, str):
+                    raise ValueError(f"metadata_json.{key} must be an aware ISO datetime or null")
+                try:
+                    parsed_time = datetime.fromisoformat(value)
+                except ValueError as exc:
+                    raise ValueError(
+                        f"metadata_json.{key} must be an aware ISO datetime or null"
+                    ) from exc
+                if parsed_time.tzinfo is None or parsed_time.utcoffset() is None:
+                    raise ValueError(f"metadata_json.{key} must be timezone-aware")
+                parsed_times[key] = parsed_time
+            if parsed_times["start_at"] is not None:
+                if parsed_times["start_at"].date() != parsed_dates["start_date"]:
+                    raise ValueError("Event start_date and start_at must agree")
+            if parsed_times["end_at"] is not None:
+                if parsed_times["start_at"] is None:
+                    raise ValueError("Event end_at requires start_at")
+                if parsed_dates["end_date"] is None:
+                    raise ValueError("Event end_at requires end_date")
+                if parsed_times["end_at"].date() != parsed_dates["end_date"]:
+                    raise ValueError("Event end_date and end_at must agree")
+                if parsed_times["end_at"] < parsed_times["start_at"]:
+                    raise ValueError("Event end_at must not precede start_at")
+            if self.effective_from != parsed_times["start_at"]:
+                raise ValueError("Event effective_from must mirror start_at")
+            if self.effective_to != parsed_times["end_at"]:
+                raise ValueError("Event effective_to must mirror end_at")
+            for key in ("location", "format", "organiser", "description", "cancellation_text"):
+                value = metadata[key]
+                if value is not None and (not isinstance(value, str) or not value.strip()):
+                    raise ValueError(f"metadata_json.{key} must be a string or null")
+            for key in ("categories", "tags"):
+                values = metadata[key]
+                if not isinstance(values, list) or not all(
+                    isinstance(value, str) and value.strip() for value in values
+                ):
+                    raise ValueError(f"metadata_json.{key} must be an array of non-empty strings")
+            if metadata["status"] not in {None, "cancelled"}:
+                raise ValueError("metadata_json.status must be cancelled or null")
+            links = metadata["registration_links"]
+            if not isinstance(links, list):
+                raise ValueError("metadata_json.registration_links must be an array")
+            for link in links:
+                if not isinstance(link, dict) or set(link) != {"label", "url"}:
+                    raise ValueError("Event registration links must match the approved v1 fields")
+                if not isinstance(link["label"], str) or not link["label"].strip():
+                    raise ValueError("Event registration label must be non-empty")
+                registration_url = urlparse(link["url"] if isinstance(link["url"], str) else "")
+                try:
+                    registration_url.port
+                except ValueError as exc:
+                    raise ValueError("Event registration URL has an invalid port") from exc
+                if (
+                    registration_url.scheme not in {"http", "https"}
+                    or not registration_url.hostname
+                    or registration_url.username is not None
+                    or registration_url.password is not None
+                ):
+                    raise ValueError("Event registration URL must be credential-free HTTP(S)")
         return self
 
 

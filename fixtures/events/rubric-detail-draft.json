@@ -1,0 +1,10 @@
+{
+  "_fixture_note": "Synthetic sanitized draft exclusion fixture.",
+  "success": true,
+  "data": {
+    "eventId": "70000",
+    "eventName": "Unpublished Draft Event",
+    "eventTime": "2026-09-25T10:00:00+10:00",
+    "draft": true
+  }
+}

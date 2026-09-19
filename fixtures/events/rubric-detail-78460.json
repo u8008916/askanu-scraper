@@ -1,0 +1,16 @@
+{
+  "_fixture_note": "Synthetic sanitized optional-field fixture; no end, venue, price or ticket availability is inferred.",
+  "success": true,
+  "data": {
+    "eventId": 78460,
+    "eventName": "Spring Community Run",
+    "eventTime": 1791243000000,
+    "eventEndTime": null,
+    "eventAddress": null,
+    "eventOrganizer": "ANU Running Club",
+    "eventURL": "",
+    "eventDescription": "Meet for a community run.",
+    "draft": false,
+    "tags": ["Social", {"name": "Sport"}]
+  }
+}
