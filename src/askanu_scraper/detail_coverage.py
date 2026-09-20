@@ -14,8 +14,10 @@ import sys
 import time
 from collections import Counter
 from dataclasses import dataclass, field
+from datetime import date, timedelta
+from pathlib import Path
 from typing import Callable, Mapping, Sequence
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse, urlsplit
 
 from bs4 import BeautifulSoup, Tag
 
@@ -33,6 +35,23 @@ from askanu_scraper.sources.scholarships.parser import (
     ScholarshipsParser,
     normalize_scholarship_url,
 )
+from askanu_scraper.sources.accommodation import (
+    FROZEN_ENTITY_COUNT as ACCOMMODATION_FROZEN_COUNT,
+    LISTING_URL as ACCOMMODATION_LISTING_URL,
+)
+from askanu_scraper.sources.accommodation.discovery import AccommodationDiscovery
+from askanu_scraper.sources.accommodation.parser import (
+    AccommodationParser,
+    normalize_accommodation_url,
+)
+from askanu_scraper.sources.events import EventsCollector
+from askanu_scraper.sources.events.parser import EventsParser, normalize_event_url
+from askanu_scraper.sources.support import (
+    FROZEN_ENTITY_COUNT as SUPPORT_FROZEN_COUNT,
+    LISTING_URL as SUPPORT_LISTING_URL,
+)
+from askanu_scraper.sources.support.discovery import SupportDiscovery
+from askanu_scraper.sources.support.parser import SupportParser, normalize_support_url
 
 
 FIELDS: dict[str, tuple[str, ...]] = {
@@ -74,6 +93,22 @@ FIELDS: dict[str, tuple[str, ...]] = {
         "job_id", "title", "category", "employment_types", "location",
         "classification", "salary", "closing_text", "closing_date",
         "closing_at", "status", "summary", "role_requirements",
+        "canonical_url", "provenance",
+    ),
+    "residence": (
+        "title", "category", "location", "catering_options", "audiences",
+        "advertised_rate", "cost_period", "rooms", "features", "overview",
+        "accessibility", "application_text", "application_url", "eligibility",
+        "contact", "vacancy_status", "canonical_url", "provenance",
+    ),
+    "support_service": (
+        "title", "category", "purpose", "audiences", "contact", "hours",
+        "access", "cost", "topics", "referrals", "canonical_url", "provenance",
+    ),
+    "event": (
+        "title", "event_id", "start_date", "end_date", "start_at", "end_at",
+        "timezone", "location", "format", "categories", "tags", "organiser",
+        "description", "registration_links", "status", "cancellation_text",
         "canonical_url", "provenance",
     ),
 }
@@ -196,6 +231,16 @@ def _content_value(record: CommonRecord, label: str) -> str | None:
     return None
 
 
+def _has_captured_value(value: object) -> bool:
+    if value in (None, ""):
+        return False
+    if isinstance(value, Mapping):
+        return any(_has_captured_value(item) for item in value.values())
+    if isinstance(value, (list, tuple, set)):
+        return any(_has_captured_value(item) for item in value)
+    return True
+
+
 def _summary_value(soup: BeautifulSoup, *labels: str) -> str | None:
     wanted = {label.casefold() for label in labels}
     for item in soup.select(".degree-summary li"):
@@ -227,10 +272,192 @@ def _table_labels(soup: BeautifulSoup) -> dict[str, str]:
     return values
 
 
+def _accommodation_presence(
+    candidate: DetailCandidate, soup: BeautifulSoup
+) -> dict[str, bool]:
+    result = {name: False for name in FIELDS["residence"]}
+    result["canonical_url"] = result["provenance"] = True
+    result["title"] = bool(soup.select_one("h1.banner-title"))
+    for field_name in (
+        "category", "catering_options", "audiences", "advertised_rate",
+    ):
+        result[field_name] = candidate.listing_metadata.get(field_name) not in (
+            None, "", [], {},
+        )
+    result["overview"] = _section_presence(soup, "Overview") or bool(
+        candidate.listing_metadata.get("listing_description")
+    )
+    result["features"] = bool(soup.select("#key-features .view-content .d-flex"))
+    room_panels = soup.select(".room-overview .tab-content > .tab-pane")
+    result["rooms"] = bool(room_panels)
+    result["cost_period"] = any(
+        "cost" in (_text(node) or "").casefold() for node in soup.find_all("h2")
+    )
+    result["accessibility"] = _section_presence(soup, "Accessibility")
+    application = soup.select_one('.anu-accommodation-footer a[href*="starrezhousing.com"]')
+    result["application_text"] = bool(_text(application))
+    result["application_url"] = bool(application and application.get("href"))
+    result["location"] = _section_presence(soup, "Location")
+    result["eligibility"] = _section_presence(soup, "Eligibility")
+    result["vacancy_status"] = _section_presence(soup, "Vacancy", "Availability")
+    footer = soup.select_one(".anu-accommodation-footer")
+    result["contact"] = bool(
+        footer
+        and footer.select_one(
+            'a[href^="mailto:"], a[href^="tel:"], p.text-white strong, p.text-white'
+        )
+    )
+    return result
+
+
+def _support_presence(
+    candidate: DetailCandidate, soup: BeautifulSoup
+) -> dict[str, bool]:
+    result = {name: False for name in FIELDS["support_service"]}
+    result["canonical_url"] = result["provenance"] = True
+    main = soup.select_one("main#content, main")
+    result["title"] = bool(
+        main
+        and main.select_one(".elementor-widget-heading h1, .elementor-widget-heading h2")
+    )
+    for field_name in ("category", "audiences", "cost"):
+        result[field_name] = candidate.listing_metadata.get(field_name) not in (
+            None, "", [], {},
+        )
+    result["purpose"] = bool(
+        main
+        and (
+            main.select_one(".elementor-widget-heading + .elementor-widget-text-editor")
+            or candidate.listing_metadata.get("listing_description")
+        )
+    )
+    contact = main.select_one(".elementor-global-2660") if main else None
+    if contact is None and main is not None:
+        contact = next(
+            (
+                node
+                for node in main.select(".elementor-widget-text-editor")
+                if "contact" in (_text(node) or "").casefold()
+            ),
+            None,
+        )
+    contact_text = _text(contact) or ""
+    result["contact"] = bool(
+        contact_text
+        or candidate.listing_metadata.get("registry_email")
+        or (main and main.select_one('a[href^="mailto:"], a[href^="tel:"]'))
+    )
+    result["hours"] = bool(
+        re.search(
+            r"(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|"
+            r"\d{1,2}(?::\d{2})?\s*(?:am|pm))",
+            contact_text,
+            re.I,
+        )
+    )
+    result["access"] = _section_presence(soup, "Access", "How to access") or bool(
+        re.search(
+            r"\b(?:book(?:ing)? an appointment|make an appointment|drop[- ]?in|walk[- ]?in)\b",
+            _text(main) or "",
+            re.I,
+        )
+    )
+    topic_count = 0
+    referral_count = 0
+    for link in (main.select("a[href]") if main else []):
+        href = str(link.get("href", ""))
+        absolute = urljoin(candidate.url, href)
+        parsed = urlsplit(absolute)
+        if (
+            parsed.scheme == "https"
+            and (parsed.hostname or "").casefold() in {"anusa.com.au", "www.anusa.com.au"}
+            and parsed.path.rstrip("/").count("/") >= 3
+        ):
+            topic_count += 1
+        elif (
+            parsed.scheme in {"http", "https"}
+            and parsed.hostname
+            and parsed.hostname.casefold() not in {"anusa.com.au", "www.anusa.com.au"}
+        ):
+            referral_count += 1
+    result["topics"] = topic_count > 0
+    result["referrals"] = referral_count > 0
+    return result
+
+
+def _event_presence(soup: BeautifulSoup) -> dict[str, bool]:
+    result = {name: False for name in FIELDS["event"]}
+    result["canonical_url"] = result["provenance"] = True
+    result["title"] = bool(soup.select_one("h1.page-title span, h1.page-title, h1"))
+    article = soup.select_one("article[data-history-node-id]")
+    scripts = " ".join(script.get_text(" ", strip=True) for script in soup.select("script"))
+    result["event_id"] = bool(
+        article
+        and str(article.get("data-history-node-id", "")).isdigit()
+        and re.search(r'["\']entityId["\']\s*:\s*["\']?\d+', scripts)
+    )
+    displayed = [
+        value
+        for node in soup.select(".field-type-datetime li, .field--type-datetime li, time")
+        if (value := _text(node))
+    ]
+    displayed_text = " ".join(displayed)
+    result["start_date"] = result["end_date"] = bool(displayed)
+    has_time = bool(re.search(r"\b\d{1,2}(?::\d{2})?\s*(?:am|pm)\b", displayed_text, re.I))
+    result["start_at"] = result["end_at"] = has_time
+    # Canberra is the normalization contract for this local source; it is not
+    # counted as source-present unless the page explicitly publishes a zone.
+    result["timezone"] = bool(re.search(r"\b(?:AEST|AEDT|Australia/Canberra)\b", displayed_text))
+    selector_map = {
+        "location": ".views-field-field-event-location .field-content, .event-location",
+        "format": ".field--name-field-event-format, .event-format",
+        "categories": ".field--name-field-event-category .field__item, .event-category a",
+        "tags": ".field--name-field-tags .field__item, .field--name-field-event-tags .field__item",
+        "organiser": ".views-field-field-colleges .field-content, .field--name-field-colleges",
+        "description": ".field--name-body.field--type-text-with-summary, .field--name-body",
+        "cancellation_text": ".field--name-field-event-status, .event-cancellation, .cancelled, .canceled",
+    }
+    for field_name, selector in selector_map.items():
+        result[field_name] = any(_text(node) for node in soup.select(selector))
+    result["location"] = result["location"] or _section_presence(soup, "Location")
+    result["format"] = result["format"] or _section_presence(soup, "Format")
+    result["organiser"] = result["organiser"] or _section_presence(
+        soup, "Presented by"
+    )
+    page_text = soup.get_text(" ", strip=True)
+    result["status"] = result["cancellation_text"] or bool(
+        re.search(r"\bcancell?ed\b", page_text, re.I)
+    )
+    result["registration_links"] = any(
+        urlsplit(str(link.get("href", ""))).scheme.casefold() in {"http", "https"}
+        and re.search(
+            r"\b(register|registration|book tickets?)\b",
+            " ".join(
+                filter(
+                    None,
+                    (
+                        _text(link),
+                        _text(link.parent if isinstance(link.parent, Tag) else None),
+                    ),
+                )
+            ),
+            re.I,
+        )
+        for link in soup.select("a[href]")
+    )
+    return result
+
+
 def _source_presence(
     candidate: DetailCandidate, soup: BeautifulSoup
 ) -> dict[str, bool]:
     entity = candidate.entity_class
+    if entity == "residence":
+        return _accommodation_presence(candidate, soup)
+    if entity == "support_service":
+        return _support_presence(candidate, soup)
+    if entity == "event":
+        return _event_presence(soup)
     result = {name: False for name in FIELDS[entity]}
     result["canonical_url"] = True
     result["provenance"] = True
@@ -434,6 +661,10 @@ def _subplan_values(candidate: DetailCandidate, soup: BeautifulSoup) -> dict[str
         "other_information": _section_text(soup, "Other Information"),
         "canonical_url": candidate.url,
         "provenance": "courses_programs_and_courses",
+        "_entity_id": candidate.identifier,
+        "_record_id": None,
+        "_source_id": "courses_programs_and_courses",
+        "_content_hash": None,
     }
 
 
@@ -443,6 +674,10 @@ def _record_values(candidate: DetailCandidate, record: CommonRecord) -> dict[str
         "title": record.title,
         "canonical_url": record.canonical_url if record.canonical_url == candidate.url else None,
         "provenance": record.source_id,
+        "_entity_id": record.entity_id,
+        "_record_id": record.record_id,
+        "_source_id": record.source_id,
+        "_content_hash": record.content_hash,
     }
     if candidate.entity_class == "course":
         return common | {
@@ -472,6 +707,33 @@ def _record_values(candidate: DetailCandidate, record: CommonRecord) -> dict[str
             "elective_study": _content_value(record, "Elective Study"),
             "study_options": _content_value(record, "Study Options"),
         }
+    if candidate.entity_class == "event":
+        # Coverage names describe source facts, not persisted metadata keys.
+        # Map the frozen Events contract back to those facts without restoring
+        # the superseded producer metadata shape.
+        return common | {
+            "event_id": metadata.get("source_event_id"),
+            "start_date": (
+                record.effective_from.date().isoformat()
+                if record.effective_from is not None else None
+            ),
+            "end_date": (
+                record.effective_to.date().isoformat()
+                if record.effective_to is not None else None
+            ),
+            "start_at": metadata.get("start_at"),
+            "end_at": metadata.get("end_at"),
+            "timezone": metadata.get("timezone"),
+            "location": metadata.get("venue_name"),
+            "format": _content_value(record, "Format"),
+            "categories": _content_value(record, "Categories"),
+            "tags": metadata.get("tags"),
+            "organiser": metadata.get("organiser_name"),
+            "description": _content_value(record, "Description"),
+            "registration_links": _content_value(record, "Registration"),
+            "status": metadata.get("cancellation_status"),
+            "cancellation_text": _content_value(record, "Cancellation"),
+        }
     return common | dict(metadata)
 
 
@@ -483,16 +745,25 @@ class DetailCoverageAuditor:
         fetcher: BaseFetcher | None = None,
         *,
         min_request_interval_seconds: float = 1.0,
+        events_window_start: date = date(2026, 9, 19),
+        events_window_days: int = 43,
         sleep_func: Callable[[float], None] = time.sleep,
     ) -> None:
         if min_request_interval_seconds < 0:
             raise ValueError("min_request_interval_seconds must be non-negative")
+        if not 1 <= events_window_days <= 366:
+            raise ValueError("events_window_days must be between 1 and 366")
         self._fetcher = fetcher or HttpFetcher()
         self._interval = min_request_interval_seconds
         self._sleep = sleep_func
+        self._events_window_start = events_window_start
+        self._events_window_end = events_window_start + timedelta(days=events_window_days - 1)
         self._courses = CoursesParser()
         self._scholarships = ScholarshipsParser()
         self._jobs = JobsParser()
+        self._accommodation = AccommodationParser()
+        self._support = SupportParser()
+        self._events = EventsParser()
 
     def audit(self, candidates: Sequence[DetailCandidate]) -> dict[str, object]:
         reports: dict[str, dict[str, object]] = {}
@@ -506,7 +777,9 @@ class DetailCoverageAuditor:
                 "rejected_records": 0, "duplicate_identities": 0,
                 "canonical_mismatches": 0, "parser_exceptions": 0,
                 "consecutive_fetch_failures": 0, "stopped_early": False,
-                "source_shape_anomalies": [],
+                "source_shape_anomalies": [], "rejected_by_reason": {},
+                "parsed_records": 0, "outside_window": 0,
+                "identity_manifest": [],
                 "fields": {name: FieldCount() for name in FIELDS[candidate.entity_class]},
             })
             if candidate.entity_class in blocked_classes:
@@ -565,15 +838,46 @@ class DetailCoverageAuditor:
                     continue
                 values = {}
             if values:
+                report["parsed_records"] = int(report["parsed_records"]) + 1
+                if candidate.entity_class == "event":
+                    start_value = values.get("start_date")
+                    end_value = values.get("end_date")
+                    if not isinstance(start_value, str) or not isinstance(end_value, str):
+                        reasons = report["rejected_by_reason"]
+                        reasons["date-only-contract-review"] = (
+                            int(reasons.get("date-only-contract-review", 0)) + 1
+                        )
+                        continue
+                    event_start = date.fromisoformat(start_value)
+                    event_end = date.fromisoformat(end_value)
+                    if not (
+                        event_start <= self._events_window_end
+                        and event_end >= self._events_window_start
+                    ):
+                        report["outside_window"] = int(report["outside_window"]) + 1
+                        reasons = report["rejected_by_reason"]
+                        reasons["outside-frozen-window"] = (
+                            int(reasons.get("outside-frozen-window", 0)) + 1
+                        )
+                        continue
                 report["approved_records"] = int(report["approved_records"]) + 1
                 if presence.get("canonical_url") and not values.get("canonical_url"):
                     report["canonical_mismatches"] = int(
                         report["canonical_mismatches"]
                     ) + 1
+                report["identity_manifest"].append(
+                    {
+                        "entity_id": values.get("_entity_id") or candidate.identifier,
+                        "record_id": values.get("_record_id"),
+                        "source_id": values.get("_source_id"),
+                        "canonical_url": values.get("canonical_url"),
+                        "content_hash": values.get("_content_hash"),
+                    }
+                )
             for name, counter in report["fields"].items():
                 if presence.get(name):
                     counter.source_present += 1
-                    if values.get(name) not in (None, "", [], {}):
+                    if _has_captured_value(values.get(name)):
                         counter.captured += 1
                     else:
                         counter.missed += 1
@@ -583,9 +887,43 @@ class DetailCoverageAuditor:
                             )
 
         serialised: dict[str, object] = {}
+        total_source_present = total_captured = 0
         for entity, report in reports.items():
+            fields = {
+                name: count.as_dict() for name, count in report["fields"].items()
+            }
+            entity_source_present = sum(
+                int(value["source_present"]) for value in fields.values()
+            )
+            entity_captured = sum(int(value["captured"]) for value in fields.values())
+            total_source_present += entity_source_present
+            total_captured += entity_captured
+            manifest = sorted(
+                report["identity_manifest"],
+                key=lambda item: (str(item["source_id"]), str(item["entity_id"])),
+            )
+            identities = [
+                (str(item["source_id"]), str(item["entity_id"])) for item in manifest
+            ]
+            record_ids = [str(item["record_id"]) for item in manifest if item["record_id"]]
+            canonical_urls = [
+                str(item["canonical_url"]) for item in manifest if item["canonical_url"]
+            ]
             serialised[entity] = report | {
-                "fields": {name: count.as_dict() for name, count in report["fields"].items()}
+                "fields": fields,
+                "identity_manifest": manifest,
+                "source_present_fact_numerator": entity_captured,
+                "source_present_fact_denominator": entity_source_present,
+                "source_present_fact_coverage_percent": (
+                    round(100 * entity_captured / entity_source_present, 2)
+                    if entity_source_present
+                    else None
+                ),
+                "duplicate_normalized_identity_count": len(identities) - len(set(identities)),
+                "duplicate_record_id_count": len(record_ids) - len(set(record_ids)),
+                "duplicate_canonical_url_count": (
+                    len(canonical_urls) - len(set(canonical_urls))
+                ),
             }
         return {
             "captured_at": now_canberra().isoformat(),
@@ -594,6 +932,15 @@ class DetailCoverageAuditor:
             "migrations_applied": 0,
             "subplans_persisted": 0,
             "pd_documents_fetched": 0,
+            "events_window_start": self._events_window_start.isoformat(),
+            "events_window_end_inclusive": self._events_window_end.isoformat(),
+            "source_present_fact_numerator": total_captured,
+            "source_present_fact_denominator": total_source_present,
+            "source_present_fact_coverage_percent": (
+                round(100 * total_captured / total_source_present, 2)
+                if total_source_present
+                else None
+            ),
             "entity_classes": serialised,
         }
 
@@ -610,6 +957,15 @@ class DetailCoverageAuditor:
         elif candidate.entity_class == "job":
             if normalize_job_url(candidate.url) != candidate.url:
                 raise ValueError("non-canonical Job URL")
+        elif candidate.entity_class == "residence":
+            if normalize_accommodation_url(candidate.url) != candidate.url:
+                raise ValueError("non-canonical Accommodation URL")
+        elif candidate.entity_class == "support_service":
+            if normalize_support_url(candidate.url) != candidate.url:
+                raise ValueError("non-canonical Support URL")
+        elif candidate.entity_class == "event":
+            if normalize_event_url(candidate.url) != candidate.url:
+                raise ValueError("non-canonical Event URL")
         else:
             raise ValueError("unsupported entity class")
 
@@ -624,10 +980,20 @@ class DetailCoverageAuditor:
             records = self._scholarships.parse(
                 raw, candidate.url, listing_metadata=candidate.listing_metadata
             )
-        else:
+        elif candidate.entity_class == "job":
             records = self._jobs.parse(
                 raw, candidate.url, listing_metadata=candidate.listing_metadata
             )
+        elif candidate.entity_class == "residence":
+            records = self._accommodation.parse(
+                raw, candidate.url, listing_metadata=candidate.listing_metadata
+            )
+        elif candidate.entity_class == "support_service":
+            records = self._support.parse(
+                raw, candidate.url, listing_metadata=candidate.listing_metadata
+            )
+        else:
+            records = self._events.parse(raw, candidate.url)
         if len(records) != 1:
             raise ParseError(f"expected one parsed detail record, got {len(records)}")
         values = _record_values(candidate, records[0])
@@ -675,7 +1041,22 @@ def discover_candidates(
             DetailCandidate(item.entity_type.value, item.identifier, item.url)
             for item in result.items
         )
-        census["courses"] = result.counts_by_type
+        frozen_counts = {
+            "course": 500,
+            "program": 393,
+            "major": 109,
+            "minor": 126,
+            "specialisation": 128,
+        }
+        census["courses"] = {
+            "frozen_denominators": frozen_counts,
+            "observed_unique": result.counts_by_type,
+            "count_drift": {
+                key: int(result.counts_by_type.get(key, 0)) - expected
+                for key, expected in frozen_counts.items()
+            },
+            "reconciled": True,
+        }
     if domain in {"scholarships", "all"}:
         result = ScholarshipsCollector(
             store=dry_run_store,
@@ -703,9 +1084,14 @@ def discover_candidates(
             for item in result.candidates
         )
         census["scholarships"] = {
+            "prior_frozen_approved_denominator": 379,
             "headline_total": result.headline_total_count,
             "discovered_total": result.discovered_candidate_count,
             "approved_unique": len(result.candidates),
+            "approved_count_drift": len(result.candidates) - 379,
+            "rejected_count": len(result.rejected_links),
+            "duplicate_count": len(result.duplicate_links),
+            "rejected_by_reason": result.rejected_by_reason or {},
             "reconciled": True,
         }
     if domain in {"jobs", "all"}:
@@ -735,23 +1121,244 @@ def discover_candidates(
             for item in result.candidates
         )
         census["jobs"] = {
+            "prior_observed_totals": [55, 50, 57],
             "advertised_total": result.advertised_total_count,
             "approved_unique": len(result.candidates),
+            "drift_from_latest_observed_57": result.advertised_total_count - 57,
+            "rejected_count": len(result.rejected_links),
+            "duplicate_count": len(result.duplicate_links),
+            "rejected_by_reason": result.rejected_by_reason or {},
             "reconciled": True,
         }
+    if domain in {"accommodation", "all"}:
+        listing_raw = HttpFetcher().fetch(ACCOMMODATION_LISTING_URL)
+        result = AccommodationDiscovery().discover(
+            listing_raw,
+            ACCOMMODATION_LISTING_URL,
+            max_details=None,
+        )
+        if result.advertised_total_count is None:
+            raise RuntimeError("Accommodation advertised total is missing; detail audit stopped")
+        if result.approved_candidate_count != result.advertised_total_count:
+            raise RuntimeError("Accommodation listing is unreconciled; detail audit stopped")
+        if result.approved_candidate_count != ACCOMMODATION_FROZEN_COUNT:
+            raise RuntimeError("Accommodation count differs from the frozen universe")
+        candidates.extend(
+            DetailCandidate(
+                "residence",
+                urlsplit(item.url).path.rstrip("/").rsplit("/", 1)[-1],
+                item.url,
+                item.listing_metadata,
+            )
+            for item in result.candidates
+        )
+        census["accommodation"] = {
+            "frozen_denominator": ACCOMMODATION_FROZEN_COUNT,
+            "advertised_total": result.advertised_total_count,
+            "discovered_total": result.discovered_candidate_count,
+            "approved_unique": result.approved_candidate_count,
+            "rejected_count": len(result.rejected_links),
+            "duplicate_count": len(result.duplicate_links),
+            "reconciled": True,
+        }
+        if interval:
+            time.sleep(interval)
+    if domain in {"support", "all"}:
+        listing_raw = HttpFetcher().fetch(SUPPORT_LISTING_URL)
+        result = SupportDiscovery().discover(
+            listing_raw,
+            SUPPORT_LISTING_URL,
+            max_details=None,
+        )
+        if result.approved_candidate_count != SUPPORT_FROZEN_COUNT:
+            raise RuntimeError("Support count differs from the frozen registry")
+        candidates.extend(
+            DetailCandidate(
+                "support_service",
+                urlsplit(item.url).path.rstrip("/").rsplit("/", 1)[-1],
+                item.url,
+                item.listing_metadata,
+            )
+            for item in result.candidates
+        )
+        census["support"] = {
+            "frozen_denominator": SUPPORT_FROZEN_COUNT,
+            "discovered_total": result.discovered_candidate_count,
+            "approved_unique": result.approved_candidate_count,
+            "rejected_count": len(result.rejected_links),
+            "duplicate_count": len(result.duplicate_links),
+            "reconciled": True,
+        }
+        if interval:
+            time.sleep(interval)
+    if domain in {"events", "all"}:
+        result = EventsCollector(
+            store=dry_run_store,
+            min_request_interval_seconds=interval,
+        ).discover_full_listing(
+            max_listing_pages=max_listing_pages,
+            max_details=None,
+        )
+        if not result.pagination_complete:
+            raise RuntimeError("Events listing pagination is incomplete; detail audit stopped")
+        if result.unique_link_count <= 0:
+            raise RuntimeError("Events listing is suspiciously zero; detail audit stopped")
+        candidates.extend(
+            DetailCandidate(
+                "event",
+                urlsplit(item.url).path.rstrip("/").rsplit("/", 1)[-1],
+                item.url,
+            )
+            for item in result.candidates
+        )
+        census["events"] = {
+            "frozen_denominator": 30,
+            "raw_cards": result.raw_card_count,
+            "unique_links": result.unique_link_count,
+            "duplicate_count": len(result.duplicate_links),
+            "rejected_by_reason": result.rejected_by_reason,
+            "pages_traversed": result.pages_traversed,
+            "advertised_last_page": result.advertised_last_page,
+            "pagination_complete": True,
+            "reconciled": True,
+        }
+        if interval:
+            time.sleep(interval)
     return candidates, census
+
+
+def _health_classifications(
+    report: Mapping[str, object], census: dict[str, object]
+) -> dict[str, object]:
+    entity_reports = report.get("entity_classes", {})
+    if not isinstance(entity_reports, dict):
+        return {}
+    domain_entities = {
+        "courses": ("course", "program", "major", "minor", "specialisation"),
+        "scholarships": ("scholarship",),
+        "jobs": ("job",),
+        "accommodation": ("residence",),
+        "support": ("support_service",),
+        "events": ("event",),
+    }
+    health: dict[str, object] = {}
+    for domain, entity_names in domain_entities.items():
+        selected = [entity_reports[name] for name in entity_names if name in entity_reports]
+        if not selected:
+            continue
+        denominator = 0
+        if domain == "courses":
+            course_census = census.get("courses", {})
+            frozen = course_census.get("frozen_denominators", {}) if isinstance(course_census, dict) else {}
+            denominator = sum(int(frozen.get(name, 0)) for name in entity_names)
+        elif domain == "scholarships":
+            item = census.get("scholarships", {})
+            denominator = int(item.get("approved_unique", 0)) if isinstance(item, dict) else 0
+        elif domain == "jobs":
+            item = census.get("jobs", {})
+            denominator = int(item.get("advertised_total", 0)) if isinstance(item, dict) else 0
+        elif domain == "accommodation":
+            denominator = ACCOMMODATION_FROZEN_COUNT
+        elif domain == "support":
+            denominator = SUPPORT_FROZEN_COUNT
+        else:
+            denominator = 30
+        numerator = sum(int(item.get("approved_records", 0)) for item in selected)
+        field_numerator = sum(
+            int(item.get("source_present_fact_numerator", 0)) for item in selected
+        )
+        field_denominator = sum(
+            int(item.get("source_present_fact_denominator", 0)) for item in selected
+        )
+        entity_coverage = round(100 * numerator / denominator, 2) if denominator else None
+        field_coverage = (
+            round(100 * field_numerator / field_denominator, 2)
+            if field_denominator
+            else None
+        )
+        reasons: list[str] = []
+        fetch_shortfall = any(
+            int(item.get("detail_pages_fetched", 0))
+            < int(item.get("detail_pages_attempted", 0))
+            or bool(item.get("stopped_early"))
+            for item in selected
+        )
+        parser_or_identity_failure = any(
+            any(
+                int(item.get(key, 0)) > 0
+                for key in (
+                    "parser_exceptions", "canonical_mismatches", "rejected_records",
+                    "duplicate_normalized_identity_count", "duplicate_record_id_count",
+                    "duplicate_canonical_url_count",
+                )
+            )
+            for item in selected
+        )
+        if fetch_shortfall:
+            reasons.append("one or more approved details could not be fetched")
+        if parser_or_identity_failure:
+            reasons.append("parser, identity, canonical, or duplicate validation failed")
+        if entity_coverage is None or entity_coverage < 99:
+            reasons.append("entity coverage is below 99 percent")
+        if field_coverage is None or field_coverage < 99:
+            reasons.append("source-present fact coverage is below 99 percent")
+        if fetch_shortfall and not parser_or_identity_failure:
+            status = "FALLBACK_LAST_KNOWN_GOOD"
+        elif reasons:
+            status = "BLOCKED"
+        else:
+            status = "GREEN"
+        health[domain] = {
+            "status": status,
+            "entity_numerator": numerator,
+            "entity_denominator": denominator,
+            "entity_coverage_percent": entity_coverage,
+            "source_present_fact_numerator": field_numerator,
+            "source_present_fact_denominator": field_denominator,
+            "source_present_fact_coverage_percent": field_coverage,
+            "reasons": reasons,
+        }
+    event_health = health.get("events")
+    event_census = census.get("events")
+    if isinstance(event_health, dict) and isinstance(event_census, dict):
+        event_census["current_eligible_count"] = event_health["entity_numerator"]
+        event_census["count_drift_from_frozen_30"] = int(
+            event_health["entity_numerator"]
+        ) - 30
+    return health
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Read-only V6 detail field coverage")
-    parser.add_argument("--domain", choices=("courses", "scholarships", "jobs", "all"), default="all")
+    parser.add_argument(
+        "--domain",
+        choices=(
+            "courses", "scholarships", "jobs", "accommodation", "support",
+            "events", "all",
+        ),
+        default="all",
+    )
     parser.add_argument("--academic-year", default="2026")
     parser.add_argument("--max-listing-pages", type=int, default=100)
     parser.add_argument("--max-details-per-class", type=int)
     parser.add_argument("--min-request-interval-seconds", type=float, default=1.0)
+    parser.add_argument("--events-window-start", default="2026-09-19")
+    parser.add_argument("--events-window-days", type=int, default=43)
+    parser.add_argument(
+        "--output",
+        help="Optionally write the same JSON report printed to stdout",
+    )
     args = parser.parse_args(argv)
     if args.max_details_per_class is not None and args.max_details_per_class < 1:
         parser.error("--max-details-per-class must be at least 1")
+    try:
+        events_window_start = date.fromisoformat(args.events_window_start)
+    except ValueError:
+        parser.error("--events-window-start must be an ISO date")
+    if not 1 <= args.events_window_days <= 366:
+        parser.error("--events-window-days must be between 1 and 366")
+    if args.output and Path(args.output).name == "detail-coverage-evidence.json":
+        parser.error("the stale detail-coverage-evidence.json artifact cannot be overwritten")
     try:
         candidates, census = discover_candidates(
             args.domain,
@@ -761,9 +1368,12 @@ def main(argv: list[str] | None = None) -> int:
         )
         selected = _limit_by_class(candidates, args.max_details_per_class)
         report = DetailCoverageAuditor(
-            min_request_interval_seconds=args.min_request_interval_seconds
+            min_request_interval_seconds=args.min_request_interval_seconds,
+            events_window_start=events_window_start,
+            events_window_days=args.events_window_days,
         ).audit(selected)
         report["entity_census"] = census
+        report["domain_health"] = _health_classifications(report, census)
         entity_reports = report.get("entity_classes", {})
         stopped_early = (
             isinstance(entity_reports, dict)
@@ -777,15 +1387,33 @@ def main(argv: list[str] | None = None) -> int:
             and not stopped_early
         )
         report["selected_detail_pages"] = len(selected)
-        report["status"] = "INCOMPLETE" if stopped_early else "SUCCESS"
-        print(json.dumps(report, indent=2, sort_keys=True))
-        return 1 if stopped_early else 0
+        blocked = any(
+            isinstance(value, dict) and value.get("status") == "BLOCKED"
+            for value in report["domain_health"].values()
+        )
+        fallback = any(
+            isinstance(value, dict)
+            and value.get("status") == "FALLBACK_LAST_KNOWN_GOOD"
+            for value in report["domain_health"].values()
+        )
+        report["status"] = (
+            "BLOCKED" if blocked else "INCOMPLETE" if stopped_early or fallback else "SUCCESS"
+        )
+        serialized = json.dumps(report, indent=2, sort_keys=True)
+        if args.output:
+            Path(args.output).write_text(serialized + "\n", encoding="utf-8")
+        print(serialized)
+        return 1 if blocked or stopped_early or fallback else 0
     except Exception as exc:
-        print(json.dumps({
+        failure = {
             "captured_at": now_canberra().isoformat(), "dry_run": True,
             "production_records_written": 0, "status": "FAILED",
             "error": str(exc)[:500],
-        }, indent=2, sort_keys=True))
+        }
+        serialized = json.dumps(failure, indent=2, sort_keys=True)
+        if args.output:
+            Path(args.output).write_text(serialized + "\n", encoding="utf-8")
+        print(serialized)
         return 1
 
 

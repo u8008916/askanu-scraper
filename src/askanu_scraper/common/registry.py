@@ -101,7 +101,7 @@ _REGISTRY: dict[str, SourceRegistryEntry] = {
             ),
         ),
         # ----------------------------------------------------------------
-        # PENDING APPROVAL — NOT FOR PRODUCTION USE
+        # APPROVED FOR BOUNDED, UNSUPPORTED INGESTION; RELEASE GATES APPLY
         # ----------------------------------------------------------------
         SourceRegistryEntry(
             source_id="rubric_unified_search",

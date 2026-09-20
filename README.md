@@ -131,6 +131,22 @@ detail once per run and preserves last-known-good on malformed, incomplete,
 empty or failed responses. PostgreSQL remains blocked by
 `SCRAPER_RUBRIC_POSTGRES_APPROVED=false` until Qasim's reviewed release GO.
 
+Audit all six official domains without persistence and write a timestamped JSON
+snapshot with:
+
+```powershell
+.\.venv\Scripts\python.exe -m askanu_scraper.detail_coverage `
+  --domain all --academic-year 2026 --max-listing-pages 100 `
+  --events-window-start 2026-09-19 --events-window-days 43 `
+  --output day16-source-health.json
+```
+
+The audit traverses the approved sources, detects source-present facts before
+normalisation, validates identities/canonical URLs and records a sorted
+identity manifest. It never opens a persistence store. The legacy untracked
+`detail-coverage-evidence.json` filename is refused so stale evidence cannot be
+silently overwritten.
+
 The Day 6 container image defaults `SCRAPER_DRY_RUN=true`: Cloud Run executions
 must stay dry-run while `LocalDataStore` is the active persistence adapter,
 because its `/data` filesystem is not durable. Enable
