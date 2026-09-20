@@ -8,11 +8,12 @@ from typing import Mapping
 import pytest
 import requests
 
-from askanu_scraper.common.fetcher import FetchError
+from askanu_scraper.common.fetcher import BaseFetcher, FetchError
 from askanu_scraper.common.models import IngestionRunStatus
 from askanu_scraper.common.normalizer import CANBERRA_TZ
 from askanu_scraper.common.parser import ParseError
 from askanu_scraper.common.storage import LocalDataStore
+from askanu_scraper.sources.events import EventsCollector, LISTING_URL
 from askanu_scraper.sources.events.rubric_adapter import (
     HttpRubricTransport,
     RubricAdapter,
@@ -61,6 +62,23 @@ class FixtureTransport:
         if event_id == self.fail_event_id:
             raise FetchError("fixture timeout")
         return fixture(f"rubric-detail-{event_id}.json")
+
+
+class OfficialFixtureFetcher(BaseFetcher):
+    def __init__(self, *, fail_details: bool = False) -> None:
+        self.fail_details = fail_details
+        self.responses = {
+            LISTING_URL: fixture("listing-page-0.html"),
+            f"{LISTING_URL}?page=1": fixture("listing-page-1.html"),
+            f"{LISTING_URL}/window-opening": fixture("window-opening.html"),
+            f"{LISTING_URL}/dst-event": fixture("dst-event.html"),
+            f"{LISTING_URL}/outside-window": fixture("outside-window.html"),
+        }
+
+    def fetch(self, url: str) -> str:
+        if self.fail_details and url.startswith(f"{LISTING_URL}/"):
+            raise FetchError("official fixture timeout")
+        return self.responses[url]
 
 
 def adapter(path: Path, transport: FixtureTransport, *, dry_run: bool = False) -> RubricAdapter:
@@ -229,6 +247,77 @@ def test_detail_failure_preserves_last_known_good(tmp_path: Path) -> None:
     assert "fixture timeout" in failed.error
     assert records == []
     assert before == after
+
+
+def test_official_and_rubric_failures_are_source_isolated(tmp_path: Path) -> None:
+    path = tmp_path / "shared-events-store"
+    store = LocalDataStore(path)
+    official, _, _ = EventsCollector(
+        fetcher=OfficialFixtureFetcher(),
+        store=store,
+        min_request_interval_seconds=0,
+    ).run_listing(
+        max_listing_pages=2,
+        max_details=10,
+        window_start=date(2026, 9, 19),
+        window_days=43,
+        expected_event_count=2,
+    )
+    rubric, _, _ = run(
+        RubricAdapter(
+            search_endpoint=SEARCH_ENDPOINT,
+            transport=FixtureTransport(),
+            store=store,
+            min_request_interval_seconds=1,
+            sleep_func=lambda _: None,
+            now_func=lambda: NOW,
+        )
+    )
+    assert official.status == rubric.status == IngestionRunStatus.SUCCESS
+    record_dir = path / "records"
+    official_before = {
+        item.name: item.read_bytes()
+        for item in record_dir.glob("events__event__*.json")
+        if "__rubric__" not in item.name
+    }
+    rubric_before = {
+        item.name: item.read_bytes()
+        for item in record_dir.glob("events__event__rubric__*.json")
+    }
+
+    official_failed, _, _ = EventsCollector(
+        fetcher=OfficialFixtureFetcher(fail_details=True),
+        store=store,
+        min_request_interval_seconds=0,
+    ).run_listing(
+        max_listing_pages=2,
+        max_details=10,
+        window_start=date(2026, 9, 19),
+        window_days=43,
+        expected_event_count=2,
+    )
+    assert official_failed.status == IngestionRunStatus.FAILED
+    assert rubric_before == {
+        item.name: item.read_bytes()
+        for item in record_dir.glob("events__event__rubric__*.json")
+    }
+
+    rubric_failed, _, _ = run(
+        RubricAdapter(
+            search_endpoint=SEARCH_ENDPOINT,
+            transport=FixtureTransport(fail_event_id="78460"),
+            store=store,
+            min_request_interval_seconds=1,
+            sleep_func=lambda _: None,
+            now_func=lambda: NOW,
+        )
+    )
+    assert rubric_failed.status == IngestionRunStatus.FAILED
+    assert official_before == {
+        item.name: item.read_bytes()
+        for item in record_dir.glob("events__event__*.json")
+        if "__rubric__" not in item.name
+    }
 
 
 def test_suspicious_zero_and_incomplete_pagination_write_no_records(tmp_path: Path) -> None:

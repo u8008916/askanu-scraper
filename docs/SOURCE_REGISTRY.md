@@ -17,14 +17,21 @@ StarRez authenticated/application portal is an external destination, not a scrap
 Daily polling means fetch/parse/hash compare. Only new/changed content is re-embedded.
 Failure/suspicious-zero keeps last-known-good.
 
-## Unresolved implementation tasks
+## Operational release gates
 
-This document records source policy; the machine-readable registry and enforcement are still outstanding as part of Will's implementation work.
+The machine-readable registry, bounded collectors, source-specific parsers and
+sanity enforcement are implemented. Registry membership constrains collection;
+it does not by itself authorize a production write, deployment or schedule.
 
-- Define the machine-readable approved registry with stable `source_id`, parser mapping, and approval/active state. No collector may target a source absent from the eventual approved registry; registry presence alone does not grant production approval.
-- Agree a bounded source-fetch/rate policy before live requests. Request bounds and rate limits remain unresolved; daily poll cadence does not define those limits.
-- The Day 9 implementation uses a conservative pending-approval proof bound of one finder page, at most ten same-site detail pages and at least one second between live requests. This is not authorization for a broader crawl or Scheduler enablement.
-- Record the exact additional approved ANU Support source targets before collecting them. The general reference to ANU support pages does not approve arbitrary pages. No additional ANU Support target is active in the Day 12 frozen universe.
-- Official and Rubric PostgreSQL writes and any Cloud Run Job/Scheduler remain gated on the append-only migration plus Qasim/Carmen approval. Official collection has a complete dry-run; Rubric has fixture proof but its exact sanitized search-endpoint capture and live denominator are still missing.
+- Live reads must stay inside each collector's configured page/detail cap and
+  pacing policy. Daily poll cadence does not authorize an unbounded crawl.
+- Accommodation remains limited to the frozen 19-page public registry and
+  Support to the six frozen ANUSA category pages. No additional Support source
+  is active.
+- Official and Rubric PostgreSQL writes and any Cloud Run Job/Scheduler change
+  remain gated on the append-only migration plus Qasim/Carmen approval.
+- Official Events has complete bounded dry-run evidence. Rubric has fixture
+  proof, but its exact sanitized search-endpoint capture and live denominator
+  remain missing; report that state as blocked, never as zero coverage.
 
 Will owns registry/collector implementation; Qasim owns source approval, the missing exact Rubric endpoint artifact and production release. Rubric approval does not make its unsupported API stable or its records official ANU events. No authenticated StarRez scraping is permitted. Failed or suspicious collection must preserve last-known-good data.

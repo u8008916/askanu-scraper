@@ -232,7 +232,7 @@ class SupportParser(BaseParser):
             referrals.append({"label": label, "url": href})
 
         access = None
-        for node in main.select("p, li"):
+        for node in main.select("p, li, a[href]"):
             value = _text(node)
             if value and re.search(
                 r"\b(?:book(?:ing)? an appointment|make an appointment|drop[- ]?in|walk[- ]?in)\b",

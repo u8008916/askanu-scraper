@@ -1,7 +1,7 @@
 """Day 13 cross-collector failure, last-known-good, and recovery proof."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 import pytest
@@ -16,6 +16,10 @@ from askanu_scraper.sources.accommodation import (
     AccommodationCollector,
 )
 from askanu_scraper.sources.courses.collector import CoursesCollector
+from askanu_scraper.sources.events import (
+    LISTING_URL as EVENTS_LISTING_URL,
+    EventsCollector,
+)
 from askanu_scraper.sources.jobs import LISTING_URL as JOBS_LISTING_URL, JobsCollector
 from askanu_scraper.sources.jobs.parser import JobsParser
 from askanu_scraper.sources.scholarships import (
@@ -43,6 +47,9 @@ ACCOMMODATION_URL = (
     "https://study.anu.edu.au/accommodation/our-residences/yukeembruk"
 )
 SUPPORT_URL = "https://anusa.com.au/student-assistance/academic/"
+EVENT_OPENING_URL = f"{EVENTS_LISTING_URL}/window-opening"
+EVENT_DST_URL = f"{EVENTS_LISTING_URL}/dst-event"
+EVENT_OUTSIDE_URL = f"{EVENTS_LISTING_URL}/outside-window"
 
 
 class InjectedFetchFailure(BaseFetcher):
@@ -98,6 +105,13 @@ def _healthy_fetcher(domain: str) -> MockFetcher:
             ),
             SUPPORT_URL: FIXTURES / "support" / "anusa_academic_sample.html",
         },
+        "events": {
+            EVENTS_LISTING_URL: FIXTURES / "events" / "listing-page-0.html",
+            f"{EVENTS_LISTING_URL}?page=1": FIXTURES / "events" / "listing-page-1.html",
+            EVENT_OPENING_URL: FIXTURES / "events" / "window-opening.html",
+            EVENT_DST_URL: FIXTURES / "events" / "dst-event.html",
+            EVENT_OUTSIDE_URL: FIXTURES / "events" / "outside-window.html",
+        },
     }
     return MockFetcher(mappings[domain])
 
@@ -122,6 +136,7 @@ def _malformed_fetcher(domain: str) -> MockFetcher:
             SUPPORT_URL,
             FIXTURES / "support" / "anusa_support_malformed_sample.html",
         ),
+        "events": (EVENT_DST_URL, FIXTURES / "events" / "outside-window.html"),
     }
     url, fixture = replacements[domain]
     fetcher._map[url] = fixture  # type: ignore[attr-defined]
@@ -156,6 +171,19 @@ def _run(domain: str, store: LocalDataStore, fetcher: BaseFetcher):
             min_request_interval_seconds=0,
         ).run_listing(max_details=1)
         return run, records
+    if domain == "events":
+        run, records, _ = EventsCollector(
+            fetcher=fetcher,
+            store=store,
+            min_request_interval_seconds=0,
+        ).run_listing(
+            max_listing_pages=2,
+            max_details=10,
+            window_start=date(2026, 9, 19),
+            window_days=43,
+            expected_event_count=2,
+        )
+        return run, records
     run, records, _ = SupportCollector(
         fetcher=fetcher,
         store=store,
@@ -177,7 +205,7 @@ def _assert_preserved(before, after) -> None:  # type: ignore[no-untyped-def]
 
 @pytest.mark.parametrize(
     "domain",
-    ["courses", "scholarships", "jobs", "accommodation", "support"],
+    ["courses", "scholarships", "jobs", "accommodation", "support", "events"],
 )
 @pytest.mark.parametrize(
     "failure_message",
@@ -210,14 +238,14 @@ def test_fetch_failure_preserves_last_known_good_then_recovers_unchanged(
         _healthy_fetcher(domain),
     )
     assert recovered.status == IngestionRunStatus.SUCCESS
-    assert recovered.records_unchanged == 1
+    assert recovered.records_unchanged == len(records)
     assert recovered.records_missing == 0
     assert recovered_records[0].content_hash == before.content_hash
 
 
 @pytest.mark.parametrize(
     "domain",
-    ["courses", "scholarships", "jobs", "accommodation", "support"],
+    ["courses", "scholarships", "jobs", "accommodation", "support", "events"],
 )
 def test_malformed_page_preserves_last_known_good_then_recovers_unchanged(
     domain: str,
@@ -236,7 +264,7 @@ def test_malformed_page_preserves_last_known_good_then_recovers_unchanged(
 
     recovered, _ = _run(domain, store, _healthy_fetcher(domain))
     assert recovered.status == IngestionRunStatus.SUCCESS
-    assert recovered.records_unchanged == 1
+    assert recovered.records_unchanged == len(records)
 
 
 def test_atomic_run_write_failure_rolls_back_then_recovers_unchanged(

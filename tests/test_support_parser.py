@@ -160,6 +160,21 @@ def test_support_parser_does_not_infer_missing_hours() -> None:
     assert record.metadata_json["access"] is None
 
 
+def test_support_parser_captures_published_access_link() -> None:
+    record = SupportParser().parse(
+        (FIXTURES / "anusa_access_link_sample.html").read_text(encoding="utf-8"),
+        "https://anusa.com.au/student-assistance/physical-and-mental-health/",
+        listing_metadata={
+            **LISTING_METADATA,
+            "title": "Physical and Mental Health",
+            "category": "Physical and Mental Health",
+        },
+    )[0]
+
+    assert record.metadata_json["access"] == "Book an Appointment"
+    assert record.metadata_json["referrals"] == []
+
+
 def test_support_url_boundary_rejects_nested_and_unapproved_hosts() -> None:
     assert normalize_support_url(URL) == URL
     with pytest.raises(ParseError):

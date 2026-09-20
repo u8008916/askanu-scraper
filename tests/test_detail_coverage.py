@@ -1,6 +1,7 @@
 """V6 read-only detail field coverage tests."""
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -276,6 +277,158 @@ def test_job_uses_listing_and_detail_evidence_without_pd_fetch() -> None:
     assert result["pd_documents_fetched"] == 0
 
 
+def test_accommodation_source_present_fields_and_manifest_are_audited() -> None:
+    url = "https://study.anu.edu.au/accommodation/our-residences/yukeembruk"
+    html = (
+        Path(__file__).resolve().parents[1]
+        / "fixtures" / "accommodation" / "anu_residence_yukeembruk_sample.html"
+    ).read_text(encoding="utf-8")
+    result = audit(
+        DetailCandidate(
+            "residence",
+            "yukeembruk",
+            url,
+            {
+                "title": "Yukeembruk",
+                "category": "Our residences",
+                "catering_options": ["Self-catered"],
+                "audiences": ["Undergraduate"],
+                "advertised_rate": "From $380 per week",
+            },
+        ),
+        pages={url: html},
+    )["entity_classes"]["residence"]
+
+    assert result["approved_records"] == 1
+    for field_name in ("rooms", "features", "overview", "contact"):
+        assert result["fields"][field_name]["coverage_percent"] == 100.0
+    assert result["fields"]["vacancy_status"]["source_present"] == 0
+    assert result["identity_manifest"][0]["record_id"].startswith(
+        "accommodation:residence:"
+    )
+    assert result["identity_manifest"][0]["content_hash"]
+
+
+def test_support_source_present_fields_and_absent_fields_are_audited() -> None:
+    url = "https://anusa.com.au/student-assistance/academic/"
+    html = (
+        Path(__file__).resolve().parents[1]
+        / "fixtures" / "support" / "anusa_academic_sample.html"
+    ).read_text(encoding="utf-8")
+    result = audit(
+        DetailCandidate(
+            "support_service",
+            "academic",
+            url,
+            {
+                "title": "Academic Support",
+                "category": "Academic",
+                "audiences": ["all ANU Students"],
+                "cost": "The service is free.",
+                "registry_email": "sa.assistance@anu.edu.au",
+            },
+        ),
+        pages={url: html},
+    )["entity_classes"]["support_service"]
+
+    assert result["approved_records"] == 1
+    for field_name in ("purpose", "contact", "hours", "access", "topics", "referrals"):
+        assert result["fields"][field_name]["coverage_percent"] == 100.0
+
+
+def test_support_access_link_is_captured_without_internal_referral_false_positive() -> None:
+    url = "https://anusa.com.au/student-assistance/physical-and-mental-health/"
+    html = (
+        Path(__file__).resolve().parents[1]
+        / "fixtures" / "support" / "anusa_access_link_sample.html"
+    ).read_text(encoding="utf-8")
+    result = audit(
+        DetailCandidate(
+            "support_service",
+            "physical-and-mental-health",
+            url,
+            {"category": "Physical and Mental Health"},
+        ),
+        pages={url: html},
+    )["entity_classes"]["support_service"]
+
+    assert result["fields"]["access"]["source_present"] == 1
+    assert result["fields"]["access"]["captured"] == 1
+    assert result["fields"]["referrals"]["source_present"] == 0
+
+
+def test_events_window_filter_and_source_presence_are_audited() -> None:
+    fixture_root = Path(__file__).resolve().parents[1] / "fixtures" / "events"
+    inside_url = "https://www.anu.edu.au/events/window-opening"
+    outside_url = "https://www.anu.edu.au/events/outside-window"
+    result = DetailCoverageAuditor(
+        StaticFetcher(
+            {
+                inside_url: (fixture_root / "window-opening.html").read_text(encoding="utf-8"),
+                outside_url: (fixture_root / "outside-window.html").read_text(encoding="utf-8"),
+            }
+        ),
+        min_request_interval_seconds=0,
+        events_window_start=date(2026, 9, 19),
+        events_window_days=43,
+    ).audit(
+        [
+            DetailCandidate("event", "window-opening", inside_url),
+            DetailCandidate("event", "outside-window", outside_url),
+        ]
+    )["entity_classes"]["event"]
+
+    assert result["parsed_records"] == 2
+    assert result["approved_records"] == 1
+    assert result["outside_window"] == 1
+    assert result["rejected_by_reason"] == {"outside-frozen-window": 1}
+    for field_name in (
+        "event_id", "start_date", "end_date", "start_at", "end_at",
+        "location", "categories", "tags", "organiser", "description",
+        "registration_links",
+    ):
+        assert result["fields"][field_name]["coverage_percent"] == 100.0
+
+
+def test_event_mail_registration_is_not_counted_as_http_registration() -> None:
+    fixture_root = Path(__file__).resolve().parents[1] / "fixtures" / "events"
+    url = "https://www.anu.edu.au/events/window-opening"
+    html = (fixture_root / "window-opening.html").read_text(encoding="utf-8").replace(
+        "</body>", '<a href="mailto:events@anu.edu.au">Register through mail</a></body>'
+    ).replace(
+        "https://tickets.example/register/in-person", "mailto:events@anu.edu.au"
+    ).replace("https://zoom.example/register", "mailto:events@anu.edu.au")
+    result = audit(
+        DetailCandidate("event", "window-opening", url),
+        pages={url: html},
+    )["entity_classes"]["event"]
+
+    assert result["fields"]["registration_links"]["source_present"] == 0
+
+
+def test_events_discovery_refuses_incomplete_pagination(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeEventsCollector:
+        def __init__(self, **_kwargs) -> None:
+            pass
+
+        def discover_full_listing(self, **_kwargs):
+            return SimpleNamespace(
+                pagination_complete=False,
+                unique_link_count=12,
+            )
+
+    monkeypatch.setattr(detail_coverage, "EventsCollector", FakeEventsCollector)
+    with pytest.raises(RuntimeError, match="pagination is incomplete"):
+        detail_coverage.discover_candidates(
+            "events",
+            academic_year="2026",
+            max_listing_pages=1,
+            interval=0,
+        )
+
+
 
 def test_detail_discovery_refuses_unreconciled_scholarship_listing(
     monkeypatch: pytest.MonkeyPatch,
@@ -442,10 +595,19 @@ def test_detail_discovery_uses_dry_run_store_without_creating_local_data(
     )
 
     assert candidates == []
-    assert census == {"courses": {}}
+    assert census["courses"]["observed_unique"] == {}
+    assert census["courses"]["frozen_denominators"]["course"] == 500
+    assert census["courses"]["count_drift"]["course"] == -500
     assert observed == {
         "dry_run": True,
         "interval": 0,
         "academic_year": "2026",
     }
     assert not (tmp_path / "local-data").exists()
+
+
+def test_detail_coverage_refuses_to_overwrite_stale_evidence_artifact() -> None:
+    with pytest.raises(SystemExit, match="2"):
+        detail_coverage.main(
+            ["--output", "detail-coverage-evidence.json"]
+        )
