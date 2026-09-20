@@ -1,0 +1,12 @@
+{
+  "_fixture_note": "Synthetic sanitized out-of-window fixture.",
+  "success": true,
+  "data": {
+    "eventId": "90000",
+    "eventName": "November Community Event",
+    "eventTime": "2026-11-02T10:00:00+11:00",
+    "eventEndTime": "2026-11-02T11:00:00+11:00",
+    "eventOrganizer": "ANU Community Society",
+    "draft": false
+  }
+}

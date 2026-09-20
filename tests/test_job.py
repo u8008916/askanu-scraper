@@ -3,12 +3,12 @@ from __future__ import annotations
 
 import json
 from dataclasses import replace
+from datetime import date
 from pathlib import Path
 
 import pytest
 
 from askanu_scraper.common.fetcher import BaseFetcher, FetchError, MockFetcher
-from askanu_scraper.common.registry import UnapprovedSourceError
 from askanu_scraper.common.storage import LocalDataStore
 from askanu_scraper.job import (
     EXIT_CONFIGURATION_ERROR,
@@ -380,28 +380,32 @@ def test_source_and_domain_must_match_approved_implemented_collector(
         execute_job(wrong_domain, fetcher=AlwaysFailFetcher(), environ={})
 
 
-def test_inactive_source_is_rejected_before_fetch(tmp_path: Path) -> None:
-    inactive = replace(
+def test_bounded_rubric_source_requires_reviewed_endpoint_before_fetch(tmp_path: Path) -> None:
+    rubric = replace(
         make_config(tmp_path),
         source_id="rubric_unified_search",
         domain="events",
     )
 
-    with pytest.raises(UnapprovedSourceError, match="not approved for production"):
-        execute_job(inactive, fetcher=AlwaysFailFetcher(), environ={})
+    with pytest.raises(JobConfigurationError, match="exact reviewed"):
+        execute_job(rubric, fetcher=AlwaysFailFetcher(), environ={})
 
 
-def test_approved_but_unimplemented_domain_is_rejected_before_fetch(
+def test_approved_events_domain_is_implemented_and_reports_fetch_failure(
     tmp_path: Path,
 ) -> None:
     events = replace(
         make_config(tmp_path),
         source_id="events_anu_official",
         domain="events",
+        events_window_start=date(2026, 9, 19),
     )
 
-    with pytest.raises(JobConfigurationError, match="selected approved collector"):
-        execute_job(events, fetcher=AlwaysFailFetcher(), environ={})
+    result = execute_job(events, fetcher=AlwaysFailFetcher(), environ={})
+
+    assert result.exit_code == EXIT_INGESTION_FAILURE
+    assert result.summary["status"] == "FAILED"
+    assert result.summary["requested_events_window_start"] == "2026-09-19"
 
 
 def test_suspicious_zero_is_nonzero_and_writes_no_records(

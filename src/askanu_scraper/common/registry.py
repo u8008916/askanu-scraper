@@ -1,15 +1,17 @@
 """
 Machine-readable approved source registry.
 
-Per SOURCE_REGISTRY.md: Only approved sources may enter production.
-No collector may target a source missing from this registry or with active=False.
-
-Source approval decisions are owned by Qasim.
-Rubric remains PENDING_APPROVAL and non-production until approved access is documented.
+Per SOURCE_REGISTRY.md: Only reviewed sources may be collected. Production
+writes remain independently release-gated.
 """
 from __future__ import annotations
 
-from askanu_scraper.common.models import Domain, PollCadence, SourceRegistryEntry
+from askanu_scraper.common.models import (
+    Domain,
+    PollCadence,
+    SourceApprovalStatus,
+    SourceRegistryEntry,
+)
 
 
 class UnapprovedSourceError(Exception):
@@ -92,7 +94,9 @@ _REGISTRY: dict[str, SourceRegistryEntry] = {
             parser_name="askanu_scraper.sources.events.parser.EventsParser",
             active=True,
             notes=(
-                "Official ANU Events/calendar. "
+                "Official ANU Events/calendar; official Upcoming Events source. "
+                "Frozen window 2026-09-19 through 2026-10-31 inclusive; "
+                "bounded local collection is active while PostgreSQL remains gated. "
                 "This is the release-safe source regardless of Rubric approval status."
             ),
         ),
@@ -101,16 +105,18 @@ _REGISTRY: dict[str, SourceRegistryEntry] = {
         # ----------------------------------------------------------------
         SourceRegistryEntry(
             source_id="rubric_unified_search",
-            canonical_root="https://rubric.anu.edu.au",
+            canonical_root="https://campus.hellorubric.com",
             domain=Domain.EVENTS,
             authority_rank=3,
-            poll_cadence=PollCadence.DISABLED,
+            poll_cadence=PollCadence.DAILY,
             parser_name="askanu_scraper.sources.events.rubric_adapter.RubricAdapter",
-            active=False,
+            approval_status=SourceApprovalStatus.APPROVED_BOUNDED_UNSUPPORTED,
+            active=True,
             notes=(
-                "PENDING_APPROVAL. Non-production. "
-                "No use of undocumented/internal API without approved access. "
-                "Qasim coordinates approval."
+                "Written permission reported by Qasim for bounded AskANU ingestion. "
+                "The public-search endpoints are internal/unsupported and change-sensitive; "
+                "use only paced, cached, bounded collection. PostgreSQL and deployment "
+                "remain separately gated."
             ),
         ),
     ]
@@ -142,7 +148,7 @@ def assert_source_allowed(source_id: str) -> SourceRegistryEntry:
 
     Raises UnapprovedSourceError if:
     - the source_id is not in the registry, OR
-    - the source is registered but active=False (e.g., Rubric PENDING_APPROVAL).
+    - the source is registered but active=False.
 
     Every collector MUST call this before making any fetch request.
     """

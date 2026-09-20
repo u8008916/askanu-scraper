@@ -1,0 +1,129 @@
+{
+  "schema_version": "1",
+  "generated_at": "2026-09-20T09:32:32.1760107+10:00",
+  "repository": {
+    "base_sha": "bdf7a0f1e4a05a18deadcc0dc14eef74c4389ffb",
+    "implementation_state": "uncommitted Day 15 worktree",
+    "baseline_tests": 315,
+    "day15_full_suite": {
+      "command": ".\\.venv\\Scripts\\python.exe -m pytest -q --basetemp=.test-tmp-day15-final",
+      "status": "PASS",
+      "tests_collected": 365,
+      "tests_passed": 365,
+      "warnings": [
+        "Pytest cache path was not writable; the isolated --basetemp test run was unaffected."
+      ]
+    }
+  },
+  "source_contract": {
+    "source_id": "events_anu_official",
+    "canonical_root": "https://www.anu.edu.au/events",
+    "authority": "official ANU",
+    "active_sources": ["events_anu_official", "rubric_unified_search"],
+    "rubric_status": "APPROVED_BOUNDED_UNSUPPORTED",
+    "timezone": "Australia/Canberra",
+    "window_start": "2026-09-19",
+    "window_end_inclusive": "2026-10-31",
+    "window_days": 43,
+    "overlap_semantics": true,
+    "identity": "numeric Drupal node ID",
+    "record_id_format": "events:event:<node ID>",
+    "html_time_authoritative": true
+  },
+  "contract_correction": {
+    "status": "SUPERSEDED_BY_QASIM_FREEZE",
+    "evidence_file": "day15-events-contract-correction-evidence.json",
+    "note": "The historical 30-event run below remains frozen source evidence. Current producer identity, metadata serialization, date-only census, and 29/30 drift reconciliation are in the correction evidence file."
+  },
+  "official_live_dry_run": {
+    "run_id": "run_b4e70788d5ce",
+    "persisted": false,
+    "storage_backend": "local",
+    "dry_run": true,
+    "status": "SUCCESS",
+    "started_at": "2026-09-18T21:41:15.429625+10:00",
+    "completed_at": "2026-09-18T21:42:00.838090+10:00",
+    "duration_ms": 45414,
+    "request_spacing_seconds_minimum": 1,
+    "pages_traversed": 6,
+    "advertised_last_page": 5,
+    "pagination_complete": true,
+    "raw_cards": 34,
+    "unique_links": 33,
+    "duplicate_links": 1,
+    "details_fetched": 33,
+    "outside_window": 3,
+    "frozen_denominator": 30,
+    "minimum_accepted": 30,
+    "accepted": 30,
+    "entity_coverage_percent": 100.0,
+    "duplicate_event_ids": 0,
+    "duplicate_record_ids": 0,
+    "duplicate_canonical_urls": 0,
+    "recognized_source_present_facts": {
+      "numerator": 320,
+      "denominator": 320,
+      "coverage_percent": 100.0,
+      "method": "required facts plus optional v1 fields recognized and captured by the normalized parser"
+    },
+    "preliminary_denominator": 29,
+    "denominator_drift": "+1 event; recomputed by the implemented six-page census and frozen at 30"
+  },
+  "rubric_fixture_proof": {
+    "fixture_kind": "synthetic sanitized contract fixtures derived from documented capture fields; not verbatim production captures",
+    "status": "PASS",
+    "raw_results": 4,
+    "unique_event_ids": 3,
+    "duplicate_event_ids": 1,
+    "accepted_in_window": 2,
+    "outside_window": 1,
+    "live_search_endpoint_configured": false,
+    "live_frozen_denominator": null,
+    "combined_entity_coverage_percent": null,
+    "blocker": "The exact sanitized getUnifiedSearch request URL/capture is absent; 119 is an observed all-search count, not the frozen release denominator."
+  },
+  "representative_record": {
+    "record_id": "events:event:97875",
+    "canonical_url": "https://www.anu.edu.au/events/2026-indonesia-update-islamic-diversity-in-indonesia",
+    "content_hash": "b63510700c58a845227579e2c2c4ca9ee0156773150da05b0037b08625ed41bc",
+    "start_at": "2026-09-18T09:00:00+10:00",
+    "end_at": "2026-09-19T17:00:00+10:00",
+    "window_reason": "published interval overlaps the frozen window start"
+  },
+  "fixture_proofs": {
+    "dry_run_writes_nothing": "PASS",
+    "first_local_write_new": "PASS",
+    "identical_rerun_unchanged": "PASS",
+    "changed_content_preserves_identity_and_changes_hash": "PASS",
+    "fetch_failure_preserves_last_known_good": "PASS",
+    "parser_and_temporal_rejection": "PASS",
+    "incomplete_pagination_fails_before_detail_fetch": "PASS",
+    "coverage_below_99_percent_fails_before_record_write": "PASS",
+    "canberra_dst_transition": "PASS",
+    "date_only_does_not_invent_time": "PASS",
+    "explicit_cancellation_retained": "PASS",
+    "page_boundary_duplicate_deduplicated": "PASS"
+  },
+  "source_anomalies": [
+    {
+      "type": "html_ics_time_disagreement",
+      "observed_date": "2026-09-18",
+      "observation_time_note": "Exact inspection time was not retained; no precise timestamp is claimed.",
+      "decision": "Displayed HTML is authoritative; ICS values are not normalized."
+    }
+  ],
+  "gates_and_blockers": {
+    "postgres_write": "BLOCKED: no verifiable combined Events migration or Qasim release GO; both official and Rubric gates remain false",
+    "cloud_deployment": "BLOCKED: no release approval; no image or job created",
+    "scheduler": "BLOCKED: proposal only; no schedule created",
+    "cloud_execution_id": null,
+    "database_run_id": null,
+    "manual_fallback": "bounded dry-run command documented in README and Day 15 handoff",
+    "proposed_job": "askanu-scraper-events",
+    "proposed_schedule": "daily 03:45 Australia/Canberra",
+    "rubric": "bounded adapter implemented and fixture-tested; live census blocked on exact search endpoint artifact",
+    "rag_backend": "BLOCKED: askanu-rag repository is unavailable in this workspace",
+    "app_e2e": "BLOCKED: App repository/deployed Events contract is unavailable in this workspace",
+    "friday_feedback": "No accepted issue/source evidence supplied; no feedback data fix applied."
+  }
+}

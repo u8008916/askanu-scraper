@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 import json
 import os
 from pathlib import Path
@@ -44,6 +44,17 @@ from askanu_scraper.sources.support import (
     SOURCE_ID as SUPPORT_SOURCE_ID,
     SupportCollector,
 )
+from askanu_scraper.sources.events import (
+    LISTING_URL as EVENTS_LISTING_URL,
+    SOURCE_ID as EVENTS_SOURCE_ID,
+    EventsCollector,
+)
+from askanu_scraper.sources.events.rubric_adapter import (
+    SOURCE_ID as RUBRIC_SOURCE_ID,
+    HttpRubricTransport,
+    RubricAdapter,
+    RubricTransport,
+)
 
 
 EXIT_SUCCESS = 0
@@ -69,6 +80,12 @@ class SimulatedFailureFetcher(BaseFetcher):
     def fetch(self, url: str) -> str:
         del url
         raise FetchError("Simulated fetch failure")
+
+
+class SimulatedFailureRubricTransport:
+    def post_json(self, url: str, payload: Mapping[str, object]) -> str:
+        del url, payload
+        raise FetchError("Simulated Rubric fetch failure")
 
 
 @dataclass(frozen=True)
@@ -97,6 +114,16 @@ class JobConfig:
     accommodation_postgres_approved: bool = False
     max_support_details: int = 6
     support_postgres_approved: bool = False
+    max_events_listing_pages: int = 10
+    max_event_details: int = 100
+    events_window_start: date | None = None
+    events_window_days: int = 43
+    expected_event_count: int | None = None
+    events_postgres_approved: bool = False
+    max_rubric_listing_pages: int = 20
+    max_rubric_details: int = 250
+    rubric_search_endpoint: str | None = None
+    rubric_postgres_approved: bool = False
 
 
 @dataclass(frozen=True)
@@ -167,6 +194,14 @@ def build_parser() -> JobArgumentParser:
     parser.add_argument("--max-job-details")
     parser.add_argument("--max-accommodation-details")
     parser.add_argument("--max-support-details")
+    parser.add_argument("--max-events-listing-pages")
+    parser.add_argument("--max-event-details")
+    parser.add_argument("--events-window-start")
+    parser.add_argument("--events-window-days")
+    parser.add_argument("--expected-event-count")
+    parser.add_argument("--max-rubric-listing-pages")
+    parser.add_argument("--max-rubric-details")
+    parser.add_argument("--rubric-search-endpoint")
     parser.add_argument("--storage-path")
     parser.add_argument("--storage-backend")
     parser.add_argument("--timeout-seconds")
@@ -285,6 +320,72 @@ def load_config(
         minimum=1,
         maximum=6,
     )
+    max_events_listing_pages = _parse_int(
+        args.max_events_listing_pages
+        or env.get("SCRAPER_MAX_EVENTS_LISTING_PAGES", "10"),
+        name="SCRAPER_MAX_EVENTS_LISTING_PAGES/--max-events-listing-pages",
+        minimum=1,
+        maximum=100,
+    )
+    max_event_details = _parse_int(
+        args.max_event_details or env.get("SCRAPER_MAX_EVENT_DETAILS", "100"),
+        name="SCRAPER_MAX_EVENT_DETAILS/--max-event-details",
+        minimum=1,
+        maximum=2000,
+    )
+    raw_window_start = args.events_window_start or env.get(
+        "SCRAPER_EVENTS_WINDOW_START", ""
+    )
+    if raw_window_start:
+        try:
+            events_window_start = date.fromisoformat(raw_window_start)
+        except ValueError as exc:
+            raise JobConfigurationError(
+                "SCRAPER_EVENTS_WINDOW_START/--events-window-start must be YYYY-MM-DD"
+            ) from exc
+        if events_window_start.isoformat() != raw_window_start:
+            raise JobConfigurationError(
+                "SCRAPER_EVENTS_WINDOW_START/--events-window-start must be YYYY-MM-DD"
+            )
+    else:
+        events_window_start = now_canberra().date()
+    events_window_days = _parse_int(
+        args.events_window_days or env.get("SCRAPER_EVENTS_WINDOW_DAYS", "43"),
+        name="SCRAPER_EVENTS_WINDOW_DAYS/--events-window-days",
+        minimum=1,
+        maximum=366,
+    )
+    raw_expected_event_count = args.expected_event_count or env.get(
+        "SCRAPER_EXPECTED_EVENT_COUNT", ""
+    )
+    expected_event_count = (
+        _parse_int(
+            raw_expected_event_count,
+            name="SCRAPER_EXPECTED_EVENT_COUNT/--expected-event-count",
+            minimum=1,
+            maximum=2000,
+        )
+        if raw_expected_event_count
+        else None
+    )
+    max_rubric_listing_pages = _parse_int(
+        args.max_rubric_listing_pages
+        or env.get("SCRAPER_MAX_RUBRIC_LISTING_PAGES", "20"),
+        name="SCRAPER_MAX_RUBRIC_LISTING_PAGES/--max-rubric-listing-pages",
+        minimum=1,
+        maximum=100,
+    )
+    max_rubric_details = _parse_int(
+        args.max_rubric_details or env.get("SCRAPER_MAX_RUBRIC_DETAILS", "250"),
+        name="SCRAPER_MAX_RUBRIC_DETAILS/--max-rubric-details",
+        minimum=1,
+        maximum=2000,
+    )
+    rubric_search_endpoint = (
+        args.rubric_search_endpoint
+        or env.get("SCRAPER_RUBRIC_SEARCH_ENDPOINT", "")
+        or None
+    )
 
     dry_run = (
         args.dry_run
@@ -332,6 +433,22 @@ def load_config(
             name="SCRAPER_SUPPORT_POSTGRES_APPROVED",
         )
         if source_id == SUPPORT_SOURCE_ID
+        else False
+    )
+    events_postgres_approved = (
+        _parse_bool(
+            env.get("SCRAPER_EVENTS_POSTGRES_APPROVED", "false"),
+            name="SCRAPER_EVENTS_POSTGRES_APPROVED",
+        )
+        if source_id == EVENTS_SOURCE_ID
+        else False
+    )
+    rubric_postgres_approved = (
+        _parse_bool(
+            env.get("SCRAPER_RUBRIC_POSTGRES_APPROVED", "false"),
+            name="SCRAPER_RUBRIC_POSTGRES_APPROVED",
+        )
+        if source_id == RUBRIC_SOURCE_ID
         else False
     )
     timeout_seconds = _parse_int(
@@ -384,6 +501,16 @@ def load_config(
         accommodation_postgres_approved=accommodation_postgres_approved,
         max_support_details=max_support_details,
         support_postgres_approved=support_postgres_approved,
+        max_events_listing_pages=max_events_listing_pages,
+        max_event_details=max_event_details,
+        events_window_start=events_window_start,
+        events_window_days=events_window_days,
+        expected_event_count=expected_event_count,
+        events_postgres_approved=events_postgres_approved,
+        max_rubric_listing_pages=max_rubric_listing_pages,
+        max_rubric_details=max_rubric_details,
+        rubric_search_endpoint=rubric_search_endpoint,
+        rubric_postgres_approved=rubric_postgres_approved,
     )
 
 
@@ -480,6 +607,43 @@ def _summary_from_run(
             if config.source_id == SUPPORT_SOURCE_ID
             else None
         ),
+        "requested_max_events_listing_pages": (
+            config.max_events_listing_pages
+            if config.source_id == EVENTS_SOURCE_ID
+            else None
+        ),
+        "requested_max_event_details": (
+            config.max_event_details if config.source_id == EVENTS_SOURCE_ID else None
+        ),
+        "requested_events_window_start": (
+            config.events_window_start.isoformat()
+            if config.source_id in {EVENTS_SOURCE_ID, RUBRIC_SOURCE_ID}
+            and config.events_window_start
+            else None
+        ),
+        "requested_events_window_days": (
+            config.events_window_days
+            if config.source_id in {EVENTS_SOURCE_ID, RUBRIC_SOURCE_ID}
+            else None
+        ),
+        "requested_expected_event_count": (
+            config.expected_event_count
+            if config.source_id in {EVENTS_SOURCE_ID, RUBRIC_SOURCE_ID}
+            else None
+        ),
+        "requested_max_rubric_listing_pages": (
+            config.max_rubric_listing_pages
+            if config.source_id == RUBRIC_SOURCE_ID
+            else None
+        ),
+        "requested_max_rubric_details": (
+            config.max_rubric_details if config.source_id == RUBRIC_SOURCE_ID else None
+        ),
+        "rubric_search_endpoint_configured": (
+            config.rubric_search_endpoint is not None
+            if config.source_id == RUBRIC_SOURCE_ID
+            else None
+        ),
         "status": run.status.value,
         "dry_run": config.dry_run,
         "started_at": _isoformat(run.started_at),
@@ -506,6 +670,7 @@ def execute_job(
     store: DataStore | None = None,
     environ: Mapping[str, str] | None = None,
     sleep_func: Callable[[float], None] | None = None,
+    rubric_transport: RubricTransport | None = None,
 ) -> JobResult:
     """Execute exactly one bounded collector run and return its outcome."""
 
@@ -522,6 +687,8 @@ def execute_job(
         (JOBS_SOURCE_ID, "jobs"),
         (ACCOMMODATION_SOURCE_ID, "accommodation"),
         (SUPPORT_SOURCE_ID, "support"),
+        (EVENTS_SOURCE_ID, "events"),
+        (RUBRIC_SOURCE_ID, "events"),
     }
     if (config.source_id, config.domain) not in supported:
         raise JobConfigurationError(
@@ -558,6 +725,26 @@ def execute_job(
     ):
         raise JobConfigurationError(
             "Support PostgreSQL writes require the cross-repo schema approval gate"
+        )
+    if (
+        config.source_id == EVENTS_SOURCE_ID
+        and config.storage_backend == "postgres"
+        and not config.events_postgres_approved
+    ):
+        raise JobConfigurationError(
+            "Events PostgreSQL writes require the migration and Qasim/Carmen approval gate"
+        )
+    if (
+        config.source_id == RUBRIC_SOURCE_ID
+        and config.storage_backend == "postgres"
+        and not config.rubric_postgres_approved
+    ):
+        raise JobConfigurationError(
+            "Rubric PostgreSQL writes require Qasim's reviewed migration and release GO"
+        )
+    if config.source_id == RUBRIC_SOURCE_ID and not config.rubric_search_endpoint:
+        raise JobConfigurationError(
+            "Rubric requires the exact reviewed SCRAPER_RUBRIC_SEARCH_ENDPOINT capture"
         )
 
     selected_fetcher = fetcher
@@ -639,7 +826,7 @@ def execute_job(
             listing_url=ACCOMMODATION_LISTING_URL,
             max_details=config.max_accommodation_details,
         )
-    else:
+    elif config.source_id == SUPPORT_SOURCE_ID:
         collector = SupportCollector(
             fetcher=selected_fetcher,
             store=selected_store,
@@ -649,6 +836,52 @@ def execute_job(
         run, _, _ = collector.run_listing(
             listing_url=SUPPORT_LISTING_URL,
             max_details=config.max_support_details,
+        )
+    elif config.source_id == EVENTS_SOURCE_ID:
+        collector = EventsCollector(
+            fetcher=selected_fetcher,
+            store=selected_store,
+            min_request_interval_seconds=config.min_request_interval_seconds,
+            sleep_func=sleep_func,
+        )
+        if config.events_window_start is None:
+            raise JobConfigurationError("Events requires a window start date")
+        run, _, _ = collector.run_listing(
+            listing_url=EVENTS_LISTING_URL,
+            max_listing_pages=config.max_events_listing_pages,
+            max_details=config.max_event_details,
+            window_start=config.events_window_start,
+            window_days=config.events_window_days,
+            expected_event_count=config.expected_event_count,
+        )
+    else:
+        selected_rubric_transport = rubric_transport
+        if selected_rubric_transport is None:
+            selected_rubric_transport = (
+                SimulatedFailureRubricTransport()
+                if config.simulate_fetch_failure
+                else HttpRubricTransport(
+                    timeout_seconds=config.timeout_seconds,
+                    user_agent=env.get("SCRAPER_USER_AGENT", "AskANU/0.1"),
+                    sleep_func=sleep_func or time.sleep,
+                )
+            )
+        collector = RubricAdapter(
+            search_endpoint=config.rubric_search_endpoint,
+            transport=selected_rubric_transport,
+            store=selected_store,
+            timeout_seconds=config.timeout_seconds,
+            min_request_interval_seconds=config.min_request_interval_seconds,
+            sleep_func=sleep_func or time.sleep,
+        )
+        if config.events_window_start is None:
+            raise JobConfigurationError("Rubric Events requires a window start date")
+        run, _, _ = collector.run_listing(
+            max_listing_pages=config.max_rubric_listing_pages,
+            max_details=config.max_rubric_details,
+            window_start=config.events_window_start,
+            window_days=config.events_window_days,
+            expected_event_count=config.expected_event_count,
         )
     duration_ms = max(0, round((time.monotonic() - started) * 1000))
     return _summary_from_run(
@@ -684,6 +917,14 @@ def _error_result(
         "requested_max_job_details": None,
         "requested_max_accommodation_details": None,
         "requested_max_support_details": None,
+        "requested_max_events_listing_pages": None,
+        "requested_max_event_details": None,
+        "requested_events_window_start": None,
+        "requested_events_window_days": None,
+        "requested_expected_event_count": None,
+        "requested_max_rubric_listing_pages": None,
+        "requested_max_rubric_details": None,
+        "rubric_search_endpoint_configured": None,
         "status": status,
         "dry_run": None,
         "started_at": _isoformat(started_at),

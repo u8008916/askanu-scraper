@@ -94,6 +94,43 @@ writes require the respective
 `SCRAPER_SUPPORT_POSTGRES_APPROVED=true` gate after the shared contract and
 runtime migration are approved.
 
+Official ANU Events is the sixth-domain release source. The frozen Day 15
+window is 19 September through 31 October 2026 inclusive (43 calendar days),
+with a live-recomputed denominator of 30 overlapping events. Run the bounded
+read-only census with:
+
+```powershell
+askanu-scraper-job --source-id events_anu_official --domain events `
+  --max-events-listing-pages 6 --max-event-details 100 `
+  --events-window-start 2026-09-19 --events-window-days 43 `
+  --expected-event-count 30 --dry-run
+```
+
+The collector waits at least one second between live requests, deduplicates
+page-boundary links and node IDs, and fails before persistence on incomplete
+pagination, identity/canonical conflicts, zero results, or coverage below 99%.
+`SCRAPER_EVENTS_POSTGRES_APPROVED=false` remains the default until the Events
+migration and Qasim/Carmen approval are cited.
+
+Rubric has written permission for bounded AskANU ingestion, but its endpoints
+remain internal/unsupported. The adapter therefore has no guessed discovery
+URL. After Qasim supplies the exact sanitized capture, run a non-persisted
+fixture/live review with:
+
+```powershell
+$env:SCRAPER_RUBRIC_SEARCH_ENDPOINT = "<exact reviewed HTTPS endpoint>"
+.\.venv\Scripts\python.exe -m askanu_scraper.job `
+  --source-id rubric_unified_search --domain events --dry-run `
+  --max-rubric-listing-pages 20 --max-rubric-details 250 `
+  --events-window-start 2026-09-19 --events-window-days 43
+```
+
+The adapter sends no cookies or authorization tokens, paces requests, retries
+only transient failures, deduplicates IDs before detail calls, caches each
+detail once per run and preserves last-known-good on malformed, incomplete,
+empty or failed responses. PostgreSQL remains blocked by
+`SCRAPER_RUBRIC_POSTGRES_APPROVED=false` until Qasim's reviewed release GO.
+
 The Day 6 container image defaults `SCRAPER_DRY_RUN=true`: Cloud Run executions
 must stay dry-run while `LocalDataStore` is the active persistence adapter,
 because its `/data` filesystem is not durable. Enable

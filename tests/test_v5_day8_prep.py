@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup
 
-from askanu_scraper.common.models import PollCadence
+from askanu_scraper.common.models import PollCadence, SourceApprovalStatus
 from askanu_scraper.common.registry import get_source
 
 
@@ -32,8 +32,9 @@ def test_future_domain_registry_boundaries_remain_explicit() -> None:
         assert source.canonical_root == canonical_root
 
     rubric = get_source("rubric_unified_search")
-    assert rubric.active is False
-    assert rubric.poll_cadence == PollCadence.DISABLED
+    assert rubric.active is True
+    assert rubric.poll_cadence == PollCadence.DAILY
+    assert rubric.approval_status == SourceApprovalStatus.APPROVED_BOUNDED_UNSUPPORTED
 
 
 def test_scholarship_listing_sample_has_supported_provenance_and_fields() -> None:

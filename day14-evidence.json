@@ -1,0 +1,448 @@
+{
+  "schema_version": "1",
+  "captured_at": "2026-09-18T12:42:00+10:00",
+  "evidence_kind": "Day 14 pre-demo read-only source health and provenance support; not a production data lock",
+  "demo_gate": {
+    "decision": "GO_WITH_CARRY_OVER",
+    "six_domain_pass": false,
+    "reason": "Five domains have source-health or last-known-good evidence. Events has no runnable collector, frozen denominator, record, or run ID in this repository, so a six-domain data PASS cannot be claimed.",
+    "qasim_release_decision_required": true,
+    "safe_demo_fallback": "Use the frozen five-domain evidence and an explicit unavailable/no-evidence Events state unless Qasim supplies a separately verified known-good official-Events snapshot."
+  },
+  "repository": {
+    "branch": "main",
+    "commit": "bdf7a0f1e4a05a18deadcc0dc14eef74c4389ffb",
+    "python": "3.13.5",
+    "working_tree_note": "The pre-existing untracked detail-coverage-evidence.json was not modified or used as current evidence.",
+    "preserved_stale_artifact_sha256": "d711219fc96aa6b8152048bd582a99fe3840ec4c62583f10ab8c1b0aca353cdd"
+  },
+  "constraints": {
+    "production_writes": 0,
+    "cloud_jobs_triggered": 0,
+    "deployments": 0,
+    "scheduler_changes": 0,
+    "schema_changes": 0,
+    "source_registry_changes": 0,
+    "parser_changes": 0,
+    "rubric_requests": 0,
+    "starrez_requests": 0
+  },
+  "verification": {
+    "full_suite": {
+      "command": ".\\.venv\\Scripts\\python.exe -m pytest -q -p no:cacheprovider --basetemp .test-tmp-day14-full",
+      "result": "315 passed",
+      "duration_seconds": 4.63
+    },
+    "focused_recovery": {
+      "command": ".\\.venv\\Scripts\\python.exe -m pytest tests/test_day13_failure_recovery.py -q -p no:cacheprovider --basetemp .test-tmp-day14-focused",
+      "result": "17 passed",
+      "duration_seconds": 0.43,
+      "coverage": [
+        "HTTP 5xx",
+        "timeout",
+        "parser failure",
+        "suspicious zero",
+        "atomic transaction failure",
+        "recovery to SUCCESS/UNCHANGED",
+        "secret redaction"
+      ]
+    }
+  },
+  "read_only_breadth_census": {
+    "captured_at": "2026-09-18T12:37:02.460781+10:00",
+    "status": "SUCCESS",
+    "dry_run": true,
+    "details_fetched": false,
+    "records_written": false,
+    "courses": {
+      "source_id": "courses_programs_and_courses",
+      "listing_requests": 19,
+      "frozen_unique": {
+        "course": 500,
+        "program": 393,
+        "major": 109,
+        "minor": 126,
+        "specialisation": 128
+      },
+      "observed_unique": {
+        "course": 500,
+        "program": 393,
+        "major": 109,
+        "minor": 126,
+        "specialisation": 128
+      },
+      "raw_specialisations": 129,
+      "duplicate_count": 1,
+      "rejected_count": 0,
+      "reconciled": true,
+      "source_shape_notes": [
+        "GetMajors advertised 132 and returned 109 rows.",
+        "GetMinors advertised 144 and returned 126 rows.",
+        "GetSpecialisations advertised 153 and returned 129 rows; one duplicate normalized to 128 unique records.",
+        "The collector reconciled every primary feed under its existing source-aware rules."
+      ]
+    },
+    "scholarships": {
+      "source_id": "scholarships_anu_finder",
+      "listing_requests": 41,
+      "frozen_approved_denominator": 379,
+      "observed_headline_total": 405,
+      "observed_raw_discovered": 405,
+      "observed_approved_unique": 379,
+      "rejected_external_scholarships": 26,
+      "duplicate_count": 0,
+      "reconciled": true,
+      "interpretation": "The old approved denominator remains 379 and independently matches the current approved unique count; the 405 headline includes 26 rejected external scholarships."
+    },
+    "jobs": {
+      "source_id": "jobs_anu_search",
+      "listing_requests": 3,
+      "day11_snapshot": 55,
+      "day13_advertised_total": 50,
+      "observed_advertised_total": 57,
+      "observed_raw_discovered": 87,
+      "observed_approved_unique": 57,
+      "duplicate_count": 30,
+      "rejected_count": 0,
+      "reconciled": true,
+      "interpretation": "57 is a timestamped source snapshot, not deletion, missing-record, or write authority. The 30 repeats were pagination overlap and deduplicated to the advertised 57 unique roles."
+    }
+  },
+  "bounded_live_dry_runs": [
+    {
+      "domain": "courses",
+      "run_id": "run_f345711ef53a",
+      "status": "SUCCESS",
+      "persisted": false,
+      "records_seen": 2,
+      "request_count": 4,
+      "duplicate_record_id_count": 0,
+      "duplicate_canonical_url_count": 0
+    },
+    {
+      "domain": "scholarships",
+      "run_id": "run_fcfe35ce8de4",
+      "status": "SUCCESS",
+      "persisted": false,
+      "records_seen": 1,
+      "request_count": 2,
+      "duplicate_record_id_count": 0,
+      "duplicate_canonical_url_count": 0,
+      "listing_reconciled": false,
+      "note": "This deliberately bounded one-page run is paired with the separately successful full read-only census."
+    },
+    {
+      "domain": "jobs",
+      "run_id": "run_af705fde6d83",
+      "status": "SUCCESS",
+      "persisted": false,
+      "records_seen": 1,
+      "request_count": 2,
+      "duplicate_record_id_count": 0,
+      "duplicate_canonical_url_count": 0,
+      "listing_reconciled": false,
+      "note": "This deliberately bounded one-page run is paired with the separately successful full read-only census."
+    },
+    {
+      "domain": "accommodation",
+      "run_id": "run_3c98637bf635",
+      "status": "SUCCESS",
+      "persisted": false,
+      "records_seen": 1,
+      "request_count": 2,
+      "observed_listing_count": 19,
+      "frozen_entity_count": 19,
+      "duplicate_record_id_count": 0,
+      "duplicate_canonical_url_count": 0
+    },
+    {
+      "domain": "support",
+      "run_id": "run_09ffd0a1b6f3",
+      "status": "SUCCESS",
+      "persisted": false,
+      "records_seen": 1,
+      "request_count": 2,
+      "observed_listing_count": 6,
+      "frozen_entity_count": 6,
+      "duplicate_record_id_count": 0,
+      "duplicate_canonical_url_count": 0
+    }
+  ],
+  "pre_demo_recheck": {
+    "jobs": {
+      "run_id": "run_9f294c1318f7",
+      "status": "FAILED",
+      "persisted": false,
+      "records_seen": 0,
+      "error": "Listing fetch failed after retries because the approved public endpoint returned an empty response body.",
+      "disposition": "FALLBACK_LAST_KNOWN_GOOD; stop retrying, preserve current data, and do not convert the 57-role census into writes or missing records."
+    }
+  },
+  "representative_provenance": [
+    {
+      "domain": "courses",
+      "record_id": "courses:course:COMP1100_2026",
+      "source_id": "courses_programs_and_courses",
+      "canonical_url": "https://programsandcourses.anu.edu.au/2026/course/comp1100",
+      "content_hash": "7f7c62ad63b5c2e4dce22e0407235072666aa52d10534207de87ca83bbe03b50",
+      "title": "Programming as Problem Solving",
+      "evidence": "live approved page parsed during a non-persistent Day 14 collector run"
+    },
+    {
+      "domain": "scholarships",
+      "record_id": "scholarships:scholarship:anu-international-achievement-award",
+      "source_id": "scholarships_anu_finder",
+      "canonical_url": "https://study.anu.edu.au/scholarships/find-scholarship/anu-international-achievement-award",
+      "content_hash": "1fa2ad951d43a00e91f3cff8fff115daa8c7087c40509e4c161e9c0e3d85336a",
+      "title": "ANU International Achievement Award",
+      "evidence": "live approved page parsed during a non-persistent Day 14 collector run"
+    },
+    {
+      "domain": "jobs",
+      "record_id": "jobs:job:563693",
+      "source_id": "jobs_anu_search",
+      "canonical_url": "https://jobs.anu.edu.au/jobs/senior-consultant-user-experience-hr-systems-projects-canberra-act-act-australia",
+      "content_hash": "548d2b2eb5d745da1c53d3d1417379c52389759c8cf4b9d034f897a1b328bf47",
+      "title": null,
+      "evidence": "Day 13 last-known-good representative; the Day 14 bounded run succeeded but did not expose its record identity, and the subsequent recheck failed, so no current representative hash is claimed"
+    },
+    {
+      "domain": "accommodation",
+      "record_id": "accommodation:residence:yukeembruk",
+      "source_id": "accommodation_anu_study",
+      "canonical_url": "https://study.anu.edu.au/accommodation/our-residences/yukeembruk",
+      "content_hash": "bbc87d145a03e4cb20e076ea8bd531e00ca48a09e20a0d8c4907f0063abb57ed",
+      "title": "Yukeembruk",
+      "evidence": "live approved page parsed during a non-persistent Day 14 collector run"
+    },
+    {
+      "domain": "support",
+      "record_id": "support:support_service:academic",
+      "source_id": "support_anusa_student_assistance",
+      "canonical_url": "https://anusa.com.au/student-assistance/academic/",
+      "content_hash": "0abfa8db6ff6e50fbd61bd5799a264cb61c32f2432948f2bee4dcf25aab732a5",
+      "title": "Academic Support",
+      "evidence": "live approved page parsed during a non-persistent Day 14 collector run"
+    }
+  ],
+  "domain_status": [
+    {
+      "domain": "courses",
+      "status": "GREEN",
+      "reason": "Frozen entity counts matched, the bounded run succeeded, and a live representative canonical record parsed successfully. Full-detail field coverage was not rerun or re-claimed."
+    },
+    {
+      "domain": "scholarships",
+      "status": "GREEN",
+      "reason": "The full census reconciled 405 raw cards to 379 approved records after rejecting 26 external scholarships, and a live representative record parsed successfully."
+    },
+    {
+      "domain": "jobs",
+      "status": "FALLBACK_LAST_KNOWN_GOOD",
+      "reason": "A full census and first bounded run succeeded at 57 current roles, but a later pre-demo recheck returned an empty listing after retries. No writes or missing-record transitions are authorized."
+    },
+    {
+      "domain": "accommodation",
+      "status": "GREEN",
+      "reason": "The listing remained exactly 19 and a representative canonical record parsed with zero duplicate identity or URL findings."
+    },
+    {
+      "domain": "support",
+      "status": "GREEN",
+      "reason": "The listing remained exactly 6 and a representative canonical record parsed with zero duplicate identity or URL findings."
+    },
+    {
+      "domain": "events",
+      "status": "BLOCKED",
+      "reason": "No runnable official ANU Events collector, frozen entity denominator, representative record, or known-good run exists in this repository. Rubric is inactive and was not accessed."
+    }
+  ],
+  "known_good_snapshot": [
+    {
+      "domain": "courses",
+      "day13_run_id": "run_dc7a12ea9431",
+      "day14_run_id": "run_f345711ef53a",
+      "count_state": "500 courses, 393 programs, 109 majors, 126 minors, 128 specialisations",
+      "persistence": "local dry-run evidence only"
+    },
+    {
+      "domain": "scholarships",
+      "day13_run_id": "run_417fa17bae54",
+      "day14_run_id": "run_fcfe35ce8de4",
+      "count_state": "379 approved of 405 raw cards; 26 external cards rejected",
+      "persistence": "local dry-run evidence only"
+    },
+    {
+      "domain": "jobs",
+      "day13_run_id": "run_d90a630b31d1",
+      "day14_run_id": "run_af705fde6d83",
+      "count_state": "57 unique current roles in the successful census; later recheck failed",
+      "persistence": "last-known-good/local dry-run evidence only"
+    },
+    {
+      "domain": "accommodation",
+      "day13_run_id": "run_51d1c7f07088",
+      "day14_run_id": "run_3c98637bf635",
+      "count_state": "19 of 19 frozen residences",
+      "persistence": "local dry-run evidence only"
+    },
+    {
+      "domain": "support",
+      "day13_run_id": "run_98201f5aaaf6",
+      "day14_run_id": "run_09ffd0a1b6f3",
+      "count_state": "6 of 6 frozen categories",
+      "persistence": "local dry-run evidence only"
+    },
+    {
+      "domain": "events",
+      "day13_run_id": null,
+      "day14_run_id": null,
+      "count_state": "unavailable",
+      "persistence": "no collector record or run exists; none fabricated"
+    }
+  ],
+  "demo_question_support": {
+    "exact_qasim_carmen_question_list_available": false,
+    "rag_repository_available": false,
+    "verified_source_candidates": [
+      "COMP1100 identity, title and canonical source",
+      "ANU International Achievement Award identity and canonical source",
+      "Jobs last-known-good provenance plus explicit transient-unavailable behavior",
+      "Yukeembruk identity and canonical source",
+      "ANUSA Academic Support identity and canonical source",
+      "Events explicit unavailable/no-evidence behavior"
+    ],
+    "handoff": "Qasim/Carmen must map their exact frozen demo questions to these records or provide the missing record IDs before claiming rehearsal PASS."
+  },
+  "technical_explanation": {
+    "approved_sources": "Collectors may fetch only active machine-registry entries within their canonical boundaries; Rubric remains inactive and StarRez remains link-only.",
+    "stable_ids": "record_id and entity_id identify the logical source entity and do not change merely because source wording changes.",
+    "content_hash": "SHA-256 of canonical normalized content; the same hash means no logical content change and a different hash means CHANGED without changing identity.",
+    "idempotency": "Rerunning the same record compares record_id and content_hash, yielding UNCHANGED rather than a duplicate or re-embedding signal.",
+    "last_known_good": "Fetch, parse, validation and suspicious-zero failures record failure state but do not replace or delete the current approved record set."
+  },
+  "cloud_observation": {
+    "read_only": true,
+    "project": "askanu-dev-gdg",
+    "region": "australia-southeast1",
+    "job": "askanu-scraper",
+    "ready": true,
+    "generation": 20,
+    "execution_count": 28,
+    "configured_image_digest": "sha256:0b4b2da3ad6977b7b1aef556460e668e6ac637fb53f0eba7dd1df5d91169f8b5",
+    "runtime_service_account": "askanu-scraper-runtime@askanu-dev-gdg.iam.gserviceaccount.com",
+    "storage_backend": "postgres",
+    "current_dry_run": true,
+    "configured_source_id": "courses_programs_and_courses",
+    "configured_bounds": {
+      "courses": 1,
+      "programs": 1,
+      "request_timeout_seconds": 30,
+      "minimum_request_interval_seconds": 1,
+      "task_timeout_seconds": 600,
+      "task_max_retries": 0
+    },
+    "latest_execution": {
+      "execution_id": "askanu-scraper-d2m8q",
+      "created_at": "2026-09-17T17:15:03.477523Z",
+      "completed_at": "2026-09-17T17:15:20.277684Z",
+      "status": "SUCCESS",
+      "creator": "askanu-scraper-scheduler@askanu-dev-gdg.iam.gserviceaccount.com",
+      "persisted": false,
+      "run_id": null,
+      "note": "The execution snapshot proves SCRAPER_DRY_RUN=true. Its structured run ID/count log was not available through the read-only command used here."
+    },
+    "recent_executions": {
+      "observed": 10,
+      "succeeded": 9,
+      "failed": 1,
+      "failed_execution_id": "askanu-scraper-ptbpx",
+      "failed_execution_created_at": "2026-09-17T06:12:19.048750Z",
+      "note": "Recent history contains manually configured SCRAPER_DRY_RUN=false executions. Day 14 triggered none and did not audit their persisted rows."
+    },
+    "scheduler_visibility": "PERMISSION_DENIED for cloudscheduler.jobs.get; configuration and retry policy are not claimed.",
+    "cloud_job_inventory_visibility": "PERMISSION_DENIED for run.jobs.list; the existence or health of separate domain or Events jobs cannot be claimed.",
+    "production_dataset_read": "not performed; current source_records and durable ingestion_runs remain a Qasim-owned read-only evidence request"
+  },
+  "feedback_triage": {
+    "reported_items": [],
+    "note": "No presentation feedback item was supplied during this evidence capture. New items must include domain, expected and actual behavior, approved source URL, observation time, reproduction, severity, owner, and next action before acceptance.",
+    "classification_rules": {
+      "source_absent": "Document unavailable source evidence; do not infer a value.",
+      "stored_data_stale": "Create a freshness/operations issue without manual database edits.",
+      "parser_defect": "Capture the smallest sanitized approved-source fixture and add a regression test.",
+      "new_or_unapproved_source": "Escalate source approval to Qasim; do not collect it."
+    }
+  },
+  "incident_notes": [
+    {
+      "incident_id": "DAY14-JOBS-TRANSIENT-EMPTY",
+      "domain": "jobs",
+      "observed_at": "2026-09-18T12:41:39.388840+10:00",
+      "severity": "P1 carry-over; fallback during demo",
+      "symptom": "The approved Jobs listing returned an empty response body after retries during the final recheck.",
+      "containment": "Stopped retries, performed no write or deletion, retained last-known-good, and marked Jobs fallback explicitly.",
+      "source_url": "https://jobs.anu.edu.au/jobs/search",
+      "follow_up": "Reproduce after the presentation freeze and distinguish upstream intermittency from collector retry behavior."
+    },
+    {
+      "incident_id": "DAY14-EVENTS-NO-SNAPSHOT",
+      "domain": "events",
+      "observed_at": "2026-09-18T12:42:00+10:00",
+      "severity": "P1 release/demo blocker unless explicit unavailable fallback is accepted",
+      "symptom": "No official Events collector, run ID, denominator, or representative normalized record exists in this repository.",
+      "containment": "Did not invent data or enable Rubric; documented the unavailable state for Qasim's release decision.",
+      "source_url": "https://www.anu.edu.au/events",
+      "follow_up": "Implement and approve the bounded official-source Events path on Day 15."
+    }
+  ],
+  "prioritized_issues": [
+    {
+      "priority": "P0 during demo window",
+      "issue": "No confirmed P0 is open.",
+      "owner": "Will/Qasim",
+      "action": "Keep parsers, registry, deployment, scheduler and schemas frozen unless a source-backed safety or materially incorrect demo-data defect is reproduced."
+    },
+    {
+      "priority": "P1",
+      "issue": "The requested six-domain PASS is blocked because Events has no known-good source snapshot or runnable collector.",
+      "owner": "Will/Qasim",
+      "action": "Qasim chooses an explicit unavailable fallback for the demo or supplies independently verified Events evidence; Will implements the official-source collector on Day 15."
+    },
+    {
+      "priority": "P1",
+      "issue": "Jobs became intermittently unhealthy after a successful 57-role census and bounded dry-run.",
+      "owner": "Will",
+      "action": "Use last-known-good for the demo; investigate after the freeze with bounded source checks and never infer deletion from count drift."
+    },
+    {
+      "priority": "P1",
+      "issue": "Current persisted source_records and ingestion_runs were not read.",
+      "owner": "Qasim",
+      "action": "Provide separately approved read-only counts and latest durable run IDs; until then this artifact is source/candidate evidence, not a production data lock."
+    },
+    {
+      "priority": "P1",
+      "issue": "Courses, Scholarships and Jobs still lack a current reviewed full-detail field audit.",
+      "owner": "Will",
+      "action": "Run after the demo freeze; do not infer 99% field coverage from representative records."
+    },
+    {
+      "priority": "P2",
+      "issue": "Scheduler configuration is not visible to the current principal.",
+      "owner": "Qasim",
+      "action": "Provide a read-only Scheduler description; do not change cadence or retries during the presentation freeze."
+    }
+  ],
+  "day15_events_handoff": {
+    "official_source": "Official ANU Events/calendar remains the required release-safe source.",
+    "unresolved": [
+      "Exact production target URL and its pagination contract",
+      "Release window, recommended current Canberra date through 42 days unless the approved source has a better natural boundary",
+      "Stable event identity and cancellation/update behavior",
+      "Required source-present field denominator and safe request bounds"
+    ],
+    "rubric_status": "PENDING_APPROVAL, inactive, not requested or accessed on Day 14",
+    "starrez_status": "link-only, never fetched"
+  }
+}
