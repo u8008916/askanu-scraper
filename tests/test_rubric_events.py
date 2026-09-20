@@ -275,15 +275,18 @@ def test_official_and_rubric_failures_are_source_isolated(tmp_path: Path) -> Non
     )
     assert official.status == rubric.status == IngestionRunStatus.SUCCESS
     record_dir = path / "records"
+    rubric_pattern = "events__event__rubric-*.json"
     official_before = {
         item.name: item.read_bytes()
         for item in record_dir.glob("events__event__*.json")
-        if "__rubric__" not in item.name
+        if not item.name.startswith("events__event__rubric-")
     }
     rubric_before = {
         item.name: item.read_bytes()
-        for item in record_dir.glob("events__event__rubric__*.json")
+        for item in record_dir.glob(rubric_pattern)
     }
+    assert official_before
+    assert rubric_before
 
     official_failed, _, _ = EventsCollector(
         fetcher=OfficialFixtureFetcher(fail_details=True),
@@ -299,7 +302,7 @@ def test_official_and_rubric_failures_are_source_isolated(tmp_path: Path) -> Non
     assert official_failed.status == IngestionRunStatus.FAILED
     assert rubric_before == {
         item.name: item.read_bytes()
-        for item in record_dir.glob("events__event__rubric__*.json")
+        for item in record_dir.glob(rubric_pattern)
     }
 
     rubric_failed, _, _ = run(
@@ -316,7 +319,7 @@ def test_official_and_rubric_failures_are_source_isolated(tmp_path: Path) -> Non
     assert official_before == {
         item.name: item.read_bytes()
         for item in record_dir.glob("events__event__*.json")
-        if "__rubric__" not in item.name
+        if not item.name.startswith("events__event__rubric-")
     }
 
 

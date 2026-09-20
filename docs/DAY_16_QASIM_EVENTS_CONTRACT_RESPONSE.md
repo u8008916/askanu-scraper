@@ -1,5 +1,13 @@
 # Events producer contract response to Qasim
 
+## Historical pre-freeze evidence
+
+The producer examples and comparison below were captured before Qasim froze
+the shared Event representation and before the final PR #32 correction was
+merged. They are retained unchanged as historical review evidence. In
+particular, `rubric:78459`, the old producer metadata keys and statements that
+the contract was pending are not the current executable contract.
+
 Day 15 scraper PR #32 remains unchanged at
 `7b9d463ba1f35bc87b9573bbf743b3b17caf3e83`. The Day 16 operational-freeze
 work is a separate stacked branch. This response documents producer truth; it
@@ -172,3 +180,22 @@ decision; the producer will not silently collapse them.
   bounded live census.
 - No producer identity or metadata change will be committed until Qasim freezes
   the shared contract.
+
+## Current post-freeze state — 21 September 2026
+
+- Scraper Events implementation and correction: PR #32 merged.
+- RAG Events consumer implementation: PR #31 merged.
+- Producer contract: `CLOSED`.
+- Consumer contract: `CLOSED`.
+- Cross-repository representation: `FROZEN`.
+- Current Rubric identity uses `source_event_id=78459`,
+  `entity_id=rubric-78459`, and
+  `record_id=events:event:rubric-78459`.
+- The persisted Events metadata vocabulary is the strict shared representation
+  documented in `DATA_SCHEMA.md`; the historical producer vocabulary above is
+  not restored by Day 16 code or tests.
+
+Contract closure does not authorize production ingestion. Official Events and
+Rubric PostgreSQL gates remain closed; no migration, write, deployment, Cloud
+execution, Scheduler change or bounded live Rubric census occurred during the
+Day 16 branch refresh.

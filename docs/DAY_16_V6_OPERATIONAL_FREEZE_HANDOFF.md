@@ -9,6 +9,18 @@ separately approved, unsupported supplementary source and is blocked on the
 exact sanitized `getUnifiedSearch` request-contract verification capture.
 Endpoint discovery itself is complete.
 
+## Contract state after the branch refresh
+
+This branch is based on current scraper `main` after merged PR #32. Carmen's
+corresponding RAG Events PR #31 is also merged. The Events producer contract,
+consumer contract and cross-repository representation are therefore closed and
+frozen. The active Rubric identity is `rubric-<source_event_id>` with record ID
+`events:event:rubric-<source_event_id>`.
+
+This closes the former producer/consumer reconciliation blocker only. Events
+production migration/write authorization, Rubric request-contract review and
+the source-health blockers below remain open.
+
 ## Release posture
 
 The authoritative machine-readable snapshot is `day16-source-health.json`.
@@ -73,11 +85,19 @@ There are no persisted ingestion-run IDs for Day 16.
 
 ## Verification
 
-- Focused recovery, Rubric isolation, Support, coverage and Events suites:
-  93 passed.
-- Complete regression suite: 377 passed, up from the 365-test baseline.
-- JSON validation, registry checks, `git diff --check` and the staged secret
-  scan are release checks recorded in the final source-health snapshot.
+The historical pre-freeze branch recorded 93 focused and 377 full-suite
+passes. After rebasing onto current main and adapting the Day 16 audit to the
+merged Events contract, verification was rerun from the refreshed branch:
+
+- Focused detail-coverage, recovery, Support, Events and Rubric isolation
+  suites: 90 passed.
+- Complete regression suite: 380 passed.
+- Registry suite: 13 passed.
+- JSON validation and `git diff --check`: passed.
+- Tracked/staged secret-pattern scan: passed.
+
+The focused count is the exact collection from the documented refreshed test
+command, not an attempt to preserve the historical 93-test number.
 
 ## Refresh matrix
 
@@ -163,7 +183,9 @@ Rubric failure does not modify official records.
 - Qasim: attach the exact sanitized reviewed Rubric request/response capture.
 - Will: run and freeze the bounded Rubric window census after that capture is
   available; the previously observed 119 is not a denominator.
-- Qasim/Carmen: review the Events append-only migration and contract alignment.
+- Qasim/Carmen: review the approved Events migration execution evidence and
+  issue an explicit production-write GO or HOLD; the shared contract itself is
+  already frozen and merged.
 - Will/Qasim: after explicit write GO, perform first-write and unchanged-run
   verification and independently check persisted counts, provenance and URLs.
 - Qasim: grant read-only Scheduler Viewer access or provide a timestamped

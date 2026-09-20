@@ -406,6 +406,23 @@ def test_event_mail_registration_is_not_counted_as_http_registration() -> None:
     assert result["fields"]["registration_links"]["source_present"] == 0
 
 
+def test_event_date_only_evidence_is_reported_without_inventing_a_time() -> None:
+    fixture_root = Path(__file__).resolve().parents[1] / "fixtures" / "events"
+    url = "https://www.anu.edu.au/events/cancelled-exhibition"
+    result = audit(
+        DetailCandidate("event", "cancelled-exhibition", url),
+        pages={
+            url: (fixture_root / "date-only-cancelled.html").read_text(
+                encoding="utf-8"
+            )
+        },
+    )["entity_classes"]["event"]
+
+    assert result["parsed_records"] == 1
+    assert result["approved_records"] == 0
+    assert result["rejected_by_reason"] == {"date-only-contract-review": 1}
+
+
 def test_events_discovery_refuses_incomplete_pagination(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

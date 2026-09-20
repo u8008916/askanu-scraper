@@ -707,6 +707,33 @@ def _record_values(candidate: DetailCandidate, record: CommonRecord) -> dict[str
             "elective_study": _content_value(record, "Elective Study"),
             "study_options": _content_value(record, "Study Options"),
         }
+    if candidate.entity_class == "event":
+        # Coverage names describe source facts, not persisted metadata keys.
+        # Map the frozen Events contract back to those facts without restoring
+        # the superseded producer metadata shape.
+        return common | {
+            "event_id": metadata.get("source_event_id"),
+            "start_date": (
+                record.effective_from.date().isoformat()
+                if record.effective_from is not None else None
+            ),
+            "end_date": (
+                record.effective_to.date().isoformat()
+                if record.effective_to is not None else None
+            ),
+            "start_at": metadata.get("start_at"),
+            "end_at": metadata.get("end_at"),
+            "timezone": metadata.get("timezone"),
+            "location": metadata.get("venue_name"),
+            "format": _content_value(record, "Format"),
+            "categories": _content_value(record, "Categories"),
+            "tags": metadata.get("tags"),
+            "organiser": metadata.get("organiser_name"),
+            "description": _content_value(record, "Description"),
+            "registration_links": _content_value(record, "Registration"),
+            "status": metadata.get("cancellation_status"),
+            "cancellation_text": _content_value(record, "Cancellation"),
+        }
     return common | dict(metadata)
 
 
@@ -813,8 +840,16 @@ class DetailCoverageAuditor:
             if values:
                 report["parsed_records"] = int(report["parsed_records"]) + 1
                 if candidate.entity_class == "event":
-                    event_start = date.fromisoformat(str(values["start_date"]))
-                    event_end = date.fromisoformat(str(values["end_date"]))
+                    start_value = values.get("start_date")
+                    end_value = values.get("end_date")
+                    if not isinstance(start_value, str) or not isinstance(end_value, str):
+                        reasons = report["rejected_by_reason"]
+                        reasons["date-only-contract-review"] = (
+                            int(reasons.get("date-only-contract-review", 0)) + 1
+                        )
+                        continue
+                    event_start = date.fromisoformat(start_value)
+                    event_end = date.fromisoformat(end_value)
                     if not (
                         event_start <= self._events_window_end
                         and event_end >= self._events_window_start

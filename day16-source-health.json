@@ -1,6 +1,30 @@
 {
   "captured_at": "2026-09-20T10:49:37.564925+10:00",
   "finalized_at": "2026-09-20T14:44:56.4886743+10:00",
+  "historical_snapshot": {
+    "contract_state": "captured before the final Events producer/consumer freeze",
+    "preservation": "Original source-health counts, timestamps, run IDs and manifests below are retained as captured."
+  },
+  "current_contract_state": {
+    "as_of": "2026-09-21",
+    "base_branch": "main",
+    "base_sha": "3e927eb6534ef4ff8e5414e5595d7ca967e85b12",
+    "scraper_pr_32": "MERGED",
+    "rag_pr_31": "MERGED",
+    "producer_contract": "CLOSED",
+    "consumer_contract": "CLOSED",
+    "cross_repo_representation": "FROZEN",
+    "rubric_entity_id_format": "rubric-<source_event_id>",
+    "rubric_record_id_format": "events:event:rubric-<source_event_id>",
+    "production_operations_authorized": false,
+    "note": "Contract closure does not change the historical source-health classifications or open operational release gates."
+  },
+  "base_refresh": {
+    "previous_base_sha": "7b9d463ba1f35bc87b9573bbf743b3b17caf3e83",
+    "new_base_sha": "3e927eb6534ef4ff8e5414e5595d7ca967e85b12",
+    "method": "rebase",
+    "conflicts": []
+  },
   "evidence_scope": {
     "mode": "read-only live audit and local dry-runs",
     "cloud_execution_triggered": false,
@@ -18,6 +42,18 @@
     "git_diff_check": "passed",
     "json_validation": "passed",
     "staged_secret_scan": "passed"
+  },
+  "post_rebase_verification": {
+    "focused_command": ".\\.venv\\Scripts\\python.exe -m pytest tests/test_detail_coverage.py tests/test_day13_failure_recovery.py tests/test_support_parser.py tests/test_events_collector.py tests/test_rubric_events.py -q --basetemp=.test-tmp-day16-refresh-focused-3",
+    "focused_tests_passed": 90,
+    "full_command": ".\\.venv\\Scripts\\python.exe -m pytest -q --basetemp=.test-tmp-day16-refresh-full-2",
+    "full_tests_passed": 380,
+    "full_tests_failed": 0,
+    "registry_tests_passed": 13,
+    "json_validation": "passed",
+    "git_diff_check": "passed",
+    "secret_pattern_scan": "passed",
+    "pytest_warning": "Pytest cache directory was not writable; isolated basetemp runs and test results were unaffected."
   },
   "final_domain_health": {
     "courses": {
