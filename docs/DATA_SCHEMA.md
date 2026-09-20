@@ -854,8 +854,8 @@ Rubric community-event records use:
 ```text
 domain = "events"
 source_id = "rubric_unified_search"
-entity_id = "rubric:<numeric Rubric event ID>"
-record_id = "events:event:rubric:<numeric Rubric event ID>"
+entity_id = "rubric-<numeric Rubric event ID>"
+record_id = "events:event:rubric-<numeric Rubric event ID>"
 ```
 
 The canonical URL is an exact credential-free, query-free and fragment-free
@@ -864,24 +864,33 @@ The canonical URL is an exact credential-free, query-free and fragment-free
 The Rubric canonical URL is exactly
 `https://campus.hellorubric.com/?eid=<numeric event ID>`.
 
-`metadata_json` contains exactly: `entity_type` (`"event"`), `event_id`,
-`start_date`, `end_date`, `start_at`, `end_at`, `timezone`, `location`,
-`format`, `categories`, `tags`, `organiser`, `description`,
-`registration_links`, `status`, and `cancellation_text`. Categories, tags and
-registration links are arrays; a registration link contains only `label` and
-a credential-free HTTP(S) `url`, which is retained but never fetched.
-`end_date`, `end_at`, and top-level `effective_to` may remain null when Rubric
-publishes a start but no end. No end time is inferred.
+`metadata_json` contains exactly: `entity_type` (`"event"`),
+`source_event_id`, `start_at`, `end_at`, `timezone`, `organiser_name`,
+`venue_name`, `address`, `latitude`, `longitude`, `category`, `tags`,
+`registration_url`, `source_status`, `cancellation_status`, and `audience`.
+The producer maps a raw source location only to `venue_name`; it leaves
+`address`, `latitude`, and `longitude` null unless separately explicit. Exactly
+one source category maps to `category`; zero or multiple categories map to
+null, with every category retained in common record content. Exactly one
+credential-free HTTP(S) registration destination maps to `registration_url`;
+zero or multiple destinations map to null, with their labels and URLs retained
+in content. Registration destinations are never fetched. `end_at` and
+top-level `effective_to` may remain null when Rubric publishes a start but no
+end. No end time is inferred.
 
-Displayed HTML is authoritative for dates and times. Calendar dates and exact
-times use `Australia/Canberra`, including daylight-saving transitions. Exact
-times are mirrored into top-level `effective_from` and `effective_to`. For
-date-only evidence both exact-time fields and both effective fields remain
-null. Multiple explicitly displayed occurrences use the earliest published
-start and latest published end. `status` is null unless a status is explicit;
-explicit cancellations remain ingestible with `status = "cancelled"` and the
-published wording in `cancellation_text`. Contact people are not inferred to
-be organisers, and format is not inferred from location.
+Displayed HTML is authoritative for dates and times. Exact times use
+`Australia/Canberra`, including daylight-saving transitions, and mirror into
+top-level `effective_from` and `effective_to`. The current bounded census has
+no date-only official records. Because this shared metadata contract contains
+no date-only boundary fields, any future date-only official record blocks the
+run before persistence for contract review rather than receiving invented
+times. Multiple explicitly displayed occurrences use the earliest published
+start and latest published end. Explicit cancellation maps only to
+`cancellation_status = "cancelled"`; exact cancellation wording stays in
+content, and `source_status` remains separate. Description and explicit
+official format also remain in content rather than structured metadata.
+Contact people are not inferred to be organisers, and format is not inferred
+from location.
 
 The release snapshot is Canberra-local 2026-09-19 through 2026-10-31
 inclusive, evaluated by interval overlap. Its recomputed frozen denominator is
@@ -934,8 +943,10 @@ Scholarship filter arrays are the explicit exception: missing `study_stage`,
 Jobs `employment_types` is also always an array; missing evidence is `[]` under
 the approved Jobs v1 contract.
 
-Events `categories`, `tags`, and `registration_links` are also always arrays;
-missing source evidence is `[]` under the Events v1 contract.
+Events `tags` is always an array; missing source evidence is `[]` under the
+Events v1 contract. Singular `category` and `registration_url` are null when
+the source publishes zero or multiple values; all source-backed values remain
+available in common record content.
 
 Required identity fields must not be silently replaced with placeholders.
 

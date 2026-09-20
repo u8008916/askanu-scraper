@@ -30,6 +30,11 @@
     "record_id_format": "events:event:<node ID>",
     "html_time_authoritative": true
   },
+  "contract_correction": {
+    "status": "SUPERSEDED_BY_QASIM_FREEZE",
+    "evidence_file": "day15-events-contract-correction-evidence.json",
+    "note": "The historical 30-event run below remains frozen source evidence. Current producer identity, metadata serialization, date-only census, and 29/30 drift reconciliation are in the correction evidence file."
+  },
   "official_live_dry_run": {
     "run_id": "run_b4e70788d5ce",
     "persisted": false,

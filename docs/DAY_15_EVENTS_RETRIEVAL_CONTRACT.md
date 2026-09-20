@@ -14,9 +14,12 @@ repositories. It does not authorize network calls from a user request path.
 
 ## Deterministic temporal behavior
 
-Interpret `start_at`/`end_at` in `Australia/Canberra`. Date-only official
-records use `start_date`/`end_date`. A Rubric record with no end is a point
-event for window filtering; retrieval must not invent duration.
+Interpret `start_at`/`end_at` in `Australia/Canberra`. The current bounded
+official census contains no date-only records. Because the shared persisted
+contract has no date-only boundary fields, a future date-only official record
+blocks ingestion for contract review rather than receiving invented times. A
+Rubric record with no end is a point event for window filtering; retrieval
+must not invent duration.
 
 Upcoming excludes records whose known end is before now; when no end exists,
 compare the start. Today, tomorrow, Friday, weekend, this week, next week and
@@ -35,8 +38,8 @@ same real-world event only when:
 
 1. normalized titles are equal;
 2. exact starts are within 15 minutes, or both are date-only on the same date;
-3. at least one non-empty strong corroborator matches: normalized venue or
-   organiser.
+3. at least one non-empty strong corroborator matches: normalized
+   `venue_name` or `organiser_name`.
 
 Do not merge on title alone. Within a duplicate group, present the official
 record and retain the Rubric canonical URL as alternate provenance. Same-title
@@ -49,6 +52,8 @@ events at different times or without a matching corroborator remain separate.
 - Never equate a ticket-sale window with the event interval.
 - Missing venue, price, availability or registration state stays unknown.
 - Registration URLs are shown only when stored.
+- `cancellation_status` carries only explicit cancellation semantics;
+  `source_status` is separate and remains null when unsupported.
 
 The companion `fixtures/events/events-retrieval-contract.json` freezes the
 official-only, broad-chat and duplicate/non-duplicate examples for porting into

@@ -156,6 +156,34 @@ def test_detail_parser_failure_preserves_last_known_good(tmp_path: Path) -> None
     assert before == after
 
 
+def test_date_only_detail_blocks_persistence_and_is_reported(tmp_path: Path) -> None:
+    fetcher = EventsFixtureFetcher()
+    fetcher.responses[f"{LISTING_URL}/dst-event"] = (
+        (FIXTURES / "date-only-cancelled.html").read_text(encoding="utf-8")
+        .replace("cancelled-exhibition", "dst-event")
+        .replace('"1004"', '"1002"')
+        .replace('data-history-node-id="1004"', 'data-history-node-id="1002"')
+    )
+    path = tmp_path / "store"
+    collector = EventsCollector(fetcher=fetcher, store=LocalDataStore(path))
+    result, records, _ = run(collector)
+
+    assert result.status == IngestionRunStatus.FAILED
+    assert result.error == (
+        "Official Event has date-only evidence requiring shared-contract review"
+    )
+    assert records == []
+    assert collector.last_run_sanity["date_only_start_count"] == 1
+    assert collector.last_run_sanity["date_only_end_count"] == 1
+    assert collector.last_run_sanity["date_only_start_records"] == [
+        {
+            "record_id": "events:event:1002",
+            "canonical_url": "https://www.anu.edu.au/events/dst-event",
+        }
+    ]
+    assert list((path / "records").glob("*.json")) == []
+
+
 def test_atomic_persistence_failure_writes_no_event_records(tmp_path: Path) -> None:
     class FailingStore(LocalDataStore):
         def save_records_and_run(self, records, run):

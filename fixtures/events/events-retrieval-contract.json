@@ -20,24 +20,24 @@
         "record_id": "events:event:97875",
         "title": "Indonesia Update",
         "start_at": "2026-09-19T09:00:00+10:00",
-        "location": "ANU Acton campus",
-        "organiser": "ANU College"
+        "venue_name": "ANU Acton campus",
+        "organiser_name": "ANU College"
       },
       "rubric": {
-        "record_id": "events:event:rubric:78459",
+        "record_id": "events:event:rubric-78459",
         "title": "Indonesia Update",
         "start_at": "2026-09-19T09:10:00+10:00",
-        "location": "ANU Acton campus",
-        "organiser": "Student Society"
+        "venue_name": "ANU Acton campus",
+        "organiser_name": "Student Society"
       },
       "expected_primary_record_id": "events:event:97875",
-      "expected_alternate_provenance": ["events:event:rubric:78459"]
+      "expected_alternate_provenance": ["events:event:rubric-78459"]
     },
     {
       "name": "same title different time remains separate",
       "records": [
         {"record_id": "events:event:100", "title": "Weekly Seminar", "start_at": "2026-09-20T10:00:00+10:00"},
-        {"record_id": "events:event:rubric:100", "title": "Weekly Seminar", "start_at": "2026-09-21T10:00:00+10:00"}
+        {"record_id": "events:event:rubric-100", "title": "Weekly Seminar", "start_at": "2026-09-21T10:00:00+10:00"}
       ],
       "expected_visible_count": 2
     }

@@ -250,22 +250,36 @@ class EventsParser(BaseParser):
             status = "cancelled"
             cancellation_text = title
         registration_links = _registration_links(soup, canonical_url)
+        category = categories[0] if len(categories) == 1 else None
+        registration_url = (
+            registration_links[0]["url"] if len(registration_links) == 1 else None
+        )
         metadata: dict[str, object] = {
-            "entity_type": "event", "event_id": event_id,
-            "start_date": start_date.isoformat(), "end_date": end_date.isoformat(),
+            "entity_type": "event", "source_event_id": event_id,
             "start_at": start_at.isoformat() if start_at else None,
             "end_at": end_at.isoformat() if end_at else None,
-            "timezone": "Australia/Canberra", "location": location, "format": fmt,
-            "categories": categories, "tags": tags, "organiser": organiser,
-            "description": description, "registration_links": registration_links,
-            "status": status, "cancellation_text": cancellation_text,
+            "timezone": "Australia/Canberra",
+            "organiser_name": organiser,
+            "venue_name": location,
+            "address": None,
+            "latitude": None,
+            "longitude": None,
+            "category": category,
+            "tags": tags,
+            "registration_url": registration_url,
+            "source_status": None,
+            "cancellation_status": status,
+            "audience": None,
         }
+        registration_content = "; ".join(
+            f"{item['label']}: {item['url']}" for item in registration_links
+        ) or None
         labels = (
             ("Title", title), ("Date and times", date_text), ("Location", location),
             ("Format", fmt), ("Categories", "; ".join(categories) or None),
             ("Tags", "; ".join(tags) or None), ("Presented by", organiser),
             ("Description", description),
-            ("Registration", "; ".join(item["label"] for item in registration_links) or None),
+            ("Registration", registration_content),
             ("Status", status), ("Cancellation", cancellation_text),
         )
         content = "\n".join(f"{label}: {value}" for label, value in labels if value)

@@ -81,6 +81,8 @@ class EventsCollector:
             "entity_coverage_percent": None,
             "source_present_fact_numerator": 0, "source_present_fact_denominator": 0,
             "source_present_fact_coverage_percent": None,
+            "date_only_start_count": 0, "date_only_end_count": 0,
+            "date_only_start_records": [], "date_only_end_records": [],
             "representative_records": [],
             "source_anomalies": [SOURCE_ANOMALY],
         }
@@ -163,22 +165,31 @@ class EventsCollector:
 
     @staticmethod
     def _in_window(record: CommonRecord, start: date, end: date) -> bool:
-        metadata = record.metadata_json
-        event_start = date.fromisoformat(str(metadata["start_date"]))
-        event_end = date.fromisoformat(str(metadata["end_date"]))
+        if record.effective_from is None or record.effective_to is None:
+            raise ParseError(
+                "Official Event has date-only evidence requiring shared-contract review"
+            )
+        event_start = record.effective_from.date()
+        event_end = record.effective_to.date()
         return event_start <= end and event_end >= start
 
     @staticmethod
     def _fact_coverage(records: list[CommonRecord]) -> tuple[int, int]:
         numerator = denominator = 0
         for record in records:
-            for value in (record.entity_id, record.title, record.canonical_url, record.metadata_json["start_date"]):
+            for value in (
+                record.entity_id,
+                record.title,
+                record.canonical_url,
+                record.metadata_json["source_event_id"],
+            ):
                 denominator += 1
                 if value:
                     numerator += 1
             for key in (
-                "end_date", "start_at", "end_at", "location", "format", "categories", "tags",
-                "organiser", "description", "registration_links", "status", "cancellation_text",
+                "start_at", "end_at", "venue_name", "category", "tags",
+                "organiser_name", "registration_url", "source_status",
+                "cancellation_status", "audience",
             ):
                 value = record.metadata_json[key]
                 if value not in (None, [], ""):
@@ -194,6 +205,14 @@ class EventsCollector:
     ) -> None:
         accepted = records or []
         numerator, denominator = self._fact_coverage(accepted)
+        date_only_start = [
+            record for record in accepted
+            if record.metadata_json.get("start_at") is None
+        ]
+        date_only_end = [
+            record for record in accepted
+            if record.metadata_json.get("end_at") is None
+        ]
         minimum = math.ceil(expected_count * 0.99) if expected_count is not None else None
         entity_denominator = expected_count if expected_count is not None else eligible_count
         self.last_run_sanity = {
@@ -221,6 +240,16 @@ class EventsCollector:
             "source_present_fact_coverage_percent": (
                 round(numerator * 100 / denominator, 2) if denominator else None
             ),
+            "date_only_start_count": len(date_only_start),
+            "date_only_end_count": len(date_only_end),
+            "date_only_start_records": [
+                {"record_id": record.record_id, "canonical_url": record.canonical_url}
+                for record in date_only_start[:5]
+            ],
+            "date_only_end_records": [
+                {"record_id": record.record_id, "canonical_url": record.canonical_url}
+                for record in date_only_end[:5]
+            ],
             "representative_records": [
                 {
                     "record_id": record.record_id,
@@ -304,6 +333,14 @@ class EventsCollector:
                 ):
                     return fail("Event detail failed identity/provenance validation", discovery)
                 parsed_records.append(record)
+                if record.effective_from is None or record.effective_to is None:
+                    return fail(
+                        "Official Event has date-only evidence requiring shared-contract review",
+                        discovery,
+                        records=parsed_records,
+                        eligible_count=len(eligible),
+                        rejected=rejected,
+                    )
                 if self._in_window(record, window_start, window_end):
                     eligible.append(record)
                 else:

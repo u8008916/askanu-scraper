@@ -26,6 +26,14 @@ approval ID, correspondent, date, endpoint path, header or payload field.
   detail per unique ID, normalize, validate, then persist only after release
   approval.
 
+The frozen producer identity is `source_event_id=<numeric event ID>`,
+`entity_id=rubric-<numeric event ID>`, and
+`record_id=events:event:rubric-<numeric event ID>`. The shared persisted
+metadata uses the exact Events vocabulary in `DATA_SCHEMA.md`. In particular,
+Rubric `eventStatus`, ticket availability, missing price, missing venue,
+missing registration and draft state are not converted into unsupported user
+claims.
+
 The handoff does not contain the exact search request URL. The implementation
 therefore requires `SCRAPER_RUBRIC_SEARCH_ENDPOINT`; it has no guessed default
 and accepts only HTTPS port 9090 paths under

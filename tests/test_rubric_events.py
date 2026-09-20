@@ -115,18 +115,18 @@ def test_detail_normalizes_source_identity_and_does_not_overinterpret_ticket_fie
     record = parse_detail(
         fixture("rubric-detail-78459.json"), "78459", now_func=lambda: NOW
     )
-    assert record.record_id == "events:event:rubric:78459"
-    assert record.entity_id == "rubric:78459"
+    assert record.record_id == "events:event:rubric-78459"
+    assert record.entity_id == "rubric-78459"
     assert record.source_id == "rubric_unified_search"
     assert record.canonical_url == "https://campus.hellorubric.com/?eid=78459"
-    assert record.metadata_json["format"] is None
-    assert record.metadata_json["status"] is None
+    assert record.metadata_json["source_status"] is None
+    assert record.metadata_json["cancellation_status"] is None
     assert "9989" not in record.content
     assert "Available" not in record.content
     assert "bad()" not in record.content
-    assert record.metadata_json["registration_links"] == [
-        {"label": "Event link", "url": "https://example.org/anuisa/bonfire-registration"}
-    ]
+    assert record.metadata_json["registration_url"] == (
+        "https://example.org/anuisa/bonfire-registration"
+    )
 
 
 def test_missing_end_and_optional_fields_remain_null_without_inference() -> None:
@@ -135,8 +135,8 @@ def test_missing_end_and_optional_fields_remain_null_without_inference() -> None
     )
     assert record.effective_from is not None
     assert record.effective_to is None
-    assert record.metadata_json["end_date"] is None
-    assert record.metadata_json["location"] is None
+    assert record.metadata_json["end_at"] is None
+    assert record.metadata_json["venue_name"] is None
     assert record.metadata_json["tags"] == ["Social", "Sport"]
 
 
@@ -214,7 +214,7 @@ def test_first_write_unchanged_and_changed_hash(tmp_path: Path) -> None:
 
     changed, changed_records, _ = run(adapter(path, ChangedTransport()))
     assert changed.records_changed == 1
-    assert changed_records[0].record_id == "events:event:rubric:78459"
+    assert changed_records[0].record_id == "events:event:rubric-78459"
     assert changed_records[0].content_hash != first_hash
 
 

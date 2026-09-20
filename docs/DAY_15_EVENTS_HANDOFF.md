@@ -33,10 +33,19 @@ Date-only pages do not receive invented times. Exact times mirror into
 `effective_from` and `effective_to`.
 
 The parser preserves explicit location, format, presenter/organiser,
-categories, tags, description, registration destinations, status and
-cancellation wording. It does not treat a contact person as organiser, infer a
-format, fetch registration destinations, or execute embedded markup. A
-published cancellation remains an ingestible event.
+categories, tags, description, registration destinations and cancellation
+wording. The frozen shared metadata maps location to `venue_name`, organiser
+to `organiser_name`, exactly one category to `category`, exactly one
+registration destination to `registration_url`, and explicit cancellation to
+`cancellation_status`. Information that cannot be represented losslessly stays
+in common record content. It does not treat a contact person as organiser,
+infer a format, fetch registration destinations, or execute embedded markup.
+A published cancellation remains an ingestible event.
+
+The current bounded official census has no date-only records. Since the shared
+persisted metadata has no date-only boundary fields, any future date-only
+official record fails before persistence for shared-contract review rather
+than receiving an invented time.
 
 The official ICS export disagreed with displayed HTML times during source
 inspection. That discrepancy is a source anomaly; displayed HTML is
@@ -118,6 +127,11 @@ draft/window exclusions, dry-run, `NEW`/`UNCHANGED`/`CHANGED`, suspicious zero,
 incomplete pagination, detail failure and last-known-good. Ambiguous
 `eventStatus`, `ticketsPossiblyAvailable` and sale windows are not normalized
 into unsupported user claims.
+
+The frozen Rubric identity is `entity_id=rubric-<numeric event ID>` and
+`record_id=events:event:rubric-<numeric event ID>`. The shared metadata
+vocabulary is documented in `DATA_SCHEMA.md`; `source_event_id` retains the
+unqualified numeric source identity.
 
 No live Rubric denominator or combined-source coverage percentage is claimed.
 The handoff did not include the exact search request URL or the underlying

@@ -280,23 +280,27 @@ def parse_detail(raw: str, expected_event_id: str, *, now_func: Callable[[], dat
             and parsed_event_url.password is None
         ):
             registration_links.append({"label": "Event link", "url": event_url.strip()})
+    category = categories[0] if len(categories) == 1 else None
+    registration_url = (
+        registration_links[0]["url"] if len(registration_links) == 1 else None
+    )
     metadata: dict[str, object] = {
         "entity_type": "event",
-        "event_id": event_id,
-        "start_date": start_at.date().isoformat(),
-        "end_date": end_at.date().isoformat() if end_at else None,
+        "source_event_id": event_id,
         "start_at": start_at.isoformat(),
         "end_at": end_at.isoformat() if end_at else None,
         "timezone": "Australia/Canberra",
-        "location": location,
-        "format": None,
-        "categories": categories,
+        "organiser_name": organiser,
+        "venue_name": location,
+        "address": None,
+        "latitude": None,
+        "longitude": None,
+        "category": category,
         "tags": tags,
-        "organiser": organiser,
-        "description": description,
-        "registration_links": registration_links,
-        "status": None,
-        "cancellation_text": None,
+        "registration_url": registration_url,
+        "source_status": None,
+        "cancellation_status": None,
+        "audience": None,
     }
     labels = (
         ("Title", title),
@@ -315,9 +319,9 @@ def parse_detail(raw: str, expected_event_id: str, *, now_func: Callable[[], dat
     if observed_at.tzinfo is None or observed_at.utcoffset() is None:
         raise ParseError("Rubric parser clock must be timezone-aware")
     return CommonRecord(
-        record_id=f"events:event:rubric:{event_id}",
+        record_id=f"events:event:rubric-{event_id}",
         source_id=SOURCE_ID,
-        entity_id=f"rubric:{event_id}",
+        entity_id=f"rubric-{event_id}",
         domain=Domain.EVENTS,
         title=title,
         content=content,
@@ -520,9 +524,10 @@ class RubricAdapter:
 
     @staticmethod
     def _in_window(record: CommonRecord, window_start: date, window_end: date) -> bool:
-        start = date.fromisoformat(str(record.metadata_json["start_date"]))
-        raw_end = record.metadata_json["end_date"]
-        end = date.fromisoformat(str(raw_end)) if raw_end else start
+        if record.effective_from is None:
+            raise ParseError("Rubric Event is missing its required source-backed start time")
+        start = record.effective_from.date()
+        end = (record.effective_to or record.effective_from).date()
         return start <= window_end and end >= window_start
 
     def _capture_sanity(
@@ -544,21 +549,19 @@ class RubricAdapter:
                 record.entity_id,
                 record.title,
                 record.canonical_url,
-                record.metadata_json["start_date"],
+                record.metadata_json["source_event_id"],
                 record.metadata_json["start_at"],
             ):
                 fact_denominator += 1
                 if value:
                     fact_numerator += 1
             for key in (
-                "end_date",
                 "end_at",
-                "location",
-                "categories",
+                "venue_name",
+                "category",
                 "tags",
-                "organiser",
-                "description",
-                "registration_links",
+                "organiser_name",
+                "registration_url",
             ):
                 value = record.metadata_json[key]
                 if value not in (None, "", []):
