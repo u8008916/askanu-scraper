@@ -13,10 +13,7 @@ from askanu_scraper.job import JobConfig, JobConfigurationError, execute_job, lo
 
 
 FIXTURES = Path(__file__).parents[1] / "fixtures" / "events"
-RUBRIC_SEARCH_ENDPOINT = (
-    "https://appserver.getqpay.com:9090/"
-    "AppServerSwapnil/search/getUnifiedSearch"
-)
+RUBRIC_SEARCH_ENDPOINT = "https://api.hellorubric.com/"
 
 
 def config(path: Path) -> JobConfig:
@@ -65,16 +62,18 @@ def test_events_postgres_is_fail_closed_before_fetch(tmp_path: Path) -> None:
 
 
 class RubricFixtureTransport:
-    def post_json(self, url: str, payload: Mapping[str, object]) -> str:
+    def post_search(self, url: str, payload: Mapping[str, object]) -> str:
         del url
-        if "desiredType" in payload:
-            name = (
-                "rubric-search-page-0.json"
-                if payload["offset"] == 0
-                else "rubric-search-page-1.json"
-            )
-        else:
-            name = f"rubric-detail-{payload['eventId']}.json"
+        name = (
+            "rubric-search-page-0.json"
+            if payload["offset"] == 0
+            else "rubric-search-page-1.json"
+        )
+        return (FIXTURES / name).read_text(encoding="utf-8")
+
+    def post_detail(self, url: str, payload: Mapping[str, object]) -> str:
+        del url
+        name = f"rubric-detail-{payload['eventId']}.json"
         return (FIXTURES / name).read_text(encoding="utf-8")
 
 

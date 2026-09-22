@@ -43,6 +43,10 @@ class RubricTransport(Protocol):
 
     def post_json(self, url: str, payload: Mapping[str, object]) -> str: ...
 
+    def post_search(self, url: str, payload: Mapping[str, object]) -> str: ...
+
+    def post_detail(self, url: str, payload: Mapping[str, object]) -> str: ...
+
 
 class HttpRubricTransport:
     """Stateless, timeout-bounded POST transport with transient retry only."""
@@ -88,6 +92,72 @@ class HttpRubricTransport:
                 last_error = exc
                 if attempt < self.MAX_ATTEMPTS - 1:
                     self._sleep(float(2**attempt))
+        if isinstance(last_error, FetchError):
+            raise last_error
+        raise FetchError("Rubric request failed after bounded retries") from last_error
+
+    def post_search(self, url: str, payload: Mapping[str, object]) -> str:
+        last_error: Exception | None = None
+        for attempt in range(self.MAX_ATTEMPTS):
+            try:
+                response = requests.post(
+                    url,
+                    data={
+                        "endpoint": "getUnifiedSearch",
+                        "details": json.dumps(dict(payload), separators=(",", ":")),
+                    },
+                    headers={
+                        "Accept": "application/json",
+                        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+                        "User-Agent": self._headers["User-Agent"],
+                    },
+                    timeout=self._timeout,
+                    allow_redirects=False,
+                )
+                if response.status_code in self.TRANSIENT_STATUSES:
+                    raise requests.HTTPError("transient Rubric response")
+                response.raise_for_status()
+                if not response.text or not response.text.strip():
+                    raise FetchError("Rubric returned an empty response")
+                return response.text
+            except (FetchError, requests.RequestException) as exc:
+                last_error = exc
+                if attempt < self.MAX_ATTEMPTS - 1:
+                    self._sleep(float(2**attempt))
+
+        if isinstance(last_error, FetchError):
+            raise last_error
+        raise FetchError("Rubric request failed after bounded retries") from last_error
+
+    def post_detail(self, url: str, payload: Mapping[str, object]) -> str:
+        last_error: Exception | None = None
+        for attempt in range(self.MAX_ATTEMPTS):
+            try:
+                response = requests.post(
+                    url,
+                    data={
+                        "endpoint": DETAIL_ENDPOINT,
+                        "details": json.dumps(dict(payload), separators=(",", ":")),
+                    },
+                    headers={
+                        "Accept": "application/json",
+                        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+                        "User-Agent": self._headers["User-Agent"],
+                    },
+                    timeout=self._timeout,
+                    allow_redirects=False,
+                )
+                if response.status_code in self.TRANSIENT_STATUSES:
+                    raise requests.HTTPError("transient Rubric response")
+                response.raise_for_status()
+                if not response.text or not response.text.strip():
+                    raise FetchError("Rubric returned an empty response")
+                return response.text
+            except (FetchError, requests.RequestException) as exc:
+                last_error = exc
+                if attempt < self.MAX_ATTEMPTS - 1:
+                    self._sleep(float(2**attempt))
+
         if isinstance(last_error, FetchError):
             raise last_error
         raise FetchError("Rubric request failed after bounded retries") from last_error
@@ -138,7 +208,6 @@ def parse_discovery_page(raw: str) -> RubricDiscoveryPage:
         raise ParseError("Rubric discovery data is malformed")
     for key, expected in {
         "selectedCountryCode": COUNTRY_CODE,
-        "selectedState": STATE,
     }.items():
         if body.get(key) != expected:
             raise ParseError(f"Rubric discovery {key} does not match the ANU boundary")
@@ -154,9 +223,27 @@ def parse_discovery_page(raw: str) -> RubricDiscoveryPage:
     for result in results:
         if not isinstance(result, dict):
             raise ParseError("Rubric discovery result must be an object")
-        event_id = str(result.get("eventId", "")).strip()
+        destination = result.get("destination")
+        if not isinstance(destination, str):
+            raise ParseError("Rubric discovery result is missing its event destination")
+
+        parsed_destination = urlsplit(destination)
+        query = parse_qs(parsed_destination.query, keep_blank_values=True)
+
+        if (
+            parsed_destination.scheme
+            or parsed_destination.netloc
+            or parsed_destination.path != "/"
+            or parsed_destination.fragment
+            or set(query) != {"eid"}
+            or len(query["eid"]) != 1
+        ):
+            raise ParseError("Rubric discovery result has an invalid event destination")
+
+        event_id = query["eid"][0]
         if re.fullmatch(r"[0-9]+", event_id) is None:
-            raise ParseError("Rubric discovery result is missing a numeric eventId")
+            raise ParseError("Rubric discovery result is missing a numeric event ID")
+
         event_ids.append(event_id)
     return RubricDiscoveryPage(event_ids, len(results), total)
 
@@ -204,8 +291,16 @@ def _parse_datetime(value: object, *, field: str) -> datetime | None:
         normalized = value.strip().replace("Z", "+00:00")
         try:
             parsed = datetime.fromisoformat(normalized)
-        except ValueError as exc:
-            raise ParseError(f"Rubric {field} is not an ISO datetime") from exc
+        except ValueError:
+            try:
+                parsed = datetime.strptime(
+                    value.strip(),
+                    "%a, %d %b %Y %I:%M %p",
+                )
+            except ValueError as exc:
+                raise ParseError(
+                    f"Rubric {field} is not a supported datetime"
+                ) from exc
         if parsed.tzinfo is None:
             parsed = parsed.replace(tzinfo=CANBERRA_TZ)
     else:
@@ -221,6 +316,18 @@ def _clean_text(value: object) -> str | None:
         node.decompose()
     return normalize_text(soup.get_text(" ", strip=True))
 
+
+
+def _parse_coordinate(value: object, *, field: str) -> float | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool):
+        raise ParseError(f"Rubric {field} is not a valid coordinate")
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ParseError(f"Rubric {field} is not a valid coordinate") from exc
+    return parsed
 
 def _string_list(value: object) -> list[str]:
     if not isinstance(value, list):
@@ -240,7 +347,9 @@ def parse_detail(raw: str, expected_event_id: str, *, now_func: Callable[[], dat
     root = _load_object(raw, context="detail")
     if root.get("success") is not True:
         raise ParseError("Rubric detail response did not report success")
-    detail = root.get("data") if isinstance(root.get("data"), dict) else root
+    detail = root.get("eventDetails")
+    if not isinstance(detail, dict):
+        detail = root.get("data") if isinstance(root.get("data"), dict) else root
     if not isinstance(detail, dict):
         raise ParseError("Rubric detail data is malformed")
     event_id = str(detail.get("eventId", "")).strip()
@@ -256,7 +365,7 @@ def parse_detail(raw: str, expected_event_id: str, *, now_func: Callable[[], dat
         raise ParseError("Rubric detail is missing eventTime")
     end_at = _parse_datetime(detail.get("eventEndTime"), field="eventEndTime")
     if end_at is not None and end_at < start_at:
-        raise ParseError("Rubric eventEndTime precedes eventTime")
+        raise RubricRecordRejected("end-before-start")
     canonical_url = normalize_rubric_event_url(
         f"{PUBLIC_ROOT}/?{urlencode({'eid': event_id})}", event_id
     )
@@ -265,11 +374,16 @@ def parse_detail(raw: str, expected_event_id: str, *, now_func: Callable[[], dat
     description = _clean_text(detail.get("eventDescription"))
     categories = _string_list(detail.get("categories"))
     tags = _string_list(detail.get("tags"))
-    registration_links: list[dict[str, str]] = []
+    category = categories[0] if len(categories) == 1 else None
+    latitude = _parse_coordinate(detail.get("eventLatitude"), field="eventLatitude")
+    longitude = _parse_coordinate(detail.get("eventLongitude"), field="eventLongitude")
+
+    registration_url = None
     event_url = detail.get("eventURL")
     if isinstance(event_url, str) and event_url.strip():
+        candidate_url = event_url.strip()
         try:
-            parsed_event_url = urlsplit(event_url.strip())
+            parsed_event_url = urlsplit(candidate_url)
             parsed_event_url.port
         except ValueError:
             parsed_event_url = urlsplit("")
@@ -279,11 +393,14 @@ def parse_detail(raw: str, expected_event_id: str, *, now_func: Callable[[], dat
             and parsed_event_url.username is None
             and parsed_event_url.password is None
         ):
-            registration_links.append({"label": "Event link", "url": event_url.strip()})
-    category = categories[0] if len(categories) == 1 else None
-    registration_url = (
-        registration_links[0]["url"] if len(registration_links) == 1 else None
-    )
+            try:
+                normalized_event_url = normalize_rubric_event_url(candidate_url, event_id)
+            except ParseError:
+                registration_url = candidate_url
+            else:
+                if normalized_event_url != canonical_url:
+                    registration_url = candidate_url
+
     metadata: dict[str, object] = {
         "entity_type": "event",
         "source_event_id": event_id,
@@ -293,8 +410,8 @@ def parse_detail(raw: str, expected_event_id: str, *, now_func: Callable[[], dat
         "organiser_name": organiser,
         "venue_name": location,
         "address": None,
-        "latitude": None,
-        "longitude": None,
+        "latitude": latitude,
+        "longitude": longitude,
         "category": category,
         "tags": tags,
         "registration_url": registration_url,
@@ -311,7 +428,7 @@ def parse_detail(raw: str, expected_event_id: str, *, now_func: Callable[[], dat
         ("Categories", "; ".join(categories) or None),
         ("Tags", "; ".join(tags) or None),
         ("Description", description),
-        ("Registration", registration_links[0]["url"] if registration_links else None),
+        ("Registration", registration_url),
         ("Source", "Rubric ANU community events"),
     )
     content = "\n".join(f"{label}: {value}" for label, value in labels if value)
@@ -341,18 +458,31 @@ def _validate_api_endpoint(url: str, *, name: str) -> str:
         port = parsed.port
     except (TypeError, ValueError) as exc:
         raise ValueError(f"{name} is malformed") from exc
-    if (
-        parsed.scheme.lower() != "https"
-        or (parsed.hostname or "").lower() != "appserver.getqpay.com"
-        or parsed.username is not None
-        or parsed.password is not None
-        or port != 9090
-        or not parsed.path.startswith("/AppServerSwapnil/")
-        or parsed.query
-        or parsed.fragment
-    ):
+
+    if parsed.username is not None or parsed.password is not None or parsed.query or parsed.fragment:
         raise ValueError(f"{name} is outside the approved Rubric API boundary")
-    return urlunsplit(("https", "appserver.getqpay.com:9090", parsed.path, "", ""))
+
+    if name == "Rubric search endpoint":
+        if (
+            parsed.scheme.lower() != "https"
+            or (parsed.hostname or "").lower() != "api.hellorubric.com"
+            or port is not None
+            or parsed.path not in ("", "/")
+        ):
+            raise ValueError(f"{name} is outside the approved Rubric API boundary")
+        return "https://api.hellorubric.com/"
+
+    if name == "Rubric detail endpoint":
+        if (
+            parsed.scheme.lower() != "https"
+            or (parsed.hostname or "").lower() != "appserver.getqpay.com"
+            or port != 9090
+            or parsed.path != "/AppServerSwapnil/event/details"
+        ):
+            raise ValueError(f"{name} is outside the approved Rubric API boundary")
+        return DETAIL_ENDPOINT
+
+    raise ValueError(f"{name} is outside the approved Rubric API boundary")
 
 
 class RubricAdapter:
@@ -429,7 +559,9 @@ class RubricAdapter:
             self._detail_requests += 1
         else:
             self._search_requests += 1
-        return self._transport.post_json(url, payload)
+        if detail:
+            return self._transport.post_detail(self._search_endpoint or url, payload)
+        return self._transport.post_search(url, payload)
 
     def _detail(self, event_id: str) -> str:
         if event_id not in self._detail_cache:
