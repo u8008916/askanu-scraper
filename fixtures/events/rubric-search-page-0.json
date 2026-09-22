@@ -1,13 +1,19 @@
 {
-  "_fixture_note": "Synthetic sanitized contract fixture derived from the documented Day 15 capture; not a verbatim production response.",
+  "_fixture_note": "Synthetic sanitized contract fixture derived from the reviewed 22 Sep 2026 ANU-scoped Rubric browser capture; not a verbatim production response.",
   "success": true,
   "totalItemCount": 4,
   "selectedCountryCode": "AU",
-  "selectedState": "Australian Capital Territory",
-  "selectedUniversityId": 1,
+  "selectedState": "New South Wales",
+  "selectedUniversityId": "1",
   "selectedEventsPeriodFilter": "All",
   "results": [
-    {"eventId": "78459", "eventName": "ANU Community Bonfire Night"},
-    {"eventId": "78460", "eventName": "Spring Community Run"}
+    {
+      "eventName": "ANU Community Bonfire Night",
+      "destination": "/?eid=78459"
+    },
+    {
+      "eventName": "Spring Community Run",
+      "destination": "/?eid=78460"
+    }
   ]
 }
