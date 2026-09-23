@@ -1,0 +1,149 @@
+{
+  "contract_version": "v7-day1-producer-capabilities-v1",
+  "fixture_type": "cross-repo producer capability handoff",
+  "network_calls_allowed": false,
+  "warning": "Expected terms are exact source titles and explicit identifiers, not guessed synonyms or end-to-end intent claims.",
+  "cases": [
+    {
+      "name": "course by canonical name and code",
+      "domain": "courses",
+      "entity_type": "course",
+      "source_id": "courses_programs_and_courses",
+      "expected_authority_rank": 1,
+      "expected_approval_status": "APPROVED",
+      "source_fixture": "fixtures/courses/comp1100_course_sample.html",
+      "source_url": "https://programsandcourses.anu.edu.au/2026/course/COMP1100",
+      "expected_record_id": "courses:course:COMP1100_2026",
+      "expected_lookup_terms": [
+        {"kind": "canonical_name", "value": "COMP1100 Programming as Problem Solving", "normalized": "comp1100 programming as problem solving"},
+        {"kind": "identifier", "value": "COMP1100", "normalized": "comp1100"}
+      ]
+    },
+    {
+      "name": "program by canonical name and code",
+      "domain": "courses",
+      "entity_type": "program",
+      "source_id": "courses_programs_and_courses",
+      "expected_authority_rank": 1,
+      "expected_approval_status": "APPROVED",
+      "source_fixture": "fixtures/courses/bacct_program_sample.html",
+      "source_url": "https://programsandcourses.anu.edu.au/2026/program/BACCT",
+      "expected_record_id": "courses:program:BACCT_2026",
+      "expected_lookup_terms": [
+        {"kind": "canonical_name", "value": "Bachelor of Accounting", "normalized": "bachelor of accounting"},
+        {"kind": "identifier", "value": "BACCT", "normalized": "bacct"}
+      ]
+    },
+    {
+      "name": "scholarship by canonical source title",
+      "domain": "scholarships",
+      "entity_type": "scholarship",
+      "source_id": "scholarships_anu_finder",
+      "expected_authority_rank": 1,
+      "expected_approval_status": "APPROVED",
+      "source_fixture": "fixtures/scholarships/anu_scholarship_open_featured_sample.html",
+      "source_url": "https://study.anu.edu.au/scholarships/find-scholarship/anu-international-achievement-award",
+      "listing_metadata": {
+        "featured": true,
+        "status": "Open for applications",
+        "application_requirement": "Automatic consideration"
+      },
+      "expected_record_id": "scholarships:scholarship:anu-international-achievement-award",
+      "expected_lookup_terms": [
+        {"kind": "canonical_name", "value": "ANU International Achievement Award", "normalized": "anu international achievement award"}
+      ]
+    },
+    {
+      "name": "job by canonical source title and requisition ID",
+      "domain": "jobs",
+      "entity_type": "job",
+      "source_id": "jobs_anu_search",
+      "expected_authority_rank": 1,
+      "expected_approval_status": "APPROVED",
+      "source_fixture": "fixtures/jobs/anu_job_open_dated_sample.html",
+      "source_url": "https://jobs.anu.edu.au/jobs/senior-consultant-user-experience-hr-systems-projects-canberra-act-act-australia",
+      "listing_metadata": {
+        "category": "Professional",
+        "summary": "Create user-friendly HR systems documentation and websites."
+      },
+      "expected_record_id": "jobs:job:563693",
+      "expected_lookup_terms": [
+        {"kind": "canonical_name", "value": "Senior Consultant, User Experience (HR Systems Projects)", "normalized": "senior consultant, user experience (hr systems projects)"},
+        {"kind": "identifier", "value": "563693", "normalized": "563693"}
+      ]
+    },
+    {
+      "name": "residence by canonical source title",
+      "domain": "accommodation",
+      "entity_type": "residence",
+      "source_id": "accommodation_anu_study",
+      "expected_authority_rank": 1,
+      "expected_approval_status": "APPROVED",
+      "source_fixture": "fixtures/accommodation/anu_residence_yukeembruk_sample.html",
+      "source_url": "https://study.anu.edu.au/accommodation/our-residences/yukeembruk",
+      "listing_metadata": {
+        "title": "Yukeembruk",
+        "category": "Our residences",
+        "catering_options": ["Self-catered"],
+        "audiences": ["Undergraduate", "Postgraduate"],
+        "advertised_rate": "Rates from A$380.00 /wk",
+        "listing_description": "A village residence."
+      },
+      "expected_record_id": "accommodation:residence:yukeembruk",
+      "expected_lookup_terms": [
+        {"kind": "canonical_name", "value": "Yukeembruk", "normalized": "yukeembruk"}
+      ]
+    },
+    {
+      "name": "support service by canonical source title",
+      "domain": "support",
+      "entity_type": "support_service",
+      "source_id": "support_anusa_student_assistance",
+      "expected_authority_rank": 2,
+      "expected_approval_status": "APPROVED",
+      "source_fixture": "fixtures/support/anusa_academic_sample.html",
+      "source_url": "https://anusa.com.au/student-assistance/academic/",
+      "listing_metadata": {
+        "title": "Academic",
+        "category": "Academic",
+        "listing_description": "Help with academic issues.",
+        "audiences": ["all ANU Students"],
+        "cost": "The service is free.",
+        "registry_email": "sa.assistance@anu.edu.au"
+      },
+      "expected_record_id": "support:support_service:academic",
+      "expected_lookup_terms": [
+        {"kind": "canonical_name", "value": "Academic Support", "normalized": "academic support"}
+      ]
+    },
+    {
+      "name": "official event by canonical source title and node ID",
+      "domain": "events",
+      "entity_type": "event",
+      "source_id": "events_anu_official",
+      "expected_authority_rank": 1,
+      "expected_approval_status": "APPROVED",
+      "source_fixture": "fixtures/events/window-opening.html",
+      "source_url": "https://www.anu.edu.au/events/window-opening",
+      "expected_record_id": "events:event:1001",
+      "expected_lookup_terms": [
+        {"kind": "canonical_name", "value": "Window-opening symposium", "normalized": "window-opening symposium"},
+        {"kind": "identifier", "value": "1001", "normalized": "1001"}
+      ]
+    },
+    {
+      "name": "Rubric event remains ingestion-only and source-distinct",
+      "domain": "events",
+      "entity_type": "event",
+      "source_id": "rubric_unified_search",
+      "expected_authority_rank": 3,
+      "expected_approval_status": "APPROVED_BOUNDED_UNSUPPORTED",
+      "source_fixture": "fixtures/events/rubric-detail-78459.json",
+      "expected_record_id": "events:event:rubric-78459",
+      "expected_lookup_terms": [
+        {"kind": "canonical_name", "value": "ANU Community Bonfire Night", "normalized": "anu community bonfire night"},
+        {"kind": "identifier", "value": "78459", "normalized": "78459"}
+      ]
+    }
+  ]
+}
