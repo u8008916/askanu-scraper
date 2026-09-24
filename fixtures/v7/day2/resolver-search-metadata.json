@@ -1,0 +1,122 @@
+{
+  "contract_version": "v7-day2-resolver-search-metadata-v1",
+  "depends_on": "v7-day1-producer-capabilities-v1",
+  "fixture_type": "cross-repo resolver metadata handoff",
+  "network_calls_allowed": false,
+  "normalization": "Unicode NFC, whitespace collapse, case-fold; punctuation preserved; no synonyms",
+  "missing_temporal_semantics": "No source value produces no temporal entry",
+  "cases": [
+    {
+      "name": "course exact title code and academic year",
+      "parser": "courses",
+      "source_fixture": "fixtures/courses/comp1100_course_sample.html",
+      "source_url": "https://programsandcourses.anu.edu.au/2026/course/COMP1100",
+      "expected_record_id": "courses:course:COMP1100_2026",
+      "expected_terms": [
+        {"kind": "canonical_name", "value": "COMP1100 Programming as Problem Solving", "normalized": "comp1100 programming as problem solving", "source_path": "title"},
+        {"kind": "identifier", "value": "COMP1100", "normalized": "comp1100", "source_path": "metadata_json.course_code"}
+      ],
+      "expected_temporal": [
+        {"kind": "academic_year", "value": "2026", "precision": "year", "source_path": "metadata_json.academic_year", "timezone": null}
+      ]
+    },
+    {
+      "name": "program exact title code and academic year",
+      "parser": "courses",
+      "source_fixture": "fixtures/courses/bacct_program_sample.html",
+      "source_url": "https://programsandcourses.anu.edu.au/2026/program/BACCT",
+      "expected_record_id": "courses:program:BACCT_2026",
+      "expected_terms": [
+        {"kind": "canonical_name", "value": "Bachelor of Accounting", "normalized": "bachelor of accounting", "source_path": "title"},
+        {"kind": "identifier", "value": "BACCT", "normalized": "bacct", "source_path": "metadata_json.program_code"}
+      ],
+      "expected_temporal": [
+        {"kind": "academic_year", "value": "2026", "precision": "year", "source_path": "metadata_json.academic_year", "timezone": null}
+      ]
+    },
+    {
+      "name": "scholarship exact published application dates",
+      "parser": "scholarships",
+      "source_fixture": "fixtures/scholarships/anu_humanitarian_scholarship_sample.html",
+      "source_url": "https://study.anu.edu.au/scholarships/find-scholarship/anu-humanitarian-scholarship",
+      "listing_metadata": {"featured": false, "status": "Application closed"},
+      "expected_record_id": "scholarships:scholarship:anu-humanitarian-scholarship",
+      "expected_terms": [
+        {"kind": "canonical_name", "value": "ANU Humanitarian Scholarship", "normalized": "anu humanitarian scholarship", "source_path": "title"}
+      ],
+      "expected_temporal": [
+        {"kind": "opens_on", "value": "2025-01-16", "precision": "date", "source_path": "metadata_json.opening_date", "timezone": null},
+        {"kind": "closes_on", "value": "2025-02-07", "precision": "date", "source_path": "metadata_json.closing_date", "timezone": null}
+      ]
+    },
+    {
+      "name": "job exact requisition and closing values",
+      "parser": "jobs",
+      "source_fixture": "fixtures/jobs/anu_job_open_dated_sample.html",
+      "source_url": "https://jobs.anu.edu.au/jobs/senior-consultant-user-experience-hr-systems-projects-canberra-act-act-australia",
+      "listing_metadata": {"category": "Professional", "summary": "Create user-friendly HR systems documentation and websites."},
+      "expected_record_id": "jobs:job:563693",
+      "expected_terms": [
+        {"kind": "canonical_name", "value": "Senior Consultant, User Experience (HR Systems Projects)", "normalized": "senior consultant, user experience (hr systems projects)", "source_path": "title"},
+        {"kind": "identifier", "value": "563693", "normalized": "563693", "source_path": "metadata_json.job_id"}
+      ],
+      "expected_temporal": [
+        {"kind": "closes_on", "value": "2026-09-27", "precision": "date", "source_path": "metadata_json.closing_date", "timezone": null},
+        {"kind": "closes_at", "value": "2026-09-27T23:55:00+10:00", "precision": "datetime", "source_path": "metadata_json.closing_at", "timezone": null}
+      ]
+    },
+    {
+      "name": "residence canonical name with no invented temporal value",
+      "parser": "accommodation",
+      "source_fixture": "fixtures/accommodation/anu_residence_yukeembruk_sample.html",
+      "source_url": "https://study.anu.edu.au/accommodation/our-residences/yukeembruk",
+      "listing_metadata": {"title": "Yukeembruk", "category": "Our residences", "catering_options": ["Self-catered"], "audiences": ["Undergraduate", "Postgraduate"], "advertised_rate": "Rates from A$380.00 /wk", "listing_description": "A village residence."},
+      "expected_record_id": "accommodation:residence:yukeembruk",
+      "expected_terms": [
+        {"kind": "canonical_name", "value": "Yukeembruk", "normalized": "yukeembruk", "source_path": "title"}
+      ],
+      "expected_temporal": []
+    },
+    {
+      "name": "support canonical name with no guessed shorthand",
+      "parser": "support",
+      "source_fixture": "fixtures/support/anusa_academic_sample.html",
+      "source_url": "https://anusa.com.au/student-assistance/academic/",
+      "listing_metadata": {"title": "Academic", "category": "Academic", "listing_description": "Help with academic issues.", "audiences": ["all ANU Students"], "cost": "The service is free.", "registry_email": "sa.assistance@anu.edu.au"},
+      "expected_record_id": "support:support_service:academic",
+      "expected_terms": [
+        {"kind": "canonical_name", "value": "Academic Support", "normalized": "academic support", "source_path": "title"}
+      ],
+      "expected_temporal": []
+    },
+    {
+      "name": "official event exact interval and timezone",
+      "parser": "events",
+      "source_fixture": "fixtures/events/window-opening.html",
+      "source_url": "https://www.anu.edu.au/events/window-opening",
+      "expected_record_id": "events:event:1001",
+      "expected_terms": [
+        {"kind": "canonical_name", "value": "Window-opening symposium", "normalized": "window-opening symposium", "source_path": "title"},
+        {"kind": "identifier", "value": "1001", "normalized": "1001", "source_path": "metadata_json.source_event_id"}
+      ],
+      "expected_temporal": [
+        {"kind": "starts_at", "value": "2026-09-18T09:00:00+10:00", "precision": "datetime", "source_path": "metadata_json.start_at", "timezone": "Australia/Canberra"},
+        {"kind": "ends_at", "value": "2026-09-19T17:00:00+10:00", "precision": "datetime", "source_path": "metadata_json.end_at", "timezone": "Australia/Canberra"}
+      ]
+    },
+    {
+      "name": "Rubric event remains source-distinct with exact interval",
+      "parser": "rubric",
+      "source_fixture": "fixtures/events/rubric-detail-78459.json",
+      "expected_record_id": "events:event:rubric-78459",
+      "expected_terms": [
+        {"kind": "canonical_name", "value": "ANU Community Bonfire Night", "normalized": "anu community bonfire night", "source_path": "title"},
+        {"kind": "identifier", "value": "78459", "normalized": "78459", "source_path": "metadata_json.source_event_id"}
+      ],
+      "expected_temporal": [
+        {"kind": "starts_at", "value": "2026-09-20T18:00:00+10:00", "precision": "datetime", "source_path": "metadata_json.start_at", "timezone": "Australia/Canberra"},
+        {"kind": "ends_at", "value": "2026-09-20T21:00:00+10:00", "precision": "datetime", "source_path": "metadata_json.end_at", "timezone": "Australia/Canberra"}
+      ]
+    }
+  ]
+}
