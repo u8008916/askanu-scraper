@@ -71,7 +71,7 @@ not claim that the RAG/app already implements or passes an end-to-end V7 intent.
 |---|---|---|---|---|---|
 | Course | reliable | reliable | reliable | reliable | content-only |
 | Program | reliable | reliable | reliable | reliable | content-only |
-| Scholarship | reliable | reliable | reliable | reliable | content-only |
+| Scholarship | reliable | reliable | reliable | reliable | structured-and-content |
 | Job | reliable | reliable | reliable | reliable | absent |
 | Residence | reliable | reliable | reliable | reliable | content-only |
 | Support service | reliable | reliable | reliable | content-only | absent |
@@ -84,8 +84,32 @@ Definitions:
 - `content-only`: the relevant source wording is retained, but not represented
   as a complete deterministic structure. Retrieval/reasoning must expose
   missingness and provenance.
+- `structured-and-content`: explicit source-backed dimensions support
+  deterministic candidate filtering, while broader relevance still requires
+  source prose and evidence-grounded reasoning. It does not authorize a
+  personal eligibility decision or ranking.
 - `absent`: the approved producer record does not carry enough evidence to
   support the operation safely.
+
+### Scholarship matching boundary
+
+Scholarship matching has three deliberately separate levels:
+
+1. Structured candidate filtering is supported only where the record actually
+   carries source-backed `study_stage`, `student_type`, `study_level`,
+   `area_of_study`, `status`, application dates, `eligibility` or
+   `selection_basis` evidence. A downstream resolver may use present values to
+   eliminate or prioritise candidates deterministically.
+2. Broader relevance can still depend on eligibility wording and other
+   preserved content. This is content-assisted evidence, not a complete hard
+   filter.
+3. Personal eligibility decisions, award probability and "best scholarship"
+   ranking are unsupported producer outcomes and remain downstream,
+   evidence-grounded responsibilities.
+
+Missing structured evidence remains unknown/partial. It must not be interpreted
+as incompatibility, false, exclusion or no-match. The scraper supplies evidence;
+it does not rank Scholarships or decide which one is best for a student.
 
 ## Representative handoff fixtures
 
@@ -157,9 +181,9 @@ RAG/app/orchestration gaps to hand to Qasim and Carmen:
   `fixtures/v7/day1/producer-capabilities.json`,
   `tests/test_v7_day1_contract.py`, and this handoff.
 - Focused command: `py -m pytest tests/test_v7_day1_contract.py -q`.
-- Focused result: **12 passed**.
+- Focused result: **13 passed**.
 - Full command: `py -m pytest`.
-- Full result: **397 passed** (baseline **385 passed** + 12 Day 1 tests).
+- Full result: **398 passed** (baseline **385 passed** + 13 Day 1 tests).
 - All eight handoff cases parse checked-in fixtures; test network access is
   disabled by contract.
 - Source registry changes: **0**.

@@ -19,6 +19,7 @@ class EvidenceSupport(str, Enum):
     """How reliably producer data can support a downstream operation."""
 
     RELIABLE = "reliable"
+    STRUCTURED_AND_CONTENT = "structured_and_content"
     CONTENT_ONLY = "content_only"
     ABSENT = "absent"
 
@@ -94,6 +95,11 @@ def _capabilities(
     }
     basis = {
         EvidenceSupport.RELIABLE: "structured source-backed fields",
+        EvidenceSupport.STRUCTURED_AND_CONTENT: (
+            "source-backed structured dimensions support candidate filtering; "
+            "prose supports content-assisted relevance; missing evidence stays "
+            "unknown; personal eligibility and ranking are unsupported"
+        ),
         EvidenceSupport.CONTENT_ONLY: "source wording retained only in content",
         EvidenceSupport.ABSENT: "not represented by approved producer evidence",
     }
@@ -212,13 +218,17 @@ _CONTRACTS: tuple[ProducerContract, ...] = (
             "scholarship_type",
             "study_type",
         ),
-        absent_facts=("personal_eligibility_decision", "award_probability"),
+        absent_facts=(
+            "personal_eligibility_decision",
+            "award_probability",
+            "best_scholarship_ranking",
+        ),
         capabilities=_capabilities(
             lookup=EvidenceSupport.RELIABLE,
             discovery=EvidenceSupport.RELIABLE,
             filtering=EvidenceSupport.RELIABLE,
             comparison=EvidenceSupport.RELIABLE,
-            matching=EvidenceSupport.CONTENT_ONLY,
+            matching=EvidenceSupport.STRUCTURED_AND_CONTENT,
         ),
     ),
     ProducerContract(

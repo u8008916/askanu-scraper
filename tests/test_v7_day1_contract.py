@@ -102,6 +102,38 @@ def test_inventory_covers_six_domains_all_shapes_and_active_sources() -> None:
         assert contract.source_alias_paths == ()
 
 
+def test_scholarship_matching_keeps_structured_content_and_unknown_boundaries() -> None:
+    contract = next(
+        contract
+        for contract in get_v7_producer_contracts()
+        if contract.domain == Domain.SCHOLARSHIPS
+    )
+    matching = next(
+        item for item in contract.capabilities if item.operation == "match"
+    )
+
+    assert matching.support == EvidenceSupport.STRUCTURED_AND_CONTENT
+    assert "structured dimensions support candidate filtering" in matching.basis
+    assert "content-assisted relevance" in matching.basis
+    assert "missing evidence stays unknown" in matching.basis
+    assert "personal eligibility and ranking are unsupported" in matching.basis
+    assert {
+        "metadata_json.study_stage",
+        "metadata_json.student_type",
+        "metadata_json.study_level",
+        "metadata_json.area_of_study",
+        "metadata_json.status",
+        "metadata_json.opening_date",
+        "metadata_json.closing_date",
+        "metadata_json.eligibility",
+        "metadata_json.selection_basis",
+    }.issubset(contract.structured_fact_paths)
+    assert {
+        "personal_eligibility_decision",
+        "best_scholarship_ranking",
+    }.issubset(contract.absent_facts)
+
+
 @pytest.mark.parametrize("case", _manifest()["cases"], ids=lambda case: case["name"])
 def test_handoff_cases_match_parser_records_and_source_terms(
     case: dict[str, object],
