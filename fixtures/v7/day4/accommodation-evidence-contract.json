@@ -1,0 +1,201 @@
+{
+  "contract_version": "v7-day4-accommodation-evidence-v1",
+  "depends_on": [
+    "v7-day1-producer-capabilities-v1",
+    "v7-day2-resolver-search-metadata-v1"
+  ],
+  "fixture_type": "accommodation evidence capability handoff",
+  "network_calls_allowed": false,
+  "source_id": "accommodation_anu_study",
+  "entity_type": "residence",
+  "frozen_entity_denominator": 19,
+  "source_boundary": "Approved public residence listing and detail pages only; published StarRez URLs are navigation evidence and are never fetched.",
+  "missing_value_semantics": "Missing source evidence stays unknown; it is not false, unavailable, ineligible, or zero.",
+  "live_audit": {
+    "artifact": "day4-accommodation-source-health.json",
+    "sha256_lf_normalized": "3e958e9ae0dfb0bf0700c51eb4dda8445db9f803ec39fc53530a0d4e50a186b8",
+    "captured_at": "2026-09-25T12:59:11.798607+10:00",
+    "dry_run": true,
+    "production_records_written": 0,
+    "migrations_applied": 0,
+    "advertised_total": 19,
+    "discovered_total": 19,
+    "approved_records": 19,
+    "detail_pages_fetched": 19,
+    "parsed_records": 19,
+    "parser_exceptions": 0,
+    "canonical_mismatches": 0,
+    "duplicate_identities": 0,
+    "source_shape_anomalies": [],
+    "source_present_fact_numerator": 255,
+    "source_present_fact_denominator": 255
+  },
+  "field_capabilities": [
+    {
+      "path": "metadata_json.category",
+      "classification": "deterministic_exact",
+      "supported_use": "Exact source-backed category membership when present.",
+      "unsupported_use": "Guessed categories or category equivalence.",
+      "live_source_present": 19,
+      "live_captured": 19
+    },
+    {
+      "path": "metadata_json.location",
+      "classification": "deterministic_exact_when_present",
+      "supported_use": "Exact published location when present.",
+      "unsupported_use": "Inferring location from a residence name, contact block, or nearby text.",
+      "live_source_present": 0,
+      "live_captured": 0
+    },
+    {
+      "path": "metadata_json.catering_options",
+      "classification": "deterministic_exact",
+      "supported_use": "Exact source-backed catering membership.",
+      "unsupported_use": "Synonym expansion or inferring catering from features or room prose.",
+      "live_source_present": 19,
+      "live_captured": 19
+    },
+    {
+      "path": "metadata_json.audiences",
+      "classification": "deterministic_exact",
+      "supported_use": "Exact source-backed audience membership.",
+      "unsupported_use": "Personal eligibility or guessed audience equivalence.",
+      "live_source_present": 19,
+      "live_captured": 19
+    },
+    {
+      "path": "metadata_json.advertised_rate",
+      "classification": "exact_text_comparison",
+      "supported_use": "Display or compare the exact advertised-rate wording with its source context.",
+      "unsupported_use": "Numeric normalization, total-cost calculation, cheapest ranking, or filling a missing advertised rate from a room rate.",
+      "live_source_present": 18,
+      "live_captured": 18
+    },
+    {
+      "path": "metadata_json.cost_period",
+      "classification": "exact_text_qualifier",
+      "supported_use": "Qualify displayed room and advertised rate evidence with the exact published period.",
+      "unsupported_use": "Assuming currentness, equivalence between periods, or an unstated contract interval.",
+      "live_source_present": 19,
+      "live_captured": 19
+    },
+    {
+      "path": "metadata_json.rooms",
+      "classification": "paired_exact_text_comparison",
+      "supported_use": "Compare source-backed room objects while preserving name, rate, contract, inclusions, and other-fee pairing.",
+      "unsupported_use": "Flattening fields across rooms, numeric price ranking, or detaching rates from cost period and contract wording.",
+      "live_source_present": 19,
+      "live_captured": 19
+    },
+    {
+      "path": "metadata_json.features",
+      "classification": "deterministic_exact",
+      "supported_use": "Exact published feature membership.",
+      "unsupported_use": "Synonym expansion or treating an absent feature as false.",
+      "live_source_present": 19,
+      "live_captured": 19
+    },
+    {
+      "path": "metadata_json.overview",
+      "classification": "content_only",
+      "supported_use": "Source-wording display and content-assisted relevance.",
+      "unsupported_use": "Deterministic filtering or extracting unstated attributes.",
+      "live_source_present": 19,
+      "live_captured": 19
+    },
+    {
+      "path": "metadata_json.accessibility",
+      "classification": "content_only_when_present",
+      "supported_use": "Display exact published accessibility wording when present.",
+      "unsupported_use": "A universal accessibility boolean or inference from generic features.",
+      "live_source_present": 0,
+      "live_captured": 0
+    },
+    {
+      "path": "metadata_json.application_text",
+      "classification": "navigation_text_when_present",
+      "supported_use": "Display exact published application-link wording.",
+      "unsupported_use": "Application outcome, eligibility, vacancy, or availability inference.",
+      "live_source_present": 14,
+      "live_captured": 14
+    },
+    {
+      "path": "metadata_json.application_url",
+      "classification": "navigation_only_when_present",
+      "supported_use": "Navigate to the exact published outbound application URL.",
+      "unsupported_use": "Fetching authenticated StarRez, deriving application status, or treating link presence as vacancy.",
+      "live_source_present": 14,
+      "live_captured": 14
+    },
+    {
+      "path": "metadata_json.eligibility",
+      "classification": "content_only_when_present",
+      "supported_use": "Display exact published eligibility wording when present.",
+      "unsupported_use": "A personal eligibility decision or inference from audience labels.",
+      "live_source_present": 0,
+      "live_captured": 0
+    },
+    {
+      "path": "metadata_json.contact",
+      "classification": "nested_exact_when_present",
+      "supported_use": "Display published email, phone, location, and hours without filling missing subfields.",
+      "unsupported_use": "Availability, open-now status, or contact-detail synthesis.",
+      "live_source_present": 19,
+      "live_captured": 19
+    },
+    {
+      "path": "metadata_json.vacancy_status",
+      "classification": "explicit_only",
+      "supported_use": "Use only an explicit published vacancy statement; null means not established.",
+      "unsupported_use": "Inferring available, unavailable, or false from rates, rooms, application links, or missing text.",
+      "live_source_present": 0,
+      "live_captured": 0
+    }
+  ],
+  "representative_cases": [
+    {
+      "name": "multiple room facts and complete contact subfields",
+      "source_fixture": "fixtures/accommodation/anu_residence_yukeembruk_sample.html",
+      "source_url": "https://study.anu.edu.au/accommodation/our-residences/yukeembruk",
+      "listing_metadata": {
+        "title": "Yukeembruk",
+        "category": "Our residences",
+        "catering_options": ["Self-catered"],
+        "audiences": ["Undergraduate", "Postgraduate"],
+        "advertised_rate": "Rates from A$380.00 /wk",
+        "listing_description": "A village residence."
+      },
+      "expected_record_id": "accommodation:residence:yukeembruk",
+      "expected_cost_period": "2027 Indicative costs",
+      "expected_application_url": "https://anucomb.starrezhousing.com/StarRezPortalX/public-token",
+      "expected_contact_hours": "Monday to Friday, 10am-4pm AEDT/AEST"
+    },
+    {
+      "name": "single room facts and missing optional contact subfields",
+      "source_fixture": "fixtures/accommodation/anu_residence_davey_lodge_sample.html",
+      "source_url": "https://study.anu.edu.au/accommodation/our-residences/davey-lodge",
+      "listing_metadata": {
+        "title": "Davey Lodge",
+        "category": "Our residences",
+        "catering_options": ["Self-catered"],
+        "audiences": ["Undergraduate", "Postgraduate"],
+        "advertised_rate": "Rates from A$365.00 /wk",
+        "listing_description": "Apartment-style living."
+      },
+      "expected_record_id": "accommodation:residence:davey-lodge",
+      "expected_cost_period": "2027 Indicative costs",
+      "expected_application_url": "https://anucomb.starrezhousing.com/StarRezPortalX/public-token",
+      "expected_contact_hours": null
+    }
+  ],
+  "unsupported_filters_and_claims": [
+    "numeric_price_sort_or_range",
+    "cheapest_or_total_cost_ranking",
+    "vacancy_or_room_availability",
+    "personal_eligibility",
+    "inferred_location",
+    "inferred_accessibility",
+    "application_status_or_outcome",
+    "magic_wording_or_unreviewed_synonyms"
+  ]
+}
