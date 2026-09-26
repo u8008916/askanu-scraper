@@ -1,55 +1,114 @@
 # AskANU V7 Day 3 scraper/data handoff
 
-**Gate:** Data/evidence side of Carmen's retrieval benchmark
+**Gate:** Final data/evidence closure against Carmen's frozen retrieval benchmark
 
 **Owner:** Will
 
-**Status:** Implementation and representative offline audit complete; final
-cross-repo benchmark audit blocked until Carmen supplies the frozen benchmark
-version, query IDs, expected record IDs and required facts.
+**Status:** READY FOR QASIM REVIEW
 
 **Reviewed base:** `93b94ef102ab22df08c01e5ef4245ad6653d98e9`
-(merged Scraper #37)
+(merged Scraper PR #37)
 
 **Branch:** `will/v7-day3-evidence-benchmark`
+
+**RAG evidence source:** merged RAG PR #37 at
+`54d75f470c2f26b96bce9d5fafe70da8f9b7a6d6`
 
 **Production mutation:** none
 
 ## Outcome
 
-Day 3 adds a read-only evidence audit over validated `CommonRecord` objects.
-It separates source/data limitations from downstream retrieval failures without
-retrieving, ranking, reasoning, changing expected answers or mutating records.
+Day 3 now closes both evidence obligations without changing retrieval,
+reasoning, production schemas, source authority, ingestion, scheduling or
+database behavior:
 
-The shared primitives:
+1. the original 14-requirement representative harness remains unchanged and
+   demonstrates the shared evidence primitives; and
+2. Carmen's exact 24-query holdout/result evidence has a separate, exhaustive
+   scraper reconciliation that preserves every frozen expectation while
+   exposing synthetic/canonical mismatches.
 
-- project every reviewed structured fact with `ESTABLISHED` or
-  `NOT_ESTABLISHED`; `false` remains established and null/empty placeholders do
-  not become false facts;
-- compare same-domain/entity-type records without filling asymmetric missing
-  cells or ranking a winner;
-- retain record, entity, source, canonical URL and authority on assessments and
-  comparison values;
-- classify fixed benchmark requirements as `PRESENT_STRUCTURED`,
-  `PRESENT_CONTENT_ONLY`, `MISSING_SOURCE`, `MISSING_INGESTION`,
-  `NORMALISATION_DEFECT`, `IDENTITY_DEFECT`, `STALE`,
-  `INCOMPLETE_POPULATION` or `AMBIGUOUS_SOURCE`;
-- mark correctly represented evidence as `NOT_DATA_FAILURE` for downstream
-  ownership; and
-- report requirement/question availability and provenance metrics overall and
-  by domain.
+The added helper only verifies artifact bytes, exact query joins, unchanged
+expected IDs/sources/constraints/result expectations, classifications,
+ownership and separate provenance denominators. It cannot retrieve, rank,
+reason, rewrite an expectation or manufacture institutional provenance.
 
-Unsupported structured paths fail closed. The audit cannot silently create a
-field, synonym, source, source-authority equivalence or domain state engine.
+## Frozen Carmen artifacts
 
-## Representative corpus, not Carmen's benchmark
+The following files are copied into `fixtures/v7/day3/carmen/` and protected
+from line-ending conversion by a path-specific `.gitattributes` rule:
 
-`fixtures/v7/day3/representative-evidence-audit.json` is deliberately labelled
-`BLOCKED_PENDING_CARMEN_BENCHMARK`. It proves the contract across Course,
-Program, Scholarship, Job, Residence, Support, official Event and Rubric Event
-fixtures, but it is not presented as Carmen's missing frozen benchmark.
+| Artifact | SHA-256 |
+|---|---|
+| `holdout.json` | `13b061af57a6c2730dc7434f325996f0e2ce536ceddf00281545a89f58bf65b6` |
+| `v7_day3_final_retrieval_baseline.json` | `e703b4a49f0dcf7202d8b024fa2fcdba453f11d826857a098d509b60ff4e3534` |
+| `v7_day3_final_retrieval_baseline.md` | `9444ae98bb2312f2ff7e640c9dd1a538fe91e7f260e72a1fd647638e21cdc412` |
 
-Representative baseline:
+The holdout is the merged LF blob. The two result copies preserve the reviewed
+Windows CRLF bytes whose hashes were recorded in RAG PR #37. Their merged Git
+blobs use LF and therefore have different byte hashes; content is unchanged.
+This distinction is recorded rather than silently normalised.
+
+Integrity checks establish 24 unique queries, four per domain, and exact
+coverage by both the result and reconciliation. Query IDs, expected relevant
+record IDs, allowed source IDs, hard constraints, expected answer states,
+expected result statuses, population flags and expected failure classes are
+retained without revision.
+
+## Two scoreboards, deliberately separate
+
+Carmen's frozen retrieval result:
+
+- 24/24 measured queries;
+- failure classes: 20 `NONE`, 4 `DATA`;
+- recall@1 92.36%, recall@3 100%, recall@5 100%;
+- pre-rerank recall@10, hard-constraint pass, selected-evidence completeness
+  and RAG provenance preservation: 100%; and
+- no provider errors.
+
+Scraper institutional-evidence reconciliation:
+
+| Classification | Count |
+|---|---:|
+| `IDENTITY_DEFECT` | 17 |
+| `AMBIGUOUS_SOURCE` | 2 |
+| `MISSING_SOURCE` | 2 |
+| `INCOMPLETE_POPULATION` | 1 |
+| `NOT_DATA_FAILURE` | 2 |
+
+Mapping status is 4 exact, 1 partial and 19 unmapped benchmark identities.
+Ownership is 18 `CROSS_REPO_CONTRACT`, 4 `SOURCE_PRODUCT_LIMITATION` and 2
+`NO_FAILURE`. RAG provenance is preserved for 24/24 benchmark results, while
+scraper-complete institutional provenance is only 4/24. These denominators are
+not conflated.
+
+The low institutional denominator does not invalidate Carmen's synthetic
+retrieval benchmark. It prevents benchmark-only identities or facts from being
+presented as verified ANU records. In particular:
+
+- `accommodation:residence:bruce-hall` and `...:ursula-hall` collapse distinct
+  approved wing identities; only Burgmann maps exactly in the catering query;
+- benchmark-only Scholarship, Job and Event IDs receive no invented entity ID,
+  canonical URL or source authority; and
+- Carmen's Yukeembruk fixture states $340, while the approved scraper fixture
+  records $380. The benchmark value remains benchmark evidence and is not
+  adopted as institutional fact.
+
+The four frozen `DATA` cases retain Carmen's failure class and are assigned as
+requested:
+
+| Query | Scraper classification | Owner | Reason |
+|---|---|---|---|
+| `holdout-scholarship-eligibility` | `AMBIGUOUS_SOURCE` | `SOURCE_PRODUCT_LIMITATION` | The approved source cannot guarantee a person's eligibility. |
+| `holdout-accommodation-vacancy` | `MISSING_SOURCE` | `SOURCE_PRODUCT_LIMITATION` | The approved accommodation source does not publish current vacancy. |
+| `holdout-jobs-incomplete` | `INCOMPLETE_POPULATION` | `SOURCE_PRODUCT_LIMITATION` | The supported current Jobs population is not established as complete. |
+| `holdout-events-rubric-organiser` | `MISSING_SOURCE` | `SOURCE_PRODUCT_LIMITATION` | The approved Rubric evidence does not publish the organiser. |
+
+## Representative 14-requirement harness
+
+`fixtures/v7/day3/representative-evidence-audit.json` is unchanged, including
+its historical `BLOCKED_PENDING_CARMEN_BENCHMARK` label. It remains a separate
+harness artifact and is not rewritten after Carmen's benchmark arrived.
 
 | Domain | Requirements | Structured | Content only | Source missing | Ambiguous source | Incomplete population | Provenance |
 |---|---:|---:|---:|---:|---:|---:|---:|
@@ -61,107 +120,103 @@ Representative baseline:
 | Events | 4 | 2 | 1 | 1 | 0 | 0 | 4/4 |
 | **Total** | **14** | **9** | **1** | **2** | **1** | **1** | **14/14** |
 
-The representative requirement baseline therefore has 10/14 (71.43%)
-questions with all required evidence, 9/14 (64.29%) fully structured, 1/14
-(7.14%) requiring content, and 100% provenance completeness. Missing-ingestion,
-normalisation-defect, identity-defect and stale-primary-classification counts
-are zero in this representative set. These are harness proof numbers, not
-claims about Carmen's benchmark or the live corpus.
+This baseline remains 10/14 questions with all required evidence, including 9
+fully structured and 1 content-only, with 14/14 provenance complete. It is
+harness proof, not a claim about Carmen's synthetic identities or the live
+institutional corpus.
 
-## COMP2120 prerequisite trace and fix
+## Fresh 2026 Programs & Courses audit
 
-On 2026-09-25 the approved 2026 COMP2120 detail page published a prerequisite
-that preserves two alternatives: successful completion or current study of
-COMP2100. The current parser regex consumed the completion phrase as generic
-boilerplate, leaving a malformed value beginning with `or`.
+On 2026-09-26 the approved collector and detail-coverage path ran once with
+`dry_run=true`, a minimum one-second request interval and no detail limit.
 
-Trace:
+Whole domain result:
 
-1. Approved source: `https://programsandcourses.anu.edu.au/2026/course/COMP2120`.
-2. Parser defect: the live combined requisite-section regex consumed
-   `successfully completed` before capturing the fact.
-3. Normalised metadata before the fix would be
-   `or be currently studying COMP2100`.
-4. The same damaged wording would enter canonical content and retrieval-facing
-   structured evidence.
-5. The generic fix first captures the complete source clause, then strips a
-   leading completed-prefix only when doing so does not leave a leading `or`.
-6. After the fix, metadata/content preserve
-   `successfully completed or be currently studying COMP2100`.
+- approved discovery reconciled;
+- 1,256/1,256 course, program, major, minor and specialisation details covered;
+- 14,840/14,840 source-present facts captured;
+- full detail traversal `true`, status `SUCCESS`; and
+- production writes, migrations and persisted subplans: 0.
 
-The fix is not keyed to COMP2120. Existing simple completed-course variants
-still normalize to their course-code expressions, and the full parser suite is
-green.
+Course-only accounting:
 
-## Important domain findings represented by the harness
+| Measure | Count |
+|---|---:|
+| Discovered | 500 |
+| Detail pages attempted/fetched | 500/500 |
+| Parsed/accepted | 500/500 |
+| Explicit rejects | 0 |
+| Fetch failures | 0 |
+| Parse failures | 0 |
+| Validation failures | 0 |
+| Unexplained losses | 0 |
 
-- Scholarships: published dimensions and exact dates can be structured;
-  personal eligibility remains ambiguous when the source criteria and student
-  facts cannot establish a decision.
-- Accommodation: Yukeembruk's `2027 Indicative costs` remains attached to its
-  rate period. Current vacancy is `MISSING_SOURCE`, never available/unavailable.
-- Jobs: an exact record deadline can be audited independently, while a query
-  over the complete current technical-jobs population is
-  `INCOMPLETE_POPULATION` under the preserved V6 source/atomicity limitation.
-  No atomic ingestion guard changed.
-- Events: official and Rubric IDs, sources and authority ranks remain distinct.
-  Rubric approval is not converted into official-ANU authority, and modality is
-  not inferred.
-- Support: the checked-in Academic Support record retains the source-backed
-  Grade Appeal topic and problem wording without a synthetic synonym table.
-- Temporal evidence: academic year, calendar dates and aware datetimes retain
-  their Day 2 precision. Missing Job dates remain absent, and date-only values
-  do not gain midnight.
+Accounting equation: `500 discovered = 500 accepted + 0 explicitly accounted
+failures/rejects + 0 unexplained`.
 
-## Carmen handoff contract
+All 500 identity-manifest rows carry a course code, record ID, entity ID,
+canonical URL and approved source ID. Duplicate course codes, record IDs,
+entity IDs and canonical URLs are all zero; missing/invalid identity lists are
+empty. The observed academic year is 2026. The fresh count equals the frozen
+Day 16 count (drift 0), but the fresh audit—not the old denominator—is the
+current evidence.
 
-When Carmen supplies the frozen manifest, each requirement must include its
-unchanged query ID, expected record/source/entity identity, required fact,
-audited source status/reference, intended representation, freshness need and
-population-completeness need. Running `audit_benchmark` then produces:
+Raw evidence is in `courses-population-audit-2026.json`; the compact,
+hash-linked accounting is in `courses-population-reconciliation-2026.json`.
 
-- present + provenance-correct -> `NOT_DATA_FAILURE`, returned to Carmen for
-  resolver/retrieval/ranking/reasoning diagnosis;
-- source-present but absent/damaged -> Will-owned ingestion, normalisation or
-  identity defect;
-- source-missing/ambiguous or incomplete supported population -> Qasim-owned
-  product/source limitation; and
-- stale for a current-only requirement -> not suitable as current evidence.
+## COMP2120 compatibility
 
-The benchmark expectation must not be revised after inspecting the corpus.
+The existing generic parser correction remains unchanged. Tests explicitly
+establish that:
 
-## Tests and exact evidence
+- simple `successfully completed COMP2100` normalises to the established
+  simple form `COMP2100`;
+- the concurrent alternative remains
+  `successfully completed or be currently studying COMP2100`;
+- it never becomes leading `or be currently studying COMP2100`; and
+- incompatibilities remain `COMP2130, COMP6120 and COMP6311`.
 
-- Day 3 focused: `py -m pytest tests/test_v7_day3_benchmark_evidence.py -q`
-  -> **10 passed**.
-- Parser + V7 Day 1/2/3 focused:
-  `py -m pytest tests/test_courses_parser.py tests/test_v7_day1_contract.py tests/test_v7_day2_search_metadata.py tests/test_v7_day3_benchmark_evidence.py -q`
-  -> **55 passed**.
-- Full shared working tree: `py -m pytest` -> **424 passed**. This includes one
-  pre-existing uncommitted Day 17 detail-coverage test; clean-branch evidence
-  is recorded in the PR/final handoff after commit.
-- `git diff --check` -> exit 0.
-- Live institutional requests: one read-only approved COMP2120 detail request
-  for defect tracing; no crawl.
-- DB writes, cloud executions, deployments, scheduler changes and migrations:
-  **0**.
+No course-code-specific parser branch was introduced.
 
-## Scope confirmation
+## Exact review commands
 
-- New production sources: **0**.
-- Source-registry or authority changes: **0**.
-- Serialized schema/API changes: **0**.
-- Generated aliases/synonyms: **0**.
-- Scheduler or production ingestion changes: **0**.
-- Production DB writes/migrations: **0**.
-- Jobs atomicity changes: **0**.
-- Live Rubric requests or App/RAG request paths: **0**.
-- Pre-existing Day 17/detail-coverage changes included: **0**.
+All commands are run from the isolated Day 3 worktree with `PYTHONPATH` set to
+that worktree's `src` so they cannot import Day 4 code:
 
-## Remaining gate dependency
+```powershell
+$env:PYTHONPATH = (Resolve-Path src).Path
+py -m pytest tests/test_v7_day3_benchmark_evidence.py -q
+py -m pytest tests/test_courses_parser.py -q
+py -m pytest tests/test_v7_day3_course_population.py tests/test_detail_coverage.py tests/test_v6_detail_gap_fixes.py -q
+py -m pytest tests/test_v7_day1_contract.py tests/test_v7_day2_search_metadata.py tests/test_v7_day3_benchmark_evidence.py tests/test_v7_day3_course_population.py -q
+py -m pytest -q
+git diff --check
+```
 
-Day 3 cannot honestly be called closed until Carmen's frozen benchmark is
-available and the representative manifest is replaced or supplemented with its
-exact version/query IDs/expected records/required facts. The harness is ready;
-the missing cross-repo artifact is the only known blocker to the requested
-benchmark-specific counts and ownership handoff.
+Results:
+
+- Day 3 focused: 17 passed;
+- Courses parser: 16 passed;
+- detail/population reconciliation: 43 passed;
+- combined Day 1/2/3: 46 passed;
+- full suite: 430 passed; and
+- `git diff --check`: exit 0.
+
+The final commit identifier is recorded in the PR closure message because a
+commit cannot contain its own hash.
+
+## Scope confirmation and residual risk
+
+- Production source, registry or authority changes: 0.
+- Serialized schema/API changes: 0.
+- Retrieval, ranking or reasoning changes: 0.
+- Scheduler, persistence, ingestion or database changes: 0.
+- Production writes/migrations: 0.
+- Authenticated StarRez or undocumented Rubric requests: 0.
+- Day 4 PR #39 changes included or advanced: 0.
+
+Residual risk is explicit: Carmen's benchmark is synthetic and mostly does not
+map to scraper canonical identities. It is valid retrieval evidence but cannot
+serve as institutional truth. Live population evidence is a point-in-time
+2026 audit and may drift after capture; future runs must reconcile rather than
+assume 500 remains current.

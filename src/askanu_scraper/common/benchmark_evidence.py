@@ -10,6 +10,7 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from enum import Enum
+import hashlib
 import json
 from pathlib import Path
 from typing import Mapping, Sequence
@@ -178,6 +179,36 @@ class BenchmarkAuditReport:
     benchmark_version: str
     assessments: tuple[EvidenceAssessment, ...]
     metrics: dict[str, object]
+
+
+_CARMEN_EXPECTATION_FIELDS = (
+    "query_id",
+    "domain",
+    "expected_relevant_record_ids",
+    "allowed_source_ids",
+    "hard_constraints",
+    "expected_answer_state",
+    "expected_result_status",
+    "population_complete",
+    "expected_failure_class",
+)
+
+_RECONCILIATION_AUDIT_FIELDS = {
+    "canonical_mapping_status",
+    "evidence_classification",
+    "owner",
+    "reason",
+    "representation",
+    "rag_provenance_preserved",
+    "scraper_provenance_complete",
+    "source_reference",
+}
+
+_CANONICAL_MAPPING_STATUSES = {
+    "mapped_exact",
+    "partially_mapped",
+    "unmapped_benchmark_identity",
+}
 
 
 def _path_value(record: CommonRecord, path: str) -> object | None:
@@ -682,6 +713,189 @@ def load_benchmark_requirements(
     return benchmark_version, tuple(requirements)
 
 
+def _json_object(path: str | Path, label: str) -> dict[str, object]:
+    try:
+        payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise BenchmarkEvidenceError(f"cannot load {label}: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise BenchmarkEvidenceError(f"{label} must contain a JSON object")
+    return payload
+
+
+def _sha256(path: str | Path) -> str:
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as source:
+        for block in iter(lambda: source.read(65536), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def audit_external_benchmark_reconciliation(
+    holdout_path: str | Path,
+    result_json_path: str | Path,
+    result_markdown_path: str | Path,
+    reconciliation_path: str | Path,
+) -> dict[str, object]:
+    """Validate a frozen external result and its scraper-only reconciliation.
+
+    This helper verifies bytes and identity joins. It does not retrieve, infer
+    evidence, revise Carmen's expectations, or turn benchmark fixtures into
+    institutional records.
+    """
+
+    holdout = _json_object(holdout_path, "Carmen holdout")
+    result = _json_object(result_json_path, "Carmen result")
+    reconciliation = _json_object(reconciliation_path, "reconciliation")
+    if reconciliation.get("network_calls_allowed") is not False:
+        raise BenchmarkEvidenceError("reconciliation must explicitly disable network")
+
+    artifacts = reconciliation.get("artifacts")
+    if not isinstance(artifacts, dict):
+        raise BenchmarkEvidenceError("reconciliation needs artifact hashes")
+    artifact_paths = {
+        "holdout": Path(holdout_path),
+        "result_json": Path(result_json_path),
+        "result_markdown": Path(result_markdown_path),
+    }
+    for name, path in artifact_paths.items():
+        expected_hash = artifacts.get(name)
+        if not isinstance(expected_hash, str) or len(expected_hash) != 64:
+            raise BenchmarkEvidenceError(f"reconciliation needs {name} SHA-256")
+        if _sha256(path) != expected_hash.casefold():
+            raise BenchmarkEvidenceError(f"{name} SHA-256 does not match reconciliation")
+
+    benchmark_id = holdout.get("benchmark_id")
+    if not isinstance(benchmark_id, str) or not benchmark_id:
+        raise BenchmarkEvidenceError("Carmen holdout needs benchmark_id")
+    if reconciliation.get("benchmark_id") != benchmark_id:
+        raise BenchmarkEvidenceError("reconciliation benchmark_id does not match holdout")
+    if result.get("benchmark_id") != benchmark_id:
+        raise BenchmarkEvidenceError("Carmen result benchmark_id does not match holdout")
+
+    holdout_rows = holdout.get("queries")
+    result_rows = result.get("results")
+    reconciliation_rows = reconciliation.get("queries")
+    if not all(isinstance(rows, list) for rows in (
+        holdout_rows, result_rows, reconciliation_rows
+    )):
+        raise BenchmarkEvidenceError("holdout, result and reconciliation need query arrays")
+
+    def by_query_id(rows: list[object], label: str) -> dict[str, dict[str, object]]:
+        indexed: dict[str, dict[str, object]] = {}
+        for index, row in enumerate(rows):
+            if not isinstance(row, dict):
+                raise BenchmarkEvidenceError(f"{label} query {index} must be an object")
+            query_id = row.get("query_id")
+            if not isinstance(query_id, str) or not query_id:
+                raise BenchmarkEvidenceError(f"{label} query {index} needs query_id")
+            if query_id in indexed:
+                raise BenchmarkEvidenceError(f"duplicate {label} query_id {query_id}")
+            indexed[query_id] = row
+        return indexed
+
+    indexed_holdout = by_query_id(holdout_rows, "holdout")
+    indexed_result = by_query_id(result_rows, "result")
+    indexed_reconciliation = by_query_id(reconciliation_rows, "reconciliation")
+    query_ids = set(indexed_holdout)
+    if set(indexed_result) != query_ids or set(indexed_reconciliation) != query_ids:
+        raise BenchmarkEvidenceError(
+            "result and reconciliation must cover the exact holdout query IDs"
+        )
+
+    failure_counts: Counter[str] = Counter()
+    classification_counts: Counter[str] = Counter()
+    owner_counts: Counter[str] = Counter()
+    mapping_counts: Counter[str] = Counter()
+    domain_counts: Counter[str] = Counter()
+    rag_provenance_complete = 0
+    scraper_provenance_complete = 0
+    for query_id, frozen in indexed_holdout.items():
+        row = indexed_reconciliation[query_id]
+        expectation = row.get("carmen_expectation")
+        audit = row.get("scraper_audit")
+        if set(row) != {"query_id", "carmen_expectation", "scraper_audit"}:
+            raise BenchmarkEvidenceError(
+                f"reconciliation query {query_id} has unsupported top-level fields"
+            )
+        if not isinstance(expectation, dict) or not isinstance(audit, dict):
+            raise BenchmarkEvidenceError(
+                f"reconciliation query {query_id} needs expectation and audit objects"
+            )
+        expected = {field: frozen.get(field) for field in _CARMEN_EXPECTATION_FIELDS}
+        if expectation != expected:
+            raise BenchmarkEvidenceError(
+                f"reconciliation changed Carmen expectation for {query_id}"
+            )
+        if set(audit) != _RECONCILIATION_AUDIT_FIELDS:
+            raise BenchmarkEvidenceError(
+                f"reconciliation audit fields are invalid for {query_id}"
+            )
+
+        measured = indexed_result[query_id]
+        if measured.get("domain") != frozen.get("domain"):
+            raise BenchmarkEvidenceError(f"result domain changed for {query_id}")
+        if measured.get("expected_relevant_ids") != frozen.get(
+            "expected_relevant_record_ids"
+        ):
+            raise BenchmarkEvidenceError(f"result expected IDs changed for {query_id}")
+        if measured.get("observed_failure_class") != frozen.get(
+            "expected_failure_class"
+        ):
+            raise BenchmarkEvidenceError(f"result failure class changed for {query_id}")
+
+        mapping = audit.get("canonical_mapping_status")
+        classification = audit.get("evidence_classification")
+        owner = audit.get("owner")
+        if mapping not in _CANONICAL_MAPPING_STATUSES:
+            raise BenchmarkEvidenceError(f"invalid mapping status for {query_id}")
+        try:
+            EvidenceClassification(classification)
+        except (TypeError, ValueError) as exc:
+            raise BenchmarkEvidenceError(
+                f"invalid evidence classification for {query_id}"
+            ) from exc
+        if not isinstance(owner, str) or not owner:
+            raise BenchmarkEvidenceError(f"invalid owner for {query_id}")
+        for field in ("reason", "representation", "source_reference"):
+            if not isinstance(audit.get(field), str) or not audit[field].strip():
+                raise BenchmarkEvidenceError(f"invalid {field} for {query_id}")
+        for field in ("rag_provenance_preserved", "scraper_provenance_complete"):
+            if not isinstance(audit.get(field), bool):
+                raise BenchmarkEvidenceError(f"invalid {field} for {query_id}")
+        if audit["rag_provenance_preserved"] != measured.get("provenance_preserved"):
+            raise BenchmarkEvidenceError(f"RAG provenance changed for {query_id}")
+
+        failure_counts[str(frozen["expected_failure_class"])] += 1
+        classification_counts[str(classification)] += 1
+        owner_counts[owner] += 1
+        mapping_counts[str(mapping)] += 1
+        domain_counts[str(frozen["domain"])] += 1
+        rag_provenance_complete += int(audit["rag_provenance_preserved"])
+        scraper_provenance_complete += int(audit["scraper_provenance_complete"])
+
+    query_count = len(indexed_holdout)
+    return {
+        "benchmark_id": benchmark_id,
+        "query_count": query_count,
+        "domain_counts": dict(sorted(domain_counts.items())),
+        "carmen_failure_counts": dict(sorted(failure_counts.items())),
+        "scraper_evidence_classification_counts": dict(
+            sorted(classification_counts.items())
+        ),
+        "owner_counts": dict(sorted(owner_counts.items())),
+        "canonical_mapping_counts": dict(sorted(mapping_counts.items())),
+        "rag_provenance": {
+            "complete": rag_provenance_complete,
+            "total": query_count,
+        },
+        "scraper_complete_provenance": {
+            "complete": scraper_provenance_complete,
+            "total": query_count,
+        },
+    }
+
+
 __all__ = [
     "BenchmarkAuditReport",
     "BenchmarkEvidenceError",
@@ -697,6 +911,7 @@ __all__ = [
     "SourceEvidenceStatus",
     "StructuredEvidence",
     "assess_requirement",
+    "audit_external_benchmark_reconciliation",
     "audit_benchmark",
     "compare_structured_evidence",
     "load_benchmark_requirements",

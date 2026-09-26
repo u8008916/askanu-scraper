@@ -17,6 +17,7 @@ from askanu_scraper.common.benchmark_evidence import (
     SourceEvidenceStatus,
     assess_requirement,
     audit_benchmark,
+    audit_external_benchmark_reconciliation,
     compare_structured_evidence,
     load_benchmark_requirements,
     project_structured_evidence,
@@ -36,6 +37,10 @@ from askanu_scraper.sources.support.parser import SupportParser
 ROOT = Path(__file__).resolve().parents[1]
 DAY2_MANIFEST = ROOT / "fixtures/v7/day2/resolver-search-metadata.json"
 DAY3_MANIFEST = ROOT / "fixtures/v7/day3/representative-evidence-audit.json"
+CARMEN_DIR = ROOT / "fixtures/v7/day3/carmen"
+CARMEN_RECONCILIATION = (
+    ROOT / "fixtures/v7/day3/carmen-benchmark-evidence-audit.json"
+)
 OBSERVED_AT = datetime(2026, 9, 23, 12, 0, tzinfo=CANBERRA_TZ)
 
 
@@ -106,6 +111,114 @@ def test_comp2120_preserves_completed_or_currently_studying_semantics() -> None:
     )
     assert record.metadata_json["incompatibilities"] == (
         "COMP2130, COMP6120 and COMP6311"
+    )
+
+
+def test_simple_successfully_completed_prerequisite_keeps_established_form() -> None:
+    html = """
+    <html><body>
+      <h1 class="intro-title">Compatibility Fixture</h1>
+      <h2>Requisite and Incompatibility</h2>
+      <p>To enrol in this course you must have successfully completed COMP2100.</p>
+      <h2>Prescribed Texts</h2><p>None.</p>
+    </body></html>
+    """
+
+    record = CoursesParser().parse(
+        html,
+        "https://programsandcourses.anu.edu.au/2026/course/COMP2999",
+    )[0]
+
+    assert record.metadata_json["prerequisites"] == "COMP2100"
+    assert not record.metadata_json["prerequisites"].startswith("or ")
+
+
+def test_carmen_artifacts_and_reconciliation_are_exact_and_separate() -> None:
+    metrics = audit_external_benchmark_reconciliation(
+        CARMEN_DIR / "holdout.json",
+        CARMEN_DIR / "v7_day3_final_retrieval_baseline.json",
+        CARMEN_DIR / "v7_day3_final_retrieval_baseline.md",
+        CARMEN_RECONCILIATION,
+    )
+
+    assert metrics["benchmark_id"] == "v7-day3-six-domain-holdout-v1"
+    assert metrics["query_count"] == 24
+    assert metrics["domain_counts"] == {
+        "accommodation": 4,
+        "courses": 4,
+        "events": 4,
+        "jobs": 4,
+        "scholarships": 4,
+        "support": 4,
+    }
+    assert metrics["carmen_failure_counts"] == {"DATA": 4, "NONE": 20}
+    assert metrics["scraper_evidence_classification_counts"] == {
+        "AMBIGUOUS_SOURCE": 2,
+        "IDENTITY_DEFECT": 17,
+        "INCOMPLETE_POPULATION": 1,
+        "MISSING_SOURCE": 2,
+        "NOT_DATA_FAILURE": 2,
+    }
+    assert metrics["owner_counts"] == {
+        "CROSS_REPO_CONTRACT": 18,
+        "NO_FAILURE": 2,
+        "SOURCE_PRODUCT_LIMITATION": 4,
+    }
+    assert metrics["canonical_mapping_counts"] == {
+        "mapped_exact": 4,
+        "partially_mapped": 1,
+        "unmapped_benchmark_identity": 19,
+    }
+    assert metrics["rag_provenance"] == {"complete": 24, "total": 24}
+    assert metrics["scraper_complete_provenance"] == {
+        "complete": 4,
+        "total": 24,
+    }
+
+
+def test_carmen_four_data_cases_keep_required_owners_and_classifications() -> None:
+    payload = json.loads(CARMEN_RECONCILIATION.read_text(encoding="utf-8"))
+    audit_by_query = {
+        row["query_id"]: row["scraper_audit"] for row in payload["queries"]
+    }
+
+    expected = {
+        "holdout-scholarship-eligibility": "AMBIGUOUS_SOURCE",
+        "holdout-accommodation-vacancy": "MISSING_SOURCE",
+        "holdout-jobs-incomplete": "INCOMPLETE_POPULATION",
+        "holdout-events-rubric-organiser": "MISSING_SOURCE",
+    }
+    assert {
+        query_id: audit_by_query[query_id]["evidence_classification"]
+        for query_id in expected
+    } == expected
+    assert {
+        audit_by_query[query_id]["owner"] for query_id in expected
+    } == {"SOURCE_PRODUCT_LIMITATION"}
+    assert all(
+        audit_by_query[query_id]["reason"] for query_id in expected
+    )
+
+
+def test_synthetic_identities_are_exposed_without_invented_provenance() -> None:
+    payload = json.loads(CARMEN_RECONCILIATION.read_text(encoding="utf-8"))
+    rows = {row["query_id"]: row for row in payload["queries"]}
+
+    catering = rows["holdout-accommodation-catering"]
+    assert catering["carmen_expectation"]["expected_relevant_record_ids"] == [
+        "accommodation:residence:bruce-hall",
+        "accommodation:residence:ursula-hall",
+        "accommodation:residence:burgmann-college",
+    ]
+    assert catering["scraper_audit"]["canonical_mapping_status"] == (
+        "partially_mapped"
+    )
+    assert catering["scraper_audit"]["scraper_provenance_complete"] is False
+
+    cost = rows["holdout-accommodation-cost"]["scraper_audit"]
+    assert cost["evidence_classification"] == "AMBIGUOUS_SOURCE"
+    assert cost["representation"] == (
+        "benchmark_fixture_conflicts_with_approved_source"
     )
 
 

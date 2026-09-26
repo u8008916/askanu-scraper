@@ -1,0 +1,750 @@
+{
+    "schema_version":  "v7-day3-carmen-reconciliation-v1",
+    "benchmark_id":  "v7-day3-six-domain-holdout-v1",
+    "rag_repository":  "u8008916/askanu-rag",
+    "rag_merge_commit":  "54d75f470c2f26b96bce9d5fafe70da8f9b7a6d6",
+    "network_calls_allowed":  false,
+    "artifacts":  {
+                      "holdout":  "13b061af57a6c2730dc7434f325996f0e2ce536ceddf00281545a89f58bf65b6",
+                      "result_json":  "e703b4a49f0dcf7202d8b024fa2fcdba453f11d826857a098d509b60ff4e3534",
+                      "result_markdown":  "9444ae98bb2312f2ff7e640c9dd1a538fe91e7f260e72a1fd647638e21cdc412"
+                  },
+    "byte_preservation_note":  "The holdout is the merged LF blob. Result copies preserve the reviewed Windows CRLF bytes whose hashes were recorded in RAG PR #37; the merged LF blob hashes differ only by newline representation.",
+    "scoreboard_separation":  "Carmen failure classes measure frozen retrieval behavior. Scraper classifications audit institutional mapping and source completeness and do not revise Carmen expectations.",
+    "queries":  [
+                    {
+                        "query_id":  "holdout-course-natural-name",
+                        "carmen_expectation":  {
+                                                   "query_id":  "holdout-course-natural-name",
+                                                   "domain":  "courses",
+                                                   "expected_relevant_record_ids":  [
+                                                                                        "courses:course:COMP1110_2026"
+                                                                                    ],
+                                                   "allowed_source_ids":  [
+                                                                              "courses_programs_and_courses"
+                                                                          ],
+                                                   "hard_constraints":  [
+
+                                                                        ],
+                                                   "expected_answer_state":  "CONFIRMED",
+                                                   "expected_result_status":  "RESULTS",
+                                                   "population_complete":  true,
+                                                   "expected_failure_class":  "NONE"
+                                               },
+                        "scraper_audit":  {
+                                              "canonical_mapping_status":  "unmapped_benchmark_identity",
+                                              "evidence_classification":  "IDENTITY_DEFECT",
+                                              "owner":  "CROSS_REPO_CONTRACT",
+                                              "reason":  "The expected record identity exists only in Carmen\u0027s synthetic benchmark and receives no invented scraper entity ID, canonical URL or authority.",
+                                              "representation":  "synthetic_benchmark_identity",
+                                              "rag_provenance_preserved":  true,
+                                              "scraper_provenance_complete":  false,
+                                              "source_reference":  "fixtures/v7/day3/carmen/holdout.json; day16-source-health.json"
+                                          }
+                    },
+                    {
+                        "query_id":  "holdout-course-prereq-followup",
+                        "carmen_expectation":  {
+                                                   "query_id":  "holdout-course-prereq-followup",
+                                                   "domain":  "courses",
+                                                   "expected_relevant_record_ids":  [
+                                                                                        "courses:course:COMP1110_2026"
+                                                                                    ],
+                                                   "allowed_source_ids":  [
+                                                                              "courses_programs_and_courses"
+                                                                          ],
+                                                   "hard_constraints":  [
+                                                                            "resolved_entity=COMP1110"
+                                                                        ],
+                                                   "expected_answer_state":  "CONFIRMED",
+                                                   "expected_result_status":  "RESULTS",
+                                                   "population_complete":  true,
+                                                   "expected_failure_class":  "NONE"
+                                               },
+                        "scraper_audit":  {
+                                              "canonical_mapping_status":  "unmapped_benchmark_identity",
+                                              "evidence_classification":  "IDENTITY_DEFECT",
+                                              "owner":  "CROSS_REPO_CONTRACT",
+                                              "reason":  "The expected record identity exists only in Carmen\u0027s synthetic benchmark and receives no invented scraper entity ID, canonical URL or authority.",
+                                              "representation":  "synthetic_benchmark_identity",
+                                              "rag_provenance_preserved":  true,
+                                              "scraper_provenance_complete":  false,
+                                              "source_reference":  "fixtures/v7/day3/carmen/holdout.json; day16-source-health.json"
+                                          }
+                    },
+                    {
+                        "query_id":  "holdout-course-units-spacing",
+                        "carmen_expectation":  {
+                                                   "query_id":  "holdout-course-units-spacing",
+                                                   "domain":  "courses",
+                                                   "expected_relevant_record_ids":  [
+                                                                                        "courses:course:COMP1110_2026"
+                                                                                    ],
+                                                   "allowed_source_ids":  [
+                                                                              "courses_programs_and_courses"
+                                                                          ],
+                                                   "hard_constraints":  [
+
+                                                                        ],
+                                                   "expected_answer_state":  "CONFIRMED",
+                                                   "expected_result_status":  "RESULTS",
+                                                   "population_complete":  true,
+                                                   "expected_failure_class":  "NONE"
+                                               },
+                        "scraper_audit":  {
+                                              "canonical_mapping_status":  "unmapped_benchmark_identity",
+                                              "evidence_classification":  "IDENTITY_DEFECT",
+                                              "owner":  "CROSS_REPO_CONTRACT",
+                                              "reason":  "The expected record identity exists only in Carmen\u0027s synthetic benchmark and receives no invented scraper entity ID, canonical URL or authority.",
+                                              "representation":  "synthetic_benchmark_identity",
+                                              "rag_provenance_preserved":  true,
+                                              "scraper_provenance_complete":  false,
+                                              "source_reference":  "fixtures/v7/day3/carmen/holdout.json; day16-source-health.json"
+                                          }
+                    },
+                    {
+                        "query_id":  "holdout-course-topic-discovery",
+                        "carmen_expectation":  {
+                                                   "query_id":  "holdout-course-topic-discovery",
+                                                   "domain":  "courses",
+                                                   "expected_relevant_record_ids":  [
+                                                                                        "courses:course:COMP2200_2026"
+                                                                                    ],
+                                                   "allowed_source_ids":  [
+                                                                              "courses_programs_and_courses"
+                                                                          ],
+                                                   "hard_constraints":  [
+                                                                            "entity_type=course"
+                                                                        ],
+                                                   "expected_answer_state":  "CONFIRMED",
+                                                   "expected_result_status":  "RESULTS",
+                                                   "population_complete":  true,
+                                                   "expected_failure_class":  "NONE"
+                                               },
+                        "scraper_audit":  {
+                                              "canonical_mapping_status":  "unmapped_benchmark_identity",
+                                              "evidence_classification":  "IDENTITY_DEFECT",
+                                              "owner":  "CROSS_REPO_CONTRACT",
+                                              "reason":  "The expected record identity exists only in Carmen\u0027s synthetic benchmark and receives no invented scraper entity ID, canonical URL or authority.",
+                                              "representation":  "synthetic_benchmark_identity",
+                                              "rag_provenance_preserved":  true,
+                                              "scraper_provenance_complete":  false,
+                                              "source_reference":  "fixtures/v7/day3/carmen/holdout.json; day16-source-health.json"
+                                          }
+                    },
+                    {
+                        "query_id":  "holdout-scholarship-match",
+                        "carmen_expectation":  {
+                                                   "query_id":  "holdout-scholarship-match",
+                                                   "domain":  "scholarships",
+                                                   "expected_relevant_record_ids":  [
+                                                                                        "scholarships:scholarship:international-science"
+                                                                                    ],
+                                                   "allowed_source_ids":  [
+                                                                              "scholarships_anu_finder"
+                                                                          ],
+                                                   "hard_constraints":  [
+                                                                            "student_type=international",
+                                                                            "study_level=postgraduate",
+                                                                            "area=science"
+                                                                        ],
+                                                   "expected_answer_state":  "DERIVED",
+                                                   "expected_result_status":  "RESULTS",
+                                                   "population_complete":  true,
+                                                   "expected_failure_class":  "NONE"
+                                               },
+                        "scraper_audit":  {
+                                              "canonical_mapping_status":  "unmapped_benchmark_identity",
+                                              "evidence_classification":  "IDENTITY_DEFECT",
+                                              "owner":  "CROSS_REPO_CONTRACT",
+                                              "reason":  "The expected record identity exists only in Carmen\u0027s synthetic benchmark and receives no invented scraper entity ID, canonical URL or authority.",
+                                              "representation":  "synthetic_benchmark_identity",
+                                              "rag_provenance_preserved":  true,
+                                              "scraper_provenance_complete":  false,
+                                              "source_reference":  "fixtures/v7/day3/carmen/holdout.json; day16-source-health.json"
+                                          }
+                    },
+                    {
+                        "query_id":  "holdout-scholarship-deadline",
+                        "carmen_expectation":  {
+                                                   "query_id":  "holdout-scholarship-deadline",
+                                                   "domain":  "scholarships",
+                                                   "expected_relevant_record_ids":  [
+                                                                                        "scholarships:scholarship:computing-merit"
+                                                                                    ],
+                                                   "allowed_source_ids":  [
+                                                                              "scholarships_anu_finder"
+                                                                          ],
+                                                   "hard_constraints":  [
+
+                                                                        ],
+                                                   "expected_answer_state":  "CONFIRMED",
+                                                   "expected_result_status":  "RESULTS",
+                                                   "population_complete":  true,
+                                                   "expected_failure_class":  "NONE"
+                                               },
+                        "scraper_audit":  {
+                                              "canonical_mapping_status":  "unmapped_benchmark_identity",
+                                              "evidence_classification":  "IDENTITY_DEFECT",
+                                              "owner":  "CROSS_REPO_CONTRACT",
+                                              "reason":  "The expected record identity exists only in Carmen\u0027s synthetic benchmark and receives no invented scraper entity ID, canonical URL or authority.",
+                                              "representation":  "synthetic_benchmark_identity",
+                                              "rag_provenance_preserved":  true,
+                                              "scraper_provenance_complete":  false,
+                                              "source_reference":  "fixtures/v7/day3/carmen/holdout.json; day16-source-health.json"
+                                          }
+                    },
+                    {
+                        "query_id":  "holdout-scholarship-eligibility",
+                        "carmen_expectation":  {
+                                                   "query_id":  "holdout-scholarship-eligibility",
+                                                   "domain":  "scholarships",
+                                                   "expected_relevant_record_ids":  [
+                                                                                        "scholarships:scholarship:international-science"
+                                                                                    ],
+                                                   "allowed_source_ids":  [
+                                                                              "scholarships_anu_finder"
+                                                                          ],
+                                                   "hard_constraints":  [
+                                                                            "student_type=international",
+                                                                            "study_level=postgraduate"
+                                                                        ],
+                                                   "expected_answer_state":  "UNKNOWN",
+                                                   "expected_result_status":  "RESULTS",
+                                                   "population_complete":  true,
+                                                   "expected_failure_class":  "DATA"
+                                               },
+                        "scraper_audit":  {
+                                              "canonical_mapping_status":  "unmapped_benchmark_identity",
+                                              "evidence_classification":  "AMBIGUOUS_SOURCE",
+                                              "owner":  "SOURCE_PRODUCT_LIMITATION",
+                                              "reason":  "The approved source cannot guarantee personal eligibility; the benchmark scholarship identity is also synthetic.",
+                                              "representation":  "synthetic_benchmark_identity",
+                                              "rag_provenance_preserved":  true,
+                                              "scraper_provenance_complete":  false,
+                                              "source_reference":  "fixtures/v7/day3/carmen/holdout.json; day16-source-health.json"
+                                          }
+                    },
+                    {
+                        "query_id":  "holdout-scholarship-equity-discovery",
+                        "carmen_expectation":  {
+                                                   "query_id":  "holdout-scholarship-equity-discovery",
+                                                   "domain":  "scholarships",
+                                                   "expected_relevant_record_ids":  [
+                                                                                        "scholarships:scholarship:engineering-equity"
+                                                                                    ],
+                                                   "allowed_source_ids":  [
+                                                                              "scholarships_anu_finder"
+                                                                          ],
+                                                   "hard_constraints":  [
+                                                                            "study_level=undergraduate",
+                                                                            "area=engineering"
+                                                                        ],
+                                                   "expected_answer_state":  "DERIVED",
+                                                   "expected_result_status":  "RESULTS",
+                                                   "population_complete":  true,
+                                                   "expected_failure_class":  "NONE"
+                                               },
+                        "scraper_audit":  {
+                                              "canonical_mapping_status":  "unmapped_benchmark_identity",
+                                              "evidence_classification":  "IDENTITY_DEFECT",
+                                              "owner":  "CROSS_REPO_CONTRACT",
+                                              "reason":  "The expected record identity exists only in Carmen\u0027s synthetic benchmark and receives no invented scraper entity ID, canonical URL or authority.",
+                                              "representation":  "synthetic_benchmark_identity",
+                                              "rag_provenance_preserved":  true,
+                                              "scraper_provenance_complete":  false,
+                                              "source_reference":  "fixtures/v7/day3/carmen/holdout.json; day16-source-health.json"
+                                          }
+                    },
+                    {
+                        "query_id":  "holdout-accommodation-catering",
+                        "carmen_expectation":  {
+                                                   "query_id":  "holdout-accommodation-catering",
+                                                   "domain":  "accommodation",
+                                                   "expected_relevant_record_ids":  [
+                                                                                        "accommodation:residence:bruce-hall",
+                                                                                        "accommodation:residence:ursula-hall",
+                                                                                        "accommodation:residence:burgmann-college"
+                                                                                    ],
+                                                   "allowed_source_ids":  [
+                                                                              "accommodation_anu_study"
+                                                                          ],
+                                                   "hard_constraints":  [
+                                                                            "catering=catered"
+                                                                        ],
+                                                   "expected_answer_state":  "DERIVED",
+                                                   "expected_result_status":  "RESULTS",
+                                                   "population_complete":  true,
+                                                   "expected_failure_class":  "NONE"
+                                               },
+                        "scraper_audit":  {
+                                              "canonical_mapping_status":  "partially_mapped",
+                                              "evidence_classification":  "IDENTITY_DEFECT",
+                                              "owner":  "CROSS_REPO_CONTRACT",
+                                              "reason":  "Only Burgmann College maps exactly; the benchmark Bruce Hall and Ursula Hall IDs collapse distinct approved wing identities.",
+                                              "representation":  "partial_canonical_identity_mapping",
+                                              "rag_provenance_preserved":  true,
+                                              "scraper_provenance_complete":  false,
+                                              "source_reference":  "fixtures/v7/day3/carmen/holdout.json; day16-source-health.json"
+                                          }
+                    },
+                    {
+                        "query_id":  "holdout-accommodation-cost",
+                        "carmen_expectation":  {
+                                                   "query_id":  "holdout-accommodation-cost",
+                                                   "domain":  "accommodation",
+                                                   "expected_relevant_record_ids":  [
+                                                                                        "accommodation:residence:yukeembruk"
+                                                                                    ],
+                                                   "allowed_source_ids":  [
+                                                                              "accommodation_anu_study"
+                                                                          ],
+                                                   "hard_constraints":  [
+                                                                            "room=single_studio"
+                                                                        ],
+                                                   "expected_answer_state":  "CONFIRMED",
+                                                   "expected_result_status":  "RESULTS",
+                                                   "population_complete":  true,
+                                                   "expected_failure_class":  "NONE"
+                                               },
+                        "scraper_audit":  {
+                                              "canonical_mapping_status":  "mapped_exact",
+                                              "evidence_classification":  "AMBIGUOUS_SOURCE",
+                                              "owner":  "CROSS_REPO_CONTRACT",
+                                              "reason":  "The benchmark fixture states $340 while the approved Yukeembruk fixture records $380; the benchmark value is not adopted as institutional fact.",
+                                              "representation":  "benchmark_fixture_conflicts_with_approved_source",
+                                              "rag_provenance_preserved":  true,
+                                              "scraper_provenance_complete":  true,
+                                              "source_reference":  "fixtures/v7/day3/carmen/holdout.json; fixtures/accommodation/anu_residence_yukeembruk_sample.html"
+                                          }
+                    },
+                    {
+                        "query_id":  "holdout-accommodation-preference",
+                        "carmen_expectation":  {
+                                                   "query_id":  "holdout-accommodation-preference",
+                                                   "domain":  "accommodation",
+                                                   "expected_relevant_record_ids":  [
+                                                                                        "accommodation:residence:ursula-hall"
+                                                                                    ],
+                                                   "allowed_source_ids":  [
+                                                                              "accommodation_anu_study"
+                                                                          ],
+                                                   "hard_constraints":  [
+
+                                                                        ],
+                                                   "expected_answer_state":  "CONFIRMED",
+                                                   "expected_result_status":  "RESULTS",
+                                                   "population_complete":  true,
+                                                   "expected_failure_class":  "NONE"
+                                               },
+                        "scraper_audit":  {
+                                              "canonical_mapping_status":  "unmapped_benchmark_identity",
+                                              "evidence_classification":  "IDENTITY_DEFECT",
+                                              "owner":  "CROSS_REPO_CONTRACT",
+                                              "reason":  "The expected record identity exists only in Carmen\u0027s synthetic benchmark and receives no invented scraper entity ID, canonical URL or authority.",
+                                              "representation":  "synthetic_benchmark_identity",
+                                              "rag_provenance_preserved":  true,
+                                              "scraper_provenance_complete":  false,
+                                              "source_reference":  "fixtures/v7/day3/carmen/holdout.json; day16-source-health.json"
+                                          }
+                    },
+                    {
+                        "query_id":  "holdout-accommodation-vacancy",
+                        "carmen_expectation":  {
+                                                   "query_id":  "holdout-accommodation-vacancy",
+                                                   "domain":  "accommodation",
+                                                   "expected_relevant_record_ids":  [
+                                                                                        "accommodation:residence:yukeembruk"
+                                                                                    ],
+                                                   "allowed_source_ids":  [
+                                                                              "accommodation_anu_study"
+                                                                          ],
+                                                   "hard_constraints":  [
+                                                                            "currentness=this_week"
+                                                                        ],
+                                                   "expected_answer_state":  "UNKNOWN",
+                                                   "expected_result_status":  "RESULTS",
+                                                   "population_complete":  true,
+                                                   "expected_failure_class":  "DATA"
+                                               },
+                        "scraper_audit":  {
+                                              "canonical_mapping_status":  "mapped_exact",
+                                              "evidence_classification":  "MISSING_SOURCE",
+                                              "owner":  "SOURCE_PRODUCT_LIMITATION",
+                                              "reason":  "The approved accommodation source does not publish current vacancy, so availability cannot be established.",
+                                              "representation":  "source_identity_mapped_required_fact_not_published",
+                                              "rag_provenance_preserved":  true,
+                                              "scraper_provenance_complete":  true,
+                                              "source_reference":  "fixtures/v7/day3/carmen/holdout.json; fixtures/accommodation/anu_residence_yukeembruk_sample.html"
+                                          }
+                    },
+                    {
+                        "query_id":  "holdout-jobs-topic-discovery",
+                        "carmen_expectation":  {
+                                                   "query_id":  "holdout-jobs-topic-discovery",
+                                                   "domain":  "jobs",
+                                                   "expected_relevant_record_ids":  [
+                                                                                        "jobs:job:100001"
+                                                                                    ],
+                                                   "allowed_source_ids":  [
+                                                                              "jobs_anu_search"
+                                                                          ],
+                                                   "hard_constraints":  [
+                                                                            "status=current"
+                                                                        ],
+                                                   "expected_answer_state":  "CONFIRMED",
+                                                   "expected_result_status":  "RESULTS",
+                                                   "population_complete":  true,
+                                                   "expected_failure_class":  "NONE"
+                                               },
+                        "scraper_audit":  {
+                                              "canonical_mapping_status":  "unmapped_benchmark_identity",
+                                              "evidence_classification":  "IDENTITY_DEFECT",
+                                              "owner":  "CROSS_REPO_CONTRACT",
+                                              "reason":  "The expected record identity exists only in Carmen\u0027s synthetic benchmark and receives no invented scraper entity ID, canonical URL or authority.",
+                                              "representation":  "synthetic_benchmark_identity",
+                                              "rag_provenance_preserved":  true,
+                                              "scraper_provenance_complete":  false,
+                                              "source_reference":  "fixtures/v7/day3/carmen/holdout.json; day16-source-health.json"
+                                          }
+                    },
+                    {
+                        "query_id":  "holdout-jobs-closing-date",
+                        "carmen_expectation":  {
+                                                   "query_id":  "holdout-jobs-closing-date",
+                                                   "domain":  "jobs",
+                                                   "expected_relevant_record_ids":  [
+                                                                                        "jobs:job:100002"
+                                                                                    ],
+                                                   "allowed_source_ids":  [
+                                                                              "jobs_anu_search"
+                                                                          ],
+                                                   "hard_constraints":  [
+
+                                                                        ],
+                                                   "expected_answer_state":  "CONFIRMED",
+                                                   "expected_result_status":  "RESULTS",
+                                                   "population_complete":  true,
+                                                   "expected_failure_class":  "NONE"
+                                               },
+                        "scraper_audit":  {
+                                              "canonical_mapping_status":  "unmapped_benchmark_identity",
+                                              "evidence_classification":  "IDENTITY_DEFECT",
+                                              "owner":  "CROSS_REPO_CONTRACT",
+                                              "reason":  "The expected record identity exists only in Carmen\u0027s synthetic benchmark and receives no invented scraper entity ID, canonical URL or authority.",
+                                              "representation":  "synthetic_benchmark_identity",
+                                              "rag_provenance_preserved":  true,
+                                              "scraper_provenance_complete":  false,
+                                              "source_reference":  "fixtures/v7/day3/carmen/holdout.json; day16-source-health.json"
+                                          }
+                    },
+                    {
+                        "query_id":  "holdout-jobs-requirements",
+                        "carmen_expectation":  {
+                                                   "query_id":  "holdout-jobs-requirements",
+                                                   "domain":  "jobs",
+                                                   "expected_relevant_record_ids":  [
+                                                                                        "jobs:job:100001"
+                                                                                    ],
+                                                   "allowed_source_ids":  [
+                                                                              "jobs_anu_search"
+                                                                          ],
+                                                   "hard_constraints":  [
+
+                                                                        ],
+                                                   "expected_answer_state":  "CONFIRMED",
+                                                   "expected_result_status":  "RESULTS",
+                                                   "population_complete":  true,
+                                                   "expected_failure_class":  "NONE"
+                                               },
+                        "scraper_audit":  {
+                                              "canonical_mapping_status":  "unmapped_benchmark_identity",
+                                              "evidence_classification":  "IDENTITY_DEFECT",
+                                              "owner":  "CROSS_REPO_CONTRACT",
+                                              "reason":  "The expected record identity exists only in Carmen\u0027s synthetic benchmark and receives no invented scraper entity ID, canonical URL or authority.",
+                                              "representation":  "synthetic_benchmark_identity",
+                                              "rag_provenance_preserved":  true,
+                                              "scraper_provenance_complete":  false,
+                                              "source_reference":  "fixtures/v7/day3/carmen/holdout.json; day16-source-health.json"
+                                          }
+                    },
+                    {
+                        "query_id":  "holdout-jobs-incomplete",
+                        "carmen_expectation":  {
+                                                   "query_id":  "holdout-jobs-incomplete",
+                                                   "domain":  "jobs",
+                                                   "expected_relevant_record_ids":  [
+                                                                                        "jobs:job:100004"
+                                                                                    ],
+                                                   "allowed_source_ids":  [
+                                                                              "jobs_anu_search"
+                                                                          ],
+                                                   "hard_constraints":  [
+
+                                                                        ],
+                                                   "expected_answer_state":  "UNKNOWN",
+                                                   "expected_result_status":  "INCOMPLETE",
+                                                   "population_complete":  false,
+                                                   "expected_failure_class":  "DATA"
+                                               },
+                        "scraper_audit":  {
+                                              "canonical_mapping_status":  "unmapped_benchmark_identity",
+                                              "evidence_classification":  "INCOMPLETE_POPULATION",
+                                              "owner":  "SOURCE_PRODUCT_LIMITATION",
+                                              "reason":  "The supported Jobs population is not established as complete; the benchmark-only job identity is not mapped.",
+                                              "representation":  "synthetic_benchmark_identity",
+                                              "rag_provenance_preserved":  true,
+                                              "scraper_provenance_complete":  false,
+                                              "source_reference":  "fixtures/v7/day3/carmen/holdout.json; day16-source-health.json"
+                                          }
+                    },
+                    {
+                        "query_id":  "holdout-events-date",
+                        "carmen_expectation":  {
+                                                   "query_id":  "holdout-events-date",
+                                                   "domain":  "events",
+                                                   "expected_relevant_record_ids":  [
+                                                                                        "events:event:2001",
+                                                                                        "events:event:2002",
+                                                                                        "events:event:rubric-9001"
+                                                                                    ],
+                                                   "allowed_source_ids":  [
+                                                                              "events_anu_official",
+                                                                              "rubric_unified_search"
+                                                                          ],
+                                                   "hard_constraints":  [
+                                                                            "date=2026-09-26",
+                                                                            "timezone=Australia/Canberra"
+                                                                        ],
+                                                   "expected_answer_state":  "CONFIRMED",
+                                                   "expected_result_status":  "RESULTS",
+                                                   "population_complete":  true,
+                                                   "expected_failure_class":  "NONE"
+                                               },
+                        "scraper_audit":  {
+                                              "canonical_mapping_status":  "unmapped_benchmark_identity",
+                                              "evidence_classification":  "IDENTITY_DEFECT",
+                                              "owner":  "CROSS_REPO_CONTRACT",
+                                              "reason":  "The expected record identity exists only in Carmen\u0027s synthetic benchmark and receives no invented scraper entity ID, canonical URL or authority.",
+                                              "representation":  "synthetic_benchmark_identity",
+                                              "rag_provenance_preserved":  true,
+                                              "scraper_provenance_complete":  false,
+                                              "source_reference":  "fixtures/v7/day3/carmen/holdout.json; day16-source-health.json"
+                                          }
+                    },
+                    {
+                        "query_id":  "holdout-events-time-followup",
+                        "carmen_expectation":  {
+                                                   "query_id":  "holdout-events-time-followup",
+                                                   "domain":  "events",
+                                                   "expected_relevant_record_ids":  [
+                                                                                        "events:event:2002",
+                                                                                        "events:event:rubric-9001"
+                                                                                    ],
+                                                   "allowed_source_ids":  [
+                                                                              "events_anu_official",
+                                                                              "rubric_unified_search"
+                                                                          ],
+                                                   "hard_constraints":  [
+                                                                            "date=2026-09-26",
+                                                                            "time\u003e=17:00",
+                                                                            "timezone=Australia/Canberra"
+                                                                        ],
+                                                   "expected_answer_state":  "CONFIRMED",
+                                                   "expected_result_status":  "RESULTS",
+                                                   "population_complete":  true,
+                                                   "expected_failure_class":  "NONE"
+                                               },
+                        "scraper_audit":  {
+                                              "canonical_mapping_status":  "unmapped_benchmark_identity",
+                                              "evidence_classification":  "IDENTITY_DEFECT",
+                                              "owner":  "CROSS_REPO_CONTRACT",
+                                              "reason":  "The expected record identity exists only in Carmen\u0027s synthetic benchmark and receives no invented scraper entity ID, canonical URL or authority.",
+                                              "representation":  "synthetic_benchmark_identity",
+                                              "rag_provenance_preserved":  true,
+                                              "scraper_provenance_complete":  false,
+                                              "source_reference":  "fixtures/v7/day3/carmen/holdout.json; day16-source-health.json"
+                                          }
+                    },
+                    {
+                        "query_id":  "holdout-events-venue",
+                        "carmen_expectation":  {
+                                                   "query_id":  "holdout-events-venue",
+                                                   "domain":  "events",
+                                                   "expected_relevant_record_ids":  [
+                                                                                        "events:event:2003"
+                                                                                    ],
+                                                   "allowed_source_ids":  [
+                                                                              "events_anu_official"
+                                                                          ],
+                                                   "hard_constraints":  [
+
+                                                                        ],
+                                                   "expected_answer_state":  "CONFIRMED",
+                                                   "expected_result_status":  "RESULTS",
+                                                   "population_complete":  true,
+                                                   "expected_failure_class":  "NONE"
+                                               },
+                        "scraper_audit":  {
+                                              "canonical_mapping_status":  "unmapped_benchmark_identity",
+                                              "evidence_classification":  "IDENTITY_DEFECT",
+                                              "owner":  "CROSS_REPO_CONTRACT",
+                                              "reason":  "The expected record identity exists only in Carmen\u0027s synthetic benchmark and receives no invented scraper entity ID, canonical URL or authority.",
+                                              "representation":  "synthetic_benchmark_identity",
+                                              "rag_provenance_preserved":  true,
+                                              "scraper_provenance_complete":  false,
+                                              "source_reference":  "fixtures/v7/day3/carmen/holdout.json; day16-source-health.json"
+                                          }
+                    },
+                    {
+                        "query_id":  "holdout-events-rubric-organiser",
+                        "carmen_expectation":  {
+                                                   "query_id":  "holdout-events-rubric-organiser",
+                                                   "domain":  "events",
+                                                   "expected_relevant_record_ids":  [
+                                                                                        "events:event:rubric-9001"
+                                                                                    ],
+                                                   "allowed_source_ids":  [
+                                                                              "rubric_unified_search"
+                                                                          ],
+                                                   "hard_constraints":  [
+
+                                                                        ],
+                                                   "expected_answer_state":  "PARTIAL",
+                                                   "expected_result_status":  "RESULTS",
+                                                   "population_complete":  true,
+                                                   "expected_failure_class":  "DATA"
+                                               },
+                        "scraper_audit":  {
+                                              "canonical_mapping_status":  "unmapped_benchmark_identity",
+                                              "evidence_classification":  "MISSING_SOURCE",
+                                              "owner":  "SOURCE_PRODUCT_LIMITATION",
+                                              "reason":  "The approved Rubric evidence does not publish the organiser; the benchmark event identity is synthetic.",
+                                              "representation":  "synthetic_benchmark_identity",
+                                              "rag_provenance_preserved":  true,
+                                              "scraper_provenance_complete":  false,
+                                              "source_reference":  "fixtures/v7/day3/carmen/holdout.json; day16-source-health.json"
+                                          }
+                    },
+                    {
+                        "query_id":  "holdout-support-assessment",
+                        "carmen_expectation":  {
+                                                   "query_id":  "holdout-support-assessment",
+                                                   "domain":  "support",
+                                                   "expected_relevant_record_ids":  [
+                                                                                        "support:support_service:academic"
+                                                                                    ],
+                                                   "allowed_source_ids":  [
+                                                                              "support_anusa_student_assistance"
+                                                                          ],
+                                                   "hard_constraints":  [
+
+                                                                        ],
+                                                   "expected_answer_state":  "CONFIRMED",
+                                                   "expected_result_status":  "RESULTS",
+                                                   "population_complete":  true,
+                                                   "expected_failure_class":  "NONE"
+                                               },
+                        "scraper_audit":  {
+                                              "canonical_mapping_status":  "mapped_exact",
+                                              "evidence_classification":  "NOT_DATA_FAILURE",
+                                              "owner":  "NO_FAILURE",
+                                              "reason":  "The benchmark identity maps to the approved Academic Support identity; Carmen result remains fixture evidence, not a fresh institutional audit.",
+                                              "representation":  "source_identity_mapped_benchmark_fact_not_institutionally_reverified",
+                                              "rag_provenance_preserved":  true,
+                                              "scraper_provenance_complete":  true,
+                                              "source_reference":  "fixtures/v7/day3/carmen/holdout.json; day16-source-health.json"
+                                          }
+                    },
+                    {
+                        "query_id":  "holdout-support-financial",
+                        "carmen_expectation":  {
+                                                   "query_id":  "holdout-support-financial",
+                                                   "domain":  "support",
+                                                   "expected_relevant_record_ids":  [
+                                                                                        "support:support_service:financial"
+                                                                                    ],
+                                                   "allowed_source_ids":  [
+                                                                              "support_anusa_student_assistance"
+                                                                          ],
+                                                   "hard_constraints":  [
+
+                                                                        ],
+                                                   "expected_answer_state":  "CONFIRMED",
+                                                   "expected_result_status":  "RESULTS",
+                                                   "population_complete":  true,
+                                                   "expected_failure_class":  "NONE"
+                                               },
+                        "scraper_audit":  {
+                                              "canonical_mapping_status":  "mapped_exact",
+                                              "evidence_classification":  "NOT_DATA_FAILURE",
+                                              "owner":  "NO_FAILURE",
+                                              "reason":  "The benchmark identity maps to the approved Financial Support identity; Carmen result remains fixture evidence, not a fresh institutional audit.",
+                                              "representation":  "source_identity_mapped_benchmark_fact_not_institutionally_reverified",
+                                              "rag_provenance_preserved":  true,
+                                              "scraper_provenance_complete":  true,
+                                              "source_reference":  "fixtures/v7/day3/carmen/holdout.json; day16-source-health.json"
+                                          }
+                    },
+                    {
+                        "query_id":  "holdout-support-overseas-settling",
+                        "carmen_expectation":  {
+                                                   "query_id":  "holdout-support-overseas-settling",
+                                                   "domain":  "support",
+                                                   "expected_relevant_record_ids":  [
+                                                                                        "support:support_service:international"
+                                                                                    ],
+                                                   "allowed_source_ids":  [
+                                                                              "support_anusa_student_assistance"
+                                                                          ],
+                                                   "hard_constraints":  [
+
+                                                                        ],
+                                                   "expected_answer_state":  "CONFIRMED",
+                                                   "expected_result_status":  "RESULTS",
+                                                   "population_complete":  true,
+                                                   "expected_failure_class":  "NONE"
+                                               },
+                        "scraper_audit":  {
+                                              "canonical_mapping_status":  "unmapped_benchmark_identity",
+                                              "evidence_classification":  "IDENTITY_DEFECT",
+                                              "owner":  "CROSS_REPO_CONTRACT",
+                                              "reason":  "The expected record identity exists only in Carmen\u0027s synthetic benchmark and receives no invented scraper entity ID, canonical URL or authority.",
+                                              "representation":  "synthetic_benchmark_identity",
+                                              "rag_provenance_preserved":  true,
+                                              "scraper_provenance_complete":  false,
+                                              "source_reference":  "fixtures/v7/day3/carmen/holdout.json; day16-source-health.json"
+                                          }
+                    },
+                    {
+                        "query_id":  "holdout-support-legal-cost",
+                        "carmen_expectation":  {
+                                                   "query_id":  "holdout-support-legal-cost",
+                                                   "domain":  "support",
+                                                   "expected_relevant_record_ids":  [
+                                                                                        "support:support_service:legal"
+                                                                                    ],
+                                                   "allowed_source_ids":  [
+                                                                              "support_anusa_student_assistance"
+                                                                          ],
+                                                   "hard_constraints":  [
+
+                                                                        ],
+                                                   "expected_answer_state":  "CONFIRMED",
+                                                   "expected_result_status":  "RESULTS",
+                                                   "population_complete":  true,
+                                                   "expected_failure_class":  "NONE"
+                                               },
+                        "scraper_audit":  {
+                                              "canonical_mapping_status":  "unmapped_benchmark_identity",
+                                              "evidence_classification":  "IDENTITY_DEFECT",
+                                              "owner":  "CROSS_REPO_CONTRACT",
+                                              "reason":  "The expected record identity exists only in Carmen\u0027s synthetic benchmark and receives no invented scraper entity ID, canonical URL or authority.",
+                                              "representation":  "synthetic_benchmark_identity",
+                                              "rag_provenance_preserved":  true,
+                                              "scraper_provenance_complete":  false,
+                                              "source_reference":  "fixtures/v7/day3/carmen/holdout.json; day16-source-health.json"
+                                          }
+                    }
+                ]
+}
