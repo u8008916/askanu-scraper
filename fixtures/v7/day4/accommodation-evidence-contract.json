@@ -1,0 +1,287 @@
+{
+  "contract_version": "v7-day4-accommodation-evidence-v2",
+  "depends_on": [
+    "v7-day1-producer-capabilities-v1",
+    "v7-day2-resolver-search-metadata-v1"
+  ],
+  "fixture_type": "accommodation evidence capability handoff",
+  "network_calls_allowed": false,
+  "source_id": "accommodation_anu_study",
+  "entity_type": "residence",
+  "frozen_entity_denominator": 19,
+  "source_boundary": "Approved public residence listing and detail pages only; published StarRez URLs are navigation evidence and are never fetched.",
+  "missing_value_semantics": "Missing source evidence stays unknown; it is not false, unavailable, ineligible, or zero.",
+  "collection_absence_semantics": "For schema-required collection fields, an empty array means no source-backed members were captured; it is UNKNOWN for truth claims and must not be interpreted as an explicit negative.",
+  "entity_universe": {
+    "listing_url": "https://study.anu.edu.au/accommodation/our-residences",
+    "expected_residences": 19,
+    "discovery_rule": "Discover residence detail links from the approved public listing and accept only exact HTTPS pages below /accommodation/our-residences/<slug> on study.anu.edu.au.",
+    "identity_rule": "entity_id is the canonical residence URL slug and record_id is accommodation:residence:<entity_id>.",
+    "temporary_disappearance_rule": "An observed count below 19 is suspicious and must preserve last-known-good data for investigation; disappearance is not immediate deletion evidence."
+  },
+  "cross_repo_price_decision": {
+    "status": "agreed_carmen_will",
+    "agreed_on": "2026-09-26",
+    "current_effective_rule": "Numeric max-price filtering is supported only when at least one explicit named room has an unambiguous published AUD weekly rate satisfying the threshold. Advertised-rate numeric filtering, sorting, ranking, affordability claims, and total-cost calculation remain unsupported.",
+    "agreed_rule": "A residence matches a numeric max-price constraint when at least one named room has an unambiguous published AUD weekly rate satisfying the threshold; the qualifying room, exact cost period, contract, inclusions, and other fees remain attached. Advertised 'from' wording remains display/comparison-only evidence.",
+    "unknown_rule": "A missing or ambiguous room rate is UNKNOWN, not NO_MATCH; any result set containing unevaluable records is incomplete rather than globally empty.",
+    "ownership_rule": "The scraper freezes source evidence and capability semantics; RAG applies only the agreed interpretation; the App displays the structured result and never parses price text itself.",
+    "rag_alignment_status": "Carmen confirmed the boundary and will update the Day 4 RAG implementation and tests.",
+    "synchronized_contract_scope": [
+      "scraper capability matrix",
+      "scraper unsupported operations",
+      "scraper tests",
+      "scraper Day 4 handoff",
+      "RAG consumer contract and tests"
+    ]
+  },
+  "price_evidence_matrix": {
+    "status": "agreed_carmen_will_contract",
+    "advertised_rate": {
+      "display": true,
+      "exact_text_comparison": true,
+      "numeric_extraction": "not_approved",
+      "deterministic_filtering": "not_approved",
+      "total_cost_calculation": false,
+      "cheapest_ranking": false,
+      "semantic_guard": "Preserve qualifiers such as 'Rates from', A$, /wk, and the exact cost period; do not turn a starting rate into an every-room, availability, affordability, or total-cost claim."
+    },
+    "rooms[].rate": {
+      "display_paired_with_room": true,
+      "exact_text_comparison_with_room_identity": true,
+      "numeric_filtering": "approved_named_room_weekly_max_only",
+      "flatten_across_rooms": false,
+      "evidence_requirements": [
+        "non-empty explicit room name",
+        "rate was parsed only from the published Weekly Inclusive Tariff field",
+        "AUD currency is unambiguous from the published residence price context",
+        "exact published cost period is present"
+      ],
+      "comparison_operators": {
+        "under": "strictly_less_than",
+        "below": "strictly_less_than",
+        "less than": "strictly_less_than",
+        "up to": "less_than_or_equal",
+        "maximum": "less_than_or_equal",
+        "max": "less_than_or_equal",
+        "no more than": "less_than_or_equal"
+      },
+      "residence_result_semantics": {
+        "MATCH": "At least one evaluable named room satisfies the threshold; return the qualifying room evidence.",
+        "NO_MATCH": "Every published named room rate is evaluable and every one fails the threshold.",
+        "UNKNOWN": "No room proves MATCH and at least one published or expected room rate is missing or ambiguous."
+      },
+      "semantic_guard": "A qualifying rate remains attached to its room name, cost period, contract, inclusions, and other fees; it proves neither vacancy nor residence-wide affordability."
+    },
+    "cost_period": {
+      "must_accompany_price_interpretation": true,
+      "may_infer_current_price": false,
+      "may_equate_different_periods": false
+    },
+    "rooms[].other_fees": {
+      "display_paired_with_room": true,
+      "weekly_rate_input": false,
+      "silently_fold_into_total": false,
+      "silently_ignore_for_total_claim": false
+    }
+  },
+  "live_audit": {
+    "artifact": "day4-accommodation-source-health.json",
+    "sha256_lf_normalized": "3e958e9ae0dfb0bf0700c51eb4dda8445db9f803ec39fc53530a0d4e50a186b8",
+    "captured_at": "2026-09-25T12:59:11.798607+10:00",
+    "dry_run": true,
+    "production_records_written": 0,
+    "migrations_applied": 0,
+    "advertised_total": 19,
+    "discovered_total": 19,
+    "approved_records": 19,
+    "detail_pages_fetched": 19,
+    "parsed_records": 19,
+    "parser_exceptions": 0,
+    "canonical_mismatches": 0,
+    "duplicate_identities": 0,
+    "source_shape_anomalies": [],
+    "source_present_fact_numerator": 255,
+    "source_present_fact_denominator": 255
+  },
+  "field_capabilities": [
+    {
+      "path": "metadata_json.category",
+      "classification": "deterministic_exact",
+      "supported_use": "Exact source-backed category membership when present.",
+      "unsupported_use": "Guessed categories or category equivalence.",
+      "live_source_present": 19,
+      "live_captured": 19
+    },
+    {
+      "path": "metadata_json.location",
+      "classification": "deterministic_exact_when_present",
+      "supported_use": "Exact published location when present.",
+      "unsupported_use": "Inferring location from a residence name, contact block, or nearby text.",
+      "live_source_present": 0,
+      "live_captured": 0
+    },
+    {
+      "path": "metadata_json.catering_options",
+      "classification": "deterministic_exact",
+      "supported_use": "Exact source-backed catering membership.",
+      "unsupported_use": "Synonym expansion or inferring catering from features or room prose.",
+      "live_source_present": 19,
+      "live_captured": 19
+    },
+    {
+      "path": "metadata_json.audiences",
+      "classification": "deterministic_exact",
+      "supported_use": "Exact source-backed audience membership.",
+      "unsupported_use": "Personal eligibility or guessed audience equivalence.",
+      "live_source_present": 19,
+      "live_captured": 19
+    },
+    {
+      "path": "metadata_json.advertised_rate",
+      "classification": "exact_text_comparison",
+      "supported_use": "Display or compare the exact advertised-rate wording with its source context.",
+      "unsupported_use": "Numeric normalization, total-cost calculation, cheapest ranking, or filling a missing advertised rate from a room rate.",
+      "live_source_present": 18,
+      "live_captured": 18
+    },
+    {
+      "path": "metadata_json.cost_period",
+      "classification": "exact_text_qualifier",
+      "supported_use": "Qualify displayed room and advertised rate evidence with the exact published period.",
+      "unsupported_use": "Assuming currentness, equivalence between periods, or an unstated contract interval.",
+      "live_source_present": 19,
+      "live_captured": 19
+    },
+    {
+      "path": "metadata_json.rooms",
+      "classification": "paired_exact_text_and_named_room_weekly_max_filter",
+      "supported_use": "Compare source-backed room objects and apply the agreed numeric max-price rule only to an explicit named room with an unambiguous published AUD weekly rate, while preserving the room's cost period, contract, inclusions, and other fees.",
+      "unsupported_use": "Flattening fields across rooms, filtering from advertised_rate or fee text, numeric price ranking, total-cost calculation, or detaching rates from cost period and contract wording.",
+      "live_source_present": 19,
+      "live_captured": 19
+    },
+    {
+      "path": "metadata_json.features",
+      "classification": "deterministic_exact",
+      "supported_use": "Exact published feature membership.",
+      "unsupported_use": "Synonym expansion or treating an absent feature as false.",
+      "live_source_present": 19,
+      "live_captured": 19
+    },
+    {
+      "path": "metadata_json.overview",
+      "classification": "content_only",
+      "supported_use": "Source-wording display and content-assisted relevance.",
+      "unsupported_use": "Deterministic filtering or extracting unstated attributes.",
+      "live_source_present": 19,
+      "live_captured": 19
+    },
+    {
+      "path": "metadata_json.accessibility",
+      "classification": "content_only_when_present",
+      "supported_use": "Display exact published accessibility wording when present.",
+      "unsupported_use": "A universal accessibility boolean or inference from generic features.",
+      "live_source_present": 0,
+      "live_captured": 0
+    },
+    {
+      "path": "metadata_json.application_text",
+      "classification": "navigation_text_when_present",
+      "supported_use": "Display exact published application-link wording.",
+      "unsupported_use": "Application outcome, eligibility, vacancy, or availability inference.",
+      "live_source_present": 14,
+      "live_captured": 14
+    },
+    {
+      "path": "metadata_json.application_url",
+      "classification": "navigation_only_when_present",
+      "supported_use": "Navigate to the exact published outbound application URL.",
+      "unsupported_use": "Fetching authenticated StarRez, deriving application status, or treating link presence as vacancy.",
+      "live_source_present": 14,
+      "live_captured": 14
+    },
+    {
+      "path": "metadata_json.eligibility",
+      "classification": "content_only_when_present",
+      "supported_use": "Display exact published eligibility wording when present.",
+      "unsupported_use": "A personal eligibility decision or inference from audience labels.",
+      "live_source_present": 0,
+      "live_captured": 0
+    },
+    {
+      "path": "metadata_json.contact",
+      "classification": "nested_exact_when_present",
+      "supported_use": "Display published email, phone, location, and hours without filling missing subfields.",
+      "unsupported_use": "Availability, open-now status, or contact-detail synthesis.",
+      "live_source_present": 19,
+      "live_captured": 19
+    },
+    {
+      "path": "metadata_json.vacancy_status",
+      "classification": "explicit_only",
+      "supported_use": "Use only an explicit published vacancy statement; null means not established.",
+      "unsupported_use": "Inferring available, unavailable, or false from rates, rooms, application links, or missing text.",
+      "live_source_present": 0,
+      "live_captured": 0
+    }
+  ],
+  "representative_cases": [
+    {
+      "name": "multiple room facts and complete contact subfields",
+      "source_fixture": "fixtures/accommodation/anu_residence_yukeembruk_sample.html",
+      "source_url": "https://study.anu.edu.au/accommodation/our-residences/yukeembruk",
+      "listing_metadata": {
+        "title": "Yukeembruk",
+        "category": "Our residences",
+        "catering_options": ["Self-catered"],
+        "audiences": ["Undergraduate", "Postgraduate"],
+        "advertised_rate": "Rates from A$380.00 /wk",
+        "listing_description": "A village residence."
+      },
+      "expected_record_id": "accommodation:residence:yukeembruk",
+      "expected_cost_period": "2027 Indicative costs",
+      "expected_application_url": "https://anucomb.starrezhousing.com/StarRezPortalX/public-token",
+      "expected_contact_hours": "Monday to Friday, 10am-4pm AEDT/AEST"
+    },
+    {
+      "name": "single room facts and missing optional contact subfields",
+      "source_fixture": "fixtures/accommodation/anu_residence_davey_lodge_sample.html",
+      "source_url": "https://study.anu.edu.au/accommodation/our-residences/davey-lodge",
+      "listing_metadata": {
+        "title": "Davey Lodge",
+        "category": "Our residences",
+        "catering_options": ["Self-catered"],
+        "audiences": ["Undergraduate", "Postgraduate"],
+        "advertised_rate": "Rates from A$365.00 /wk",
+        "listing_description": "Apartment-style living."
+      },
+      "expected_record_id": "accommodation:residence:davey-lodge",
+      "expected_cost_period": "2027 Indicative costs",
+      "expected_application_url": "https://anucomb.starrezhousing.com/StarRezPortalX/public-token",
+      "expected_contact_hours": null
+    }
+  ],
+  "supported_deterministic_filters": [
+    "exact_category_membership",
+    "exact_catering_membership",
+    "exact_audience_membership_as_description_not_personal_eligibility",
+    "exact_feature_membership",
+    "named_room_unambiguous_aud_weekly_max_price"
+  ],
+  "unsupported_filters_and_claims": [
+    "advertised_rate_numeric_filtering",
+    "price_sorting_or_cheapest_ranking",
+    "minimum_price_or_range_filtering_beyond_the_agreed_named_room_max_rule",
+    "total_contract_cost_calculation",
+    "affordability_or_residence_wide_budget_claim",
+    "current_price_without_cost_period",
+    "numeric_extraction_from_fees_deposits_or_free_text",
+    "vacancy_or_room_availability",
+    "personal_eligibility",
+    "inferred_location",
+    "inferred_accessibility",
+    "application_status_or_outcome",
+    "magic_wording_or_unreviewed_synonyms"
+  ]
+}
