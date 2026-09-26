@@ -1,0 +1,63 @@
+{
+  "schema_version": "v7-day3-courses-population-reconciliation-v1",
+  "captured_at": "2026-09-26T10:45:53.769511+10:00",
+  "approved_source_id": "courses_programs_and_courses",
+  "academic_year_requested": "2026",
+  "observed_academic_years": [
+    "2026"
+  ],
+  "dry_run": true,
+  "minimum_request_interval_seconds": 1.0,
+  "full_approved_discovery_reconciled": true,
+  "full_bounded_detail_traversal": true,
+  "status": "SUCCESS",
+  "source_artifact": "fixtures/v7/day3/courses-population-audit-2026.json",
+  "source_artifact_sha256": "53832dc1df2ae3e12108102dbd0dafa796bf540736f0428a0ae3de4b6927796c",
+  "population": {
+    "discovered": 500,
+    "detail_pages_attempted": 500,
+    "fetched": 500,
+    "parsed": 500,
+    "accepted": 500,
+    "explicit_rejects": 0,
+    "fetch_failures": 0,
+    "parse_failures": 0,
+    "validation_failures": 0,
+    "unexplained_losses": 0,
+    "accounting_equation": "500 discovered = 500 accepted + 0 explicitly accounted failures/rejects + 0 unexplained"
+  },
+  "failure_detail": {
+    "parser_exceptions": 0,
+    "malformed_pages": 0,
+    "canonical_mismatches": 0,
+    "source_shape_anomalies": [],
+    "rejected_by_reason": {},
+    "stopped_early": false
+  },
+  "identity_audit": {
+    "identity_manifest_count": 500,
+    "duplicate_course_codes": [],
+    "duplicate_record_ids": [],
+    "duplicate_entity_ids": [],
+    "duplicate_canonical_urls": [],
+    "missing_course_codes": [],
+    "missing_record_ids": [],
+    "missing_entity_ids": [],
+    "missing_canonical_urls": [],
+    "invalid_course_codes": [],
+    "invalid_record_ids": [],
+    "invalid_entity_ids": [],
+    "invalid_canonical_urls": []
+  },
+  "day16_comparison": {
+    "frozen_course_count": 500,
+    "fresh_course_count": 500,
+    "count_drift": 0,
+    "interpretation": "No count drift was observed; the fresh audit, not the frozen denominator, is the current evidence."
+  },
+  "mutation_accounting": {
+    "production_records_written": 0,
+    "migrations_applied": 0,
+    "subplans_persisted": 0
+  }
+}

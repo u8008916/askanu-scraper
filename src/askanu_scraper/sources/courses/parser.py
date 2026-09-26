@@ -339,7 +339,7 @@ class CoursesParser(BaseParser):
                 if prerequisites is None:
                     prereq_match = re.search(
                         r"To enrol in this course,?\s+you must have "
-                        r"(?:successfully )?completed:?\s*(.+?)"
+                        r"(.+?)"
                         r"(?=\.\s*(?:This course is incompatible|"
                         r"Incompatible(?:\s+with|:)?|"
                         r"You are not able to enrol)|\.$|$)",
@@ -347,10 +347,21 @@ class CoursesParser(BaseParser):
                         re.IGNORECASE,
                     )
                     if prereq_match:
-                        prerequisites = (
+                        prerequisite_text = (
                             normalize_text(prereq_match.group(1).rstrip("."))
-                            or None
+                            or ""
                         )
+                        completed_prefix = re.match(
+                            r"(?:successfully )?completed:?\s+(.+)$",
+                            prerequisite_text,
+                            re.IGNORECASE,
+                        )
+                        if (
+                            completed_prefix
+                            and not completed_prefix.group(1).casefold().startswith("or ")
+                        ):
+                            prerequisite_text = completed_prefix.group(1)
+                        prerequisites = prerequisite_text or None
                     else:
                         prerequisite_part = (
                             section_text[:incompat_marker.start()]
