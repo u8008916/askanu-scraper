@@ -106,8 +106,8 @@
   },
   "final_live_audit": {
     "artifact": "day4-accommodation-source-health-2026-09-27.json",
-    "sha256_lf_normalized": "49002284d10641b4a011cfa09b9d4c6a826bc3f86d48a01272030ddc3f1e8108",
-    "captured_at": "2026-09-27T14:22:28.916582+10:00",
+    "sha256_lf_normalized": "571326e676599f17191b9387c775531a75e5c5a5d8a607a9da799e972e2913a4",
+    "captured_at": "2026-09-27T14:24:54.299110+10:00",
     "dry_run": true,
     "production_records_written": 0,
     "migrations_applied": 0,

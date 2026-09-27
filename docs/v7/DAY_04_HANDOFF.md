@@ -6,25 +6,26 @@
 
 **Lane:** Scraper/data
 
-**Evidence captured:** 2026-09-25 (Australia/Sydney)
+**Evidence refreshed:** 2026-09-27 (Australia/Sydney)
 
 ## Producer evidence gate outcome
 
-PASS. The approved Accommodation source still reconciles to the frozen 19-residence universe, all 19 public detail pages parsed with stable identities, and all source-present audited facts were captured. This does **not** claim that every comparison fact exists: the live source exposed an advertised rate for 18/19 records, an application link for 14/19, and an explicit vacancy fact for 0/19.
+PASS. The approved Accommodation source still reconciles to the frozen 19-residence universe, all 19 public detail pages parsed with stable identities, and all 273 source-present audited facts were captured. The refreshed source exposes Accessibility content for 18/19 records, an advertised rate for 18/19, an application link for 14/19, and an explicit vacancy fact for 0/19.
 
-No production parser, schema, registry, API, source boundary, or persistence behaviour changed. Day 4 adds reviewable evidence and regression tests around the existing shared `CommonRecord`, V7 producer contract, resolver metadata projection, source registry, and bounded collector.
+The Accommodation parser, schema, registry, API, source boundary, and persistence behaviour are unchanged. The audit-only source-presence detector was corrected to recognise the live ANU two-column Accessibility layout, and the fresh artifact explicitly records zero production writes, zero migrations, and zero StarRez requests.
 
-The Carmen/Will numeric-price evidence rule is now agreed and recorded below. The cross-repository Day 4 integration gate remains **pending** until Carmen lands matching RAG implementation/tests and Qasim supplies the exact final Day 3 scraper base SHA. PR #39 must not be merged before those gates close.
+The Carmen/Will numeric-price evidence rule remains frozen exactly as recorded below. PR #39 is reconciled onto the accepted Day 3 scraper base and is ready for independent Day 4 review, but must not be merged until Qasim closes the remaining release gates.
 
 ## Reviewed base and files
 
-Implementation branch started from reviewed `origin/main` commit `93b94ef102ab22df08c01e5ef4245ad6653d98e9` (merged Day 2). The open/unreviewed Day 3 branch was not included.
+PR #39 was rebased without dropping its Day 4 commits from the original Day 2 base onto accepted scraper main commit `301c3a2cf0f00f7c0d09ea9fc45a72ce446de2d4` (merged Day 3). The historical 2026-09-25 audit remains unchanged.
 
 Day 4 files:
 
 - `fixtures/v7/day4/accommodation-evidence-contract.json` — offline capability/field matrix, representative present/missing cases, and unsupported operations.
 - `tests/test_v7_day4_accommodation_evidence.py` — contract, parser, registry, identity, comparison, and StarRez boundary proof.
-- `day4-accommodation-source-health.json` — bounded live dry-run audit evidence.
+- `day4-accommodation-source-health.json` — immutable 2026-09-25 bounded live dry-run snapshot.
+- `day4-accommodation-source-health-2026-09-27.json` — refreshed bounded live dry-run acceptance evidence.
 - `docs/v7/DAY_04_HANDOFF.md` — this review record.
 
 - `docs/DECISION_LOG.md` records the Carmen/Will cross-repository price-evidence decision.
@@ -83,7 +84,8 @@ Source absence and source contradiction are different states. A record with no s
 Entity completeness is reported separately from field presence:
 
 - entity coverage: 19/19 approved residences parsed;
-- source-present fact capture: 255/255 facts captured;
+- source-present fact capture: 273/273 facts captured;
+- `accessibility`: 18/19 present;
 - `advertised_rate`: 18/19 present;
 - `application_url`: 14/19 present; and
 - `vacancy_status`: 0/19 present.
@@ -98,17 +100,17 @@ The expected population remains 19. A future observation of 18 is an unexplained
 
 ## Live bounded audit
 
-Command run from a clean detached worktree at the reviewed base:
+Command run from clean rebased head `15952f5c45b98a95cc5a3f1f8dce6636439a9300`:
 
 ```text
-py -m askanu_scraper.detail_coverage --domain accommodation --min-request-interval-seconds 1 --output day4-accommodation-source-health.json
+py -m askanu_scraper.detail_coverage --domain accommodation --min-request-interval-seconds 1 --output day4-accommodation-source-health-2026-09-27.json
 ```
 
-Artifact: `day4-accommodation-source-health.json`
+Artifact: `day4-accommodation-source-health-2026-09-27.json`
 
-LF-normalized SHA-256: `3e958e9ae0dfb0bf0700c51eb4dda8445db9f803ec39fc53530a0d4e50a186b8`
+LF-normalized SHA-256: `571326e676599f17191b9387c775531a75e5c5a5d8a607a9da799e972e2913a4`
 
-Captured at: `2026-09-25T12:59:11.798607+10:00`
+Captured at: `2026-09-27T14:24:54.299110+10:00`
 
 Exact audit results:
 
@@ -117,6 +119,7 @@ Exact audit results:
 | Dry run | `true` |
 | Production records written | `0` |
 | Migrations applied | `0` |
+| StarRez requests | `0` |
 | Advertised / discovered / approved / frozen | `19 / 19 / 19 / 19` |
 | Detail pages attempted / fetched | `19 / 19` |
 | Parsed records | `19` |
@@ -124,23 +127,50 @@ Exact audit results:
 | Canonical mismatches | `0` |
 | Duplicate record IDs / canonical URLs / normalized identities | `0 / 0 / 0` |
 | Source-shape anomalies | `[]` |
-| Source-present facts captured | `255 / 255` |
+| Source-present facts captured | `273 / 273` |
+| Accessibility source-present / captured | `18 / 18` |
+| Advertised-rate source-present / captured | `18 / 18` |
+| Application-URL source-present / captured | `14 / 14` |
+| Vacancy-status source-present / captured | `0 / 0` |
 | Domain health | `GREEN` |
 
-`255 / 255` measures capture of facts the audited source actually presented. It is not a completeness claim for absent fields.
+`273 / 273` measures capture of facts the audited source actually presented. It is not a completeness claim for absent fields.
+
+Exact refreshed 19-residence census, in artifact order:
+
+1. `bruce-hall-main-wing`
+2. `bruce-hall-packard-wing`
+3. `burgmann-college`
+4. `burgmann-undergraduate-and-postgraduate-village`
+5. `burton-garran-hall`
+6. `davey-lodge`
+7. `fenner-hall`
+8. `graduate-house`
+9. `john-xxiii-college`
+10. `kinloch-lodge`
+11. `lena-karmel-lodge`
+12. `toad-hall`
+13. `university-house`
+14. `ursula-hall-laurus-wing`
+15. `ursula-hall-main-wing`
+16. `wamburun-hall`
+17. `warrumbul-lodge`
+18. `wright-hall`
+19. `yukeembruk`
 
 ## Evidence-type separation
 
 - Fixture tests prove parser behavior for frozen inputs; they are not claims about the current ANU website.
-- `day4-accommodation-source-health.json` is the immutable bounded live audit for the timestamp recorded above.
+- `day4-accommodation-source-health.json` remains the immutable 2026-09-25 bounded snapshot at LF-normalized SHA-256 `3e958e9ae0dfb0bf0700c51eb4dda8445db9f803ec39fc53530a0d4e50a186b8`.
+- `day4-accommodation-source-health-2026-09-27.json` is the refreshed acceptance artifact for the clean rebased audit head.
 - The interim price-pattern review is a read-only semantic check and does not replace or rewrite the bounded audit.
-- Any final live rerun must create a new timestamped artifact while preserving this historical artifact unchanged.
+- Future live reruns must create a new timestamped artifact while preserving both historical snapshots unchanged.
 
-### Post-artifact source-drift observation
+### Accessibility drift resolution
 
 The 2026-09-25 artifact records `accessibility` as 0/19 source-present. A read-only 2026-09-26 spot-check found explicit Accessibility sections on multiple approved residence pages, including [Bruce Hall Packard Wing](https://study.anu.edu.au/accommodation/our-residences/bruce-hall-packard-wing), [Warrumbul Lodge](https://study.anu.edu.au/accommodation/our-residences/warrumbul-lodge), [Lena Karmel Lodge](https://study.anu.edu.au/accommodation/our-residences/lena-karmel-lodge), and [Davey Lodge](https://study.anu.edu.au/accommodation/our-residences/davey-lodge). This is a source-drift signal, not permission to rewrite the historical artifact or silently change its denominator.
 
-The final bounded audit after the Day 3 rebase must recalculate accessibility and the overall source-present fact denominator. Until then, `0/19` and `255/255` must be described as the 2026-09-25 snapshot, not guaranteed current values. Existing parser behavior already preserves an explicit Accessibility section as source text; no structured accessibility boolean or universal accessibility claim is authorized.
+The 2026-09-27 clean-head audit recalculated Accessibility as 18/19 source-present and captured, increasing the current source-present denominator from the historical 255 to 273. The old `0/19` and `255/255` values remain valid only for the immutable 2026-09-25 snapshot. Existing parser behavior already preserved Accessibility text; the correction was limited to the audit presence detector for the source's two-column row layout. No structured accessibility boolean or universal accessibility claim is authorized.
 
 ## Capability and field matrix
 
@@ -157,7 +187,7 @@ The checked-in JSON matrix covers exactly all 15 Accommodation `structured_fact_
 | `rooms` | Paired exact text plus named-room weekly maximum | 19 / 19 | Exact agreed semantics only; no flattening or detached prices |
 | `features` | Exact membership | 19 / 19 | Absence is not false |
 | `overview` | Content only | 19 / 19 | No deterministic attribute extraction |
-| `accessibility` | Content only when present | 0 / 0 | No universal accessibility boolean |
+| `accessibility` | Content only when present | 18 / 18 | No universal accessibility boolean |
 | `application_text` | Navigation text when present | 14 / 14 | No outcome/availability inference |
 | `application_url` | Navigation only when present | 14 / 14 | Never fetch authenticated StarRez |
 | `eligibility` | Content only when present | 0 / 0 | No personal decision |
@@ -178,28 +208,30 @@ Focused Day 4 gate:
 
 ```text
 py -m pytest tests/test_v7_day4_accommodation_evidence.py -q
-20 passed in 0.22s
+21 passed in 0.26s
 ```
 
 Broader Accommodation/shared-contract gate:
 
 ```text
-py -m pytest tests/test_accommodation_parser.py tests/test_day12_collectors.py tests/test_v7_day1_contract.py tests/test_v7_day2_search_metadata.py tests/test_v7_day4_accommodation_evidence.py -q
-68 passed in 0.43s
+py -m pytest tests/test_accommodation_parser.py tests/test_day12_collectors.py tests/test_detail_coverage.py tests/test_v7_day1_contract.py tests/test_v7_day2_search_metadata.py tests/test_v7_day4_accommodation_evidence.py -q
+92 passed in 0.68s
 ```
 
 Current local repository gate:
 
 ```text
 py -m pytest -q
-434 passed in 5.00s
+451 passed in 5.76s
 py -m pip check
 No broken requirements found.
 py -m compileall -q src tests
 PASS
+git diff --check
+PASS
 ```
 
-These current results include pre-existing uncommitted Day 17 detail-coverage work in the shared worktree, which this correction did not modify. They are interim regression evidence, not the final clean-head gate. The full suite and checks must be rerun after Qasim supplies the final Day 3 base and PR #39 is refreshed onto it.
+These gates were run after reconciliation onto exact base `301c3a2cf0f00f7c0d09ea9fc45a72ce446de2d4` and after the clean-head live audit. No Day 17 work was included in the commits or test state.
 
 The Day 4 tests specifically prove:
 
@@ -232,13 +264,13 @@ The Day 4 tests specifically prove:
 - Depends on reviewed Day 1 producer capability and Day 2 resolver metadata contracts, the frozen 19-residence registry, and existing CommonRecord/collector/parser safeguards.
 - Any future source, schema, or API change still requires explicit review. No production crawl/write or migration is authorized by this handoff.
 
-## Current producer-side contract summary (pre-rebase)
+## Current producer-side contract summary
 
 Accommodation entity universe:
-19 approved public ANU residence detail pages discovered from the frozen listing boundary; stable identity is `accommodation:residence:<canonical-slug>`. The 2026-09-25 audit parsed 19/19 with zero duplicate IDs, canonical URLs, or normalized identities.
+19 approved public ANU residence detail pages discovered from the frozen listing boundary; stable identity is `accommodation:residence:<canonical-slug>`. The 2026-09-27 audit parsed 19/19 with zero duplicate IDs, canonical URLs, or normalized identities.
 
 Source-present fact capture:
-2026-09-25 historical snapshot: 255/255; `advertised_rate` 18/19, `application_url` 14/19, `vacancy_status` 0/19. A post-artifact accessibility drift signal requires recalculation on the final head.
+2026-09-27 refreshed snapshot: 273/273; `accessibility` 18/19, `advertised_rate` 18/19, `application_url` 14/19, `vacancy_status` 0/19. The unchanged 2026-09-25 historical snapshot remains 255/255 with the then-audited Accessibility presence at 0/19.
 
 Safe deterministic filters:
 Exact category, catering, audience-as-description, and feature membership; named-room numeric maximum only when the room has unambiguous published AUD weekly evidence and an exact cost period. `under`/`below`/`less than` use `<`; `up to`/`maximum`/`max`/`no more than` use `<=`.
@@ -258,7 +290,7 @@ Numeric filtering from `advertised_rate`; price sorting/cheapest ranking; minimu
 ## Qasim review commands
 
 ```text
-git diff origin/main...HEAD -- fixtures/v7/day4/accommodation-evidence-contract.json tests/test_v7_day4_accommodation_evidence.py day4-accommodation-source-health.json docs/v7/DAY_04_HANDOFF.md docs/DECISION_LOG.md
+git diff 301c3a2cf0f00f7c0d09ea9fc45a72ce446de2d4...HEAD -- fixtures/v7/day4/accommodation-evidence-contract.json src/askanu_scraper/detail_coverage.py tests/test_detail_coverage.py tests/test_v7_day4_accommodation_evidence.py day4-accommodation-source-health.json day4-accommodation-source-health-2026-09-27.json docs/v7/DAY_04_HANDOFF.md docs/DECISION_LOG.md
 py -m pytest tests/test_v7_day4_accommodation_evidence.py -q
 py -m pytest -q
 ```
