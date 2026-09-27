@@ -153,6 +153,23 @@ def _section_presence(soup: BeautifulSoup, *labels: str) -> bool:
     return _section_text(soup, *labels) is not None
 
 
+def _accommodation_section_presence(soup: BeautifulSoup, *labels: str) -> bool:
+    """Detect ANU Accommodation sections, including its two-column row layout."""
+    if _section_presence(soup, *labels):
+        return True
+    wanted = {label.casefold() for label in labels}
+    for heading in soup.find_all(["h2", "h3"]):
+        if (_text(heading) or "").casefold() not in wanted:
+            continue
+        row = heading.find_parent(class_=lambda value: value and "row" in value)
+        if not isinstance(row, Tag):
+            continue
+        columns = row.find_all("div", recursive=False)
+        if len(columns) > 1 and _text(columns[1]):
+            return True
+    return False
+
+
 def _section_text(soup: BeautifulSoup, *labels: str) -> str | None:
     """Extract an identified section for ephemeral audit evidence."""
     wanted = {label.casefold() for label in labels}
@@ -293,13 +310,17 @@ def _accommodation_presence(
     result["cost_period"] = any(
         "cost" in (_text(node) or "").casefold() for node in soup.find_all("h2")
     )
-    result["accessibility"] = _section_presence(soup, "Accessibility")
+    result["accessibility"] = _accommodation_section_presence(
+        soup, "Accessibility"
+    )
     application = soup.select_one('.anu-accommodation-footer a[href*="starrezhousing.com"]')
     result["application_text"] = bool(_text(application))
     result["application_url"] = bool(application and application.get("href"))
-    result["location"] = _section_presence(soup, "Location")
-    result["eligibility"] = _section_presence(soup, "Eligibility")
-    result["vacancy_status"] = _section_presence(soup, "Vacancy", "Availability")
+    result["location"] = _accommodation_section_presence(soup, "Location")
+    result["eligibility"] = _accommodation_section_presence(soup, "Eligibility")
+    result["vacancy_status"] = _accommodation_section_presence(
+        soup, "Vacancy", "Availability"
+    )
     footer = soup.select_one(".anu-accommodation-footer")
     result["contact"] = bool(
         footer
@@ -769,6 +790,7 @@ class DetailCoverageAuditor:
         reports: dict[str, dict[str, object]] = {}
         seen: set[tuple[str, str]] = set()
         blocked_classes: set[str] = set()
+        requested_urls: list[str] = []
         last_fetch = False
         for candidate in candidates:
             report = reports.setdefault(candidate.entity_class, {
@@ -799,6 +821,7 @@ class DetailCoverageAuditor:
             try:
                 if last_fetch and self._interval:
                     self._sleep(self._interval)
+                requested_urls.append(candidate.url)
                 raw = self._fetcher.fetch(candidate.url)
                 if not raw or not raw.strip():
                     raise FetchError("empty response body")
@@ -930,6 +953,13 @@ class DetailCoverageAuditor:
             "dry_run": True,
             "production_records_written": 0,
             "migrations_applied": 0,
+            "starrez_requests": sum(
+                1
+                for url in requested_urls
+                if (urlparse(url).hostname or "").casefold().endswith(
+                    "starrezhousing.com"
+                )
+            ),
             "subplans_persisted": 0,
             "pd_documents_fetched": 0,
             "events_window_start": self._events_window_start.isoformat(),

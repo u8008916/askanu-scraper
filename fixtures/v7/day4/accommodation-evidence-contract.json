@@ -1,5 +1,5 @@
 {
-  "contract_version": "v7-day4-accommodation-evidence-v2",
+  "contract_version": "v7-day4-accommodation-evidence-v3",
   "depends_on": [
     "v7-day1-producer-capabilities-v1",
     "v7-day2-resolver-search-metadata-v1"
@@ -85,7 +85,7 @@
       "silently_ignore_for_total_claim": false
     }
   },
-  "live_audit": {
+  "historical_live_audit": {
     "artifact": "day4-accommodation-source-health.json",
     "sha256_lf_normalized": "3e958e9ae0dfb0bf0700c51eb4dda8445db9f803ec39fc53530a0d4e50a186b8",
     "captured_at": "2026-09-25T12:59:11.798607+10:00",
@@ -103,6 +103,30 @@
     "source_shape_anomalies": [],
     "source_present_fact_numerator": 255,
     "source_present_fact_denominator": 255
+  },
+  "final_live_audit": {
+    "artifact": "day4-accommodation-source-health-2026-09-27.json",
+    "sha256_lf_normalized": "49002284d10641b4a011cfa09b9d4c6a826bc3f86d48a01272030ddc3f1e8108",
+    "captured_at": "2026-09-27T14:22:28.916582+10:00",
+    "dry_run": true,
+    "production_records_written": 0,
+    "migrations_applied": 0,
+    "starrez_requests": 0,
+    "advertised_total": 19,
+    "discovered_total": 19,
+    "approved_records": 19,
+    "detail_pages_fetched": 19,
+    "parsed_records": 19,
+    "parser_exceptions": 0,
+    "canonical_mismatches": 0,
+    "duplicate_identities": 0,
+    "source_shape_anomalies": [],
+    "source_present_fact_numerator": 273,
+    "source_present_fact_denominator": 273,
+    "accessibility_source_present": 18,
+    "advertised_rate_source_present": 18,
+    "application_url_source_present": 14,
+    "vacancy_status_source_present": 0
   },
   "field_capabilities": [
     {
@@ -182,8 +206,8 @@
       "classification": "content_only_when_present",
       "supported_use": "Display exact published accessibility wording when present.",
       "unsupported_use": "A universal accessibility boolean or inference from generic features.",
-      "live_source_present": 0,
-      "live_captured": 0
+      "live_source_present": 18,
+      "live_captured": 18
     },
     {
       "path": "metadata_json.application_text",

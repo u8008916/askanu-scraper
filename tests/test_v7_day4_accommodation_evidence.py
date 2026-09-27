@@ -24,7 +24,8 @@ ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = (
     ROOT / "fixtures" / "v7" / "day4" / "accommodation-evidence-contract.json"
 )
-AUDIT_PATH = ROOT / "day4-accommodation-source-health.json"
+HISTORICAL_AUDIT_PATH = ROOT / "day4-accommodation-source-health.json"
+FINAL_AUDIT_PATH = ROOT / "day4-accommodation-source-health-2026-09-27.json"
 FIXTURES = ROOT / "fixtures" / "accommodation"
 
 
@@ -54,7 +55,7 @@ def _record(case: dict[str, object], *, include_advertised_rate: bool = True):
 def test_manifest_is_offline_and_composes_frozen_shared_contracts() -> None:
     manifest = _manifest()
 
-    assert manifest["contract_version"] == "v7-day4-accommodation-evidence-v2"
+    assert manifest["contract_version"] == "v7-day4-accommodation-evidence-v3"
     assert manifest["depends_on"] == [
         "v7-day1-producer-capabilities-v1",
         "v7-day2-resolver-search-metadata-v1",
@@ -167,9 +168,9 @@ def test_field_matrix_covers_exact_day1_accommodation_fact_paths() -> None:
     assert "explicit named room" in by_path["metadata_json.rooms"]["supported_use"]
 
 
-def test_live_audit_artifact_is_immutable_dry_run_evidence() -> None:
-    manifest_audit = _manifest()["live_audit"]
-    raw = AUDIT_PATH.read_bytes()
+def test_historical_live_audit_artifact_remains_immutable() -> None:
+    manifest_audit = _manifest()["historical_live_audit"]
+    raw = HISTORICAL_AUDIT_PATH.read_bytes()
     audit = json.loads(raw)
     residence = audit["entity_classes"]["residence"]
 
@@ -194,8 +195,69 @@ def test_live_audit_artifact_is_immutable_dry_run_evidence() -> None:
     assert residence["source_present_fact_denominator"] == 255
 
 
+def test_final_live_audit_is_current_bounded_dry_run_evidence() -> None:
+    manifest_audit = _manifest()["final_live_audit"]
+    raw = FINAL_AUDIT_PATH.read_bytes()
+    audit = json.loads(raw)
+    residence = audit["entity_classes"]["residence"]
+
+    normalized_raw = raw.replace(b"\r\n", b"\n")
+    assert (
+        hashlib.sha256(normalized_raw).hexdigest()
+        == manifest_audit["sha256_lf_normalized"]
+    )
+    assert audit["captured_at"] == manifest_audit["captured_at"]
+    assert audit["status"] == "SUCCESS"
+    assert audit["dry_run"] is manifest_audit["dry_run"] is True
+    assert audit["production_records_written"] == 0
+    assert audit["migrations_applied"] == 0
+    assert audit["starrez_requests"] == 0
+    assert audit["selected_detail_pages"] == 19
+    assert audit["entity_census"]["accommodation"] == {
+        "advertised_total": 19,
+        "approved_unique": 19,
+        "discovered_total": 19,
+        "duplicate_count": 0,
+        "frozen_denominator": 19,
+        "reconciled": True,
+        "rejected_count": 0,
+    }
+    assert residence["approved_records"] == 19
+    assert residence["detail_pages_fetched"] == 19
+    assert residence["parsed_records"] == 19
+    assert residence["parser_exceptions"] == 0
+    assert residence["canonical_mismatches"] == 0
+    assert residence["duplicate_identities"] == 0
+    assert residence["duplicate_record_id_count"] == 0
+    assert residence["duplicate_canonical_url_count"] == 0
+    assert residence["source_shape_anomalies"] == []
+    assert residence["source_present_fact_numerator"] == 273
+    assert residence["source_present_fact_denominator"] == 273
+    assert [item["entity_id"] for item in residence["identity_manifest"]] == [
+        "bruce-hall-main-wing",
+        "bruce-hall-packard-wing",
+        "burgmann-college",
+        "burgmann-undergraduate-and-postgraduate-village",
+        "burton-garran-hall",
+        "davey-lodge",
+        "fenner-hall",
+        "graduate-house",
+        "john-xxiii-college",
+        "kinloch-lodge",
+        "lena-karmel-lodge",
+        "toad-hall",
+        "university-house",
+        "ursula-hall-laurus-wing",
+        "ursula-hall-main-wing",
+        "wamburun-hall",
+        "warrumbul-lodge",
+        "wright-hall",
+        "yukeembruk",
+    ]
+
+
 def test_live_field_counts_match_capability_matrix_without_claiming_absence() -> None:
-    audit = json.loads(AUDIT_PATH.read_text(encoding="utf-8"))
+    audit = json.loads(FINAL_AUDIT_PATH.read_text(encoding="utf-8"))
     fields = audit["entity_classes"]["residence"]["fields"]
 
     for item in _manifest()["field_capabilities"]:
@@ -204,6 +266,7 @@ def test_live_field_counts_match_capability_matrix_without_claiming_absence() ->
         assert fields[field]["captured"] == item["live_captured"]
 
     assert fields["advertised_rate"]["source_present"] == 18
+    assert fields["accessibility"]["source_present"] == 18
     assert fields["application_url"]["source_present"] == 14
     assert fields["vacancy_status"]["source_present"] == 0
 
@@ -399,7 +462,7 @@ def test_application_url_validation_rejects_unsafe_destinations() -> None:
 
 def test_registry_and_audit_identity_manifest_remain_inside_approved_boundary() -> None:
     source = get_source("accommodation_anu_study")
-    audit = json.loads(AUDIT_PATH.read_text(encoding="utf-8"))
+    audit = json.loads(FINAL_AUDIT_PATH.read_text(encoding="utf-8"))
     identities = audit["entity_classes"]["residence"]["identity_manifest"]
 
     assert source.canonical_root == "https://study.anu.edu.au/accommodation"

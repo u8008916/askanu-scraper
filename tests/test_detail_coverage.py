@@ -98,6 +98,7 @@ def test_subplan_detail_is_ephemeral_and_field_complete() -> None:
     assert major["fields"]["other_information"]["coverage_percent"] == 100.0
     assert report["subplans_persisted"] == 0
     assert report["production_records_written"] == 0
+    assert report["starrez_requests"] == 0
 
 
 def test_source_present_parser_miss_is_not_counted_as_absent() -> None:
@@ -300,7 +301,9 @@ def test_accommodation_source_present_fields_and_manifest_are_audited() -> None:
     )["entity_classes"]["residence"]
 
     assert result["approved_records"] == 1
-    for field_name in ("rooms", "features", "overview", "contact"):
+    for field_name in (
+        "rooms", "features", "overview", "accessibility", "contact",
+    ):
         assert result["fields"][field_name]["coverage_percent"] == 100.0
     assert result["fields"]["vacancy_status"]["source_present"] == 0
     assert result["identity_manifest"][0]["record_id"].startswith(
