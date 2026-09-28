@@ -1,0 +1,140 @@
+{
+  "contract_version": "v7-day6-data-contract-freeze-v1",
+  "parent_day5_sha": "9e50fa0996d1110524da678675f97e1ff8a4378c",
+  "network_calls_allowed": false,
+  "production_writes_allowed": false,
+  "jobs": {
+    "source_ids": [
+      "jobs_anu_search"
+    ],
+    "entity_type": "job",
+    "structured_paths": [
+      "metadata_json.category",
+      "metadata_json.employment_types",
+      "metadata_json.location",
+      "metadata_json.classification",
+      "metadata_json.salary",
+      "metadata_json.closing_text",
+      "metadata_json.closing_date",
+      "metadata_json.closing_at",
+      "metadata_json.status",
+      "metadata_json.summary"
+    ],
+    "content_only_facts": [],
+    "unsupported_facts": [
+      "personal_suitability",
+      "application_outcome"
+    ],
+    "population_health": "FALLBACK_LAST_KNOWN_GOOD",
+    "exhaustive_query_semantics": "INCOMPLETE_POPULATION",
+    "empty_result_semantics": "INCOMPLETE, never proof that no current jobs exist",
+    "atomicity_weakened": false,
+    "evidence": [
+      "docs/DAY_16_V6_OPERATIONAL_FREEZE_HANDOFF.md",
+      "fixtures/v7/day3/carmen-benchmark-evidence-audit.json"
+    ]
+  },
+  "events": {
+    "source_ids": [
+      "events_anu_official",
+      "rubric_unified_search"
+    ],
+    "entity_type": "event",
+    "structured_paths": [
+      "effective_from",
+      "effective_to",
+      "metadata_json.start_at",
+      "metadata_json.end_at",
+      "metadata_json.timezone",
+      "metadata_json.organiser_name",
+      "metadata_json.venue_name",
+      "metadata_json.address",
+      "metadata_json.latitude",
+      "metadata_json.longitude",
+      "metadata_json.category",
+      "metadata_json.tags",
+      "metadata_json.registration_url",
+      "metadata_json.source_status",
+      "metadata_json.cancellation_status",
+      "metadata_json.audience"
+    ],
+    "content_only_facts": [
+      "description",
+      "format",
+      "source_date_wording"
+    ],
+    "unsupported_facts": [
+      "inferred_modality",
+      "inferred_ticket_availability"
+    ],
+    "authority": {
+      "events_anu_official": "APPROVED official ANU Events source",
+      "rubric_unified_search": "APPROVED_BOUNDED_UNSUPPORTED community source, not official ANU"
+    },
+    "product_boundary": {
+      "upcoming_ui": [
+        "events_anu_official"
+      ],
+      "chat": [
+        "events_anu_official",
+        "rubric_unified_search"
+      ],
+      "live_question_time_source_call": false
+    },
+    "temporal_semantics": {
+      "exact_datetime": "timezone-aware source-backed value",
+      "date_only": "must remain date-only and cannot be converted to midnight",
+      "missing_end": "null; no inferred duration",
+      "missing_venue": "null; not evidence of online modality",
+      "source_status_and_cancellation_status_are_distinct": true
+    }
+  },
+  "support": {
+    "source_ids": [
+      "support_anusa_student_assistance"
+    ],
+    "entity_type": "support_service",
+    "structured_paths": [
+      "metadata_json.category",
+      "metadata_json.purpose",
+      "metadata_json.audiences",
+      "metadata_json.contact",
+      "metadata_json.hours",
+      "metadata_json.access",
+      "metadata_json.cost",
+      "metadata_json.topics",
+      "metadata_json.referrals"
+    ],
+    "content_only_facts": [],
+    "unsupported_facts": [
+      "case_specific_advice",
+      "service_outcome"
+    ],
+    "routing_boundary": "source-backed services, purposes, topics and issue wording only; natural-language mapping belongs to RAG",
+    "synthetic_alias_system_added": false,
+    "adjudication_supported": false
+  },
+  "cross_repo": {
+    "carmen_day6_sha": null,
+    "consumer_matrix_status": "BLOCKED_PENDING_CARMEN_DAY6_SHA",
+    "mismatch_count": null
+  },
+  "feature_freeze": {
+    "status": "DATA_CONTRACT_FEATURE_FREEZE",
+    "approved_source_scope_frozen": true,
+    "source_authority_frozen": true,
+    "canonical_identity_frozen": true,
+    "six_domain_record_semantics_frozen": true,
+    "freshness_and_temporal_semantics_frozen": true,
+    "missing_unknown_semantics_frozen": true,
+    "population_completeness_semantics_frozen": true,
+    "new_fields_after_freeze": false,
+    "new_sources_after_freeze": false,
+    "new_inferences_after_freeze": false
+  },
+  "change_impact": {
+    "canonical_retrieval_content_changed": false,
+    "reindex_required": "none",
+    "production_backfill_started": false
+  }
+}
