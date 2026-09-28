@@ -1,0 +1,194 @@
+{
+  "schema_version": "v7-day7-six-domain-rc-audit-v1",
+  "parent_day6_sha": "e9c6ce2817f12d190a07dbe85a297bab6e4c6deb",
+  "network_calls_allowed": false,
+  "production_writes_allowed": false,
+  "carmen_release_candidate": {
+    "day7_manifest_sha": null,
+    "status": "BLOCKED_PENDING_CARMEN_DAY7_MANIFEST",
+    "benchmark_expectations_changed": false,
+    "fallback_evidence_only": {
+      "benchmark_id": "v7-day3-six-domain-holdout-v1",
+      "query_count": 24,
+      "holdout": "fixtures/v7/day3/carmen/holdout.json",
+      "result_json": "fixtures/v7/day3/carmen/v7_day3_final_retrieval_baseline.json",
+      "result_markdown": "fixtures/v7/day3/carmen/v7_day3_final_retrieval_baseline.md",
+      "scraper_reconciliation": "fixtures/v7/day3/carmen-benchmark-evidence-audit.json"
+    }
+  },
+  "cross_repo_gates": {
+    "day4": {
+      "rag_sha": "d349e8870715709fa034d57d902da4bec6dd5d34",
+      "accepted_day3_merge_base_sha": "68d5aa367ce7adc1051c714c88a2e7b63751dd90",
+      "status": "CLOSED_PRODUCER_CONSUMER_MATCH"
+    },
+    "day5": {
+      "rag_sha": null,
+      "status": "PENDING_CARMEN_DAY5_SHA"
+    },
+    "day6": {
+      "rag_sha": null,
+      "status": "PENDING_CARMEN_DAY6_SHA"
+    },
+    "day7": {
+      "rag_sha": null,
+      "journey_manifest_sha": null,
+      "status": "PENDING_CARMEN_DAY7_RC_AND_JOURNEY_MANIFEST"
+    }
+  },
+  "day4_consumer_crosscheck": {
+    "inspected_rag_sha": "d349e8870715709fa034d57d902da4bec6dd5d34",
+    "accepted_day3_merge_base_sha": "68d5aa367ce7adc1051c714c88a2e7b63751dd90",
+    "ahead_of_accepted_day3": 9,
+    "behind_accepted_day3": 0,
+    "paths_checked": 15,
+    "consumed_fields": [
+      "metadata_json.category",
+      "metadata_json.location",
+      "metadata_json.catering_options",
+      "metadata_json.audiences",
+      "metadata_json.advertised_rate",
+      "metadata_json.cost_period",
+      "metadata_json.rooms",
+      "metadata_json.features",
+      "metadata_json.overview",
+      "metadata_json.accessibility",
+      "metadata_json.application_text",
+      "metadata_json.application_url",
+      "metadata_json.eligibility",
+      "metadata_json.contact",
+      "metadata_json.vacancy_status"
+    ],
+    "structured_source_backed_paths": 15,
+    "approved_content_only_paths": 0,
+    "nested_paired_paths": [
+      "metadata_json.rooms",
+      "metadata_json.contact"
+    ],
+    "source_value_missing_or_unknown": [
+      "metadata_json.vacancy_status is source-present for 0 of 19 residences"
+    ],
+    "freshness_qualifiers": [
+      "advertised_rate and room rates retain exact published cost_period context",
+      "the Sep 27 audit is a timestamped observation, not a perpetual current-price guarantee"
+    ],
+    "shape_mismatch_count": 0,
+    "semantic_mismatch_count": 0,
+    "unconsumed_material_producer_paths": [],
+    "consumer_paths_lacking_producer_evidence": [],
+    "advertised_rate_used_as_numeric_proof": false,
+    "named_room_evidence_alignment": "PASS",
+    "vacancy_unknown_alignment": "PASS",
+    "stored_application_url_only": "PASS",
+    "source_identity_and_provenance": "PASS",
+    "status": "PASS_FINAL_RECONCILED_CONSUMER"
+  },
+  "domain_audit": {
+    "courses": {
+      "source_health": "GREEN",
+      "population_semantics": "500 audited 2026 Course records and 1256 audited Course-family records; production RAG counts are separate consumer evidence",
+      "identity": "PASS",
+      "freshness": "academic year is retained in identity",
+      "residual_gate": null
+    },
+    "scholarships": {
+      "source_health": "BLOCKED",
+      "population_semantics": "do not claim a complete current population while the external-canonical redirect remains unresolved",
+      "identity": "PASS_FOR_REPRESENTATIVE_APPROVED_RECORDS",
+      "freshness": "opening and closing dates are per-record evidence; missing dates remain unknown",
+      "residual_gate": "one source candidate redirected outside the approved canonical boundary in the latest full audit"
+    },
+    "jobs": {
+      "source_health": "FALLBACK_LAST_KNOWN_GOOD",
+      "population_semantics": "INCOMPLETE_POPULATION for exhaustive current-job claims",
+      "identity": "PASS_FOR_REPRESENTATIVE_APPROVED_RECORDS",
+      "freshness": "status and closing evidence are record-level; population currentness is not established",
+      "residual_gate": "full listing/detail reconciliation must succeed after source recovery"
+    },
+    "accommodation": {
+      "source_health": "GREEN",
+      "population_semantics": "19 of 19 frozen approved residences parsed; 273 of 273 source-present facts captured",
+      "identity": "PASS",
+      "freshness": "rates retain exact published cost period; vacancy remains unestablished",
+      "residual_gate": null
+    },
+    "support": {
+      "source_health": "GREEN",
+      "population_semantics": "6 of 6 frozen approved services in the last complete audit",
+      "identity": "PASS",
+      "freshness": "published service evidence only; no case-specific outcome",
+      "residual_gate": null
+    },
+    "events": {
+      "source_health": "BLOCKED",
+      "population_semantics": "official fixed window last reconciled to 30 cards and 29 eligible unique records; Rubric live denominator remains unestablished",
+      "identity": "PASS_FOR_REPRESENTATIVE_OFFICIAL_AND_RUBRIC_RECORDS",
+      "freshness": "source datetimes/status retain precision and authority; existence does not prove currentness",
+      "residual_gate": "official duplicate/identity discrepancy and Rubric request-contract/live-census evidence"
+    }
+  },
+  "known_ownership": [
+    {
+      "query_id": "holdout-scholarship-eligibility",
+      "domain": "scholarships",
+      "producer_classification": "AMBIGUOUS_SOURCE",
+      "owner": "SOURCE_PRODUCT_LIMITATION",
+      "reason": "published candidate dimensions do not establish personal eligibility"
+    },
+    {
+      "query_id": "holdout-accommodation-vacancy",
+      "domain": "accommodation",
+      "producer_classification": "MISSING_SOURCE",
+      "owner": "SOURCE_PRODUCT_LIMITATION",
+      "reason": "the approved public source publishes no current vacancy fact"
+    },
+    {
+      "query_id": "holdout-jobs-incomplete",
+      "domain": "jobs",
+      "producer_classification": "INCOMPLETE_POPULATION",
+      "owner": "SOURCE_PRODUCT_LIMITATION",
+      "reason": "the supported current Jobs population is not established as complete"
+    },
+    {
+      "query_id": "holdout-events-rubric-organiser",
+      "domain": "events",
+      "producer_classification": "MISSING_SOURCE",
+      "owner": "SOURCE_PRODUCT_LIMITATION",
+      "reason": "the Rubric source does not publish the required organiser fact"
+    }
+  ],
+  "torture_results": {
+    "provenance": "PASS_FOR_FROZEN_OFFLINE_RECORDS",
+    "identity_collision": "PASS_FOR_FROZEN_OFFLINE_RECORDS",
+    "freshness": "PASS_WITH_DOCUMENTED_DOMAIN_GATES",
+    "unknown_false": "PASS",
+    "incomplete_empty": "PASS",
+    "unsupported_inference": "PASS",
+    "prompt_data_boundary": "PASS",
+    "offline_regression": "PASS"
+  },
+  "change_impact": {
+    "day4_to_day7_canonical_course_content_changed": false,
+    "day4_to_day7_other_canonical_retrieval_content_changed": false,
+    "content_hash_changes": 0,
+    "retrieval_unit_changes": 0,
+    "reindex_required": "none",
+    "production_embedding_backfill_started": false
+  },
+  "scope_confirmation": {
+    "new_production_source": false,
+    "source_authority_change": false,
+    "scheduler_change": false,
+    "production_ingestion": false,
+    "production_db_write": false,
+    "migration": false,
+    "live_rubric_request_path": false,
+    "starrez_inventory_access": false,
+    "jobs_atomicity_weakened": false,
+    "frontend_or_rag_reasoning_added_to_scraper": false,
+    "synthetic_alias_system_added": false,
+    "unrelated_scraper_rewrite": false,
+    "full_course_reembedding_initiated_by_scraper": false
+  },
+  "release_status": "SCRAPER_DATA_RC_PACKET_READY_DAY4_CLOSED_DAY5_TO_DAY7_CROSS_REPO_PENDING"
+}
