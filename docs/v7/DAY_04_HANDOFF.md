@@ -14,7 +14,7 @@ PASS. The approved Accommodation source still reconciles to the frozen 19-reside
 
 The Accommodation parser, schema, registry, API, source boundary, and persistence behaviour are unchanged. The audit-only source-presence detector was corrected to recognise the live ANU two-column Accessibility layout, and the fresh artifact explicitly records zero production writes, zero migrations, and zero StarRez requests.
 
-The Carmen/Will numeric-price evidence rule remains frozen exactly as recorded below. PR #39 is reconciled onto the accepted Day 3 scraper base and is ready for independent Day 4 review, but must not be merged until Qasim closes the remaining release gates.
+The Carmen/Will numeric-price evidence rule remains frozen exactly as recorded below. PR #39 is reconciled onto the accepted Day 3 scraper base. The final producer/consumer cross-check against Carmen's reconciled RAG head passed with zero shape and zero semantic mismatches. Day 4 scraper/data is ready for final cross-repository PM acceptance, but the PR must not be merged until Qasim closes the remaining release gate.
 
 ## Reviewed base and files
 
@@ -56,9 +56,68 @@ Agreed rule:
 - if no room proves `MATCH` and any room rate is missing or ambiguous, the residence is `UNKNOWN`, making the result set `INCOMPLETE` rather than globally `EMPTY`; and
 - no price evidence supports vacancy, eligibility, residence-wide affordability, cheapest ranking, or total contract cost.
 
-Carmen confirmed this boundary for the RAG side on 2026-09-26 and will update the Day 4 RAG implementation/tests to match it. This scraper change updates the capability matrix, supported/unsupported operation lists, tests, and handoff together; it does not implement consumer filtering in the scraper.
+Carmen's final reconciled RAG head implements this boundary. This scraper change updates the capability matrix, supported/unsupported operation lists, tests, and handoff together; it does not implement consumer filtering in the scraper.
 
 Ownership remains explicit: Will freezes and tests producer evidence, Carmen applies only the agreed interpretation in RAG, and Ben's App displays the structured result without parsing price strings itself.
+
+## Final reconciled producer/consumer cross-check
+
+The exact RAG consumer reviewed was
+`d349e8870715709fa034d57d902da4bec6dd5d34`. GitHub's compare result proves
+that its merge-base with accepted Day 3
+`68d5aa367ce7adc1051c714c88a2e7b63751dd90` is exactly that accepted Day 3
+SHA; the reconciled head is nine commits ahead and zero behind.
+
+All 15 frozen Accommodation metadata paths are present in the strict RAG
+record model and are consumed without adding a stronger institutional fact:
+
+| Producer path | Consumer use | Evidence classification / qualifier |
+|---|---|---|
+| `metadata_json.category` | discovery, result cards, comparison | Structured source-backed text; missing remains unpublished. |
+| `metadata_json.location` | factual answers, cards, comparison | Structured source-backed text; no inferred location. |
+| `metadata_json.catering_options` | discovery/filtering, cards, comparison | Structured source-backed membership values; empty remains unknown. |
+| `metadata_json.audiences` | audience/student-type evidence, cards | Structured source-backed membership values; not personal eligibility. |
+| `metadata_json.advertised_rate` | display and exact-text comparison | Structured source-backed text; explicitly excluded from numeric proof. |
+| `metadata_json.cost_period` | rate qualification, cards, comparison | Structured source-backed qualifier; missing makes numeric room evidence incomplete. |
+| `metadata_json.rooms` | named-room budget filtering and qualifying evidence | Structured nested/paired evidence retaining room name, rate, contract, inclusions and other fees. |
+| `metadata_json.features` | discovery, factual answers, comparison | Structured source-backed membership values. |
+| `metadata_json.overview` | factual answers | Structured source-backed text; no consumer inference. |
+| `metadata_json.accessibility` | factual answers | Structured source-backed wording; no inferred accessibility boolean. |
+| `metadata_json.application_text` | application explanation | Structured source-backed text; not application-open evidence. |
+| `metadata_json.application_url` | application action | Structured validated stored URL only; navigation evidence only. |
+| `metadata_json.eligibility` | published eligibility wording | Structured source-backed wording; not a personal eligibility decision. |
+| `metadata_json.contact` | email, phone, location and hours facts | Structured nested source-backed evidence; missing subfields stay unpublished. |
+| `metadata_json.vacancy_status` | current-vacancy response | Structured explicit-only field; 0/19 source-present means `UNKNOWN`, never false. |
+
+Accommodation has no approved content-only fact path under the frozen producer
+contract. Individual nullable values remain missing/unknown where the source
+does not publish them. Rates and cost periods are point-in-time source evidence
+and must retain their exact period/context rather than being treated as
+timeless current prices.
+
+The reconciled consumer applies strict `<` for `under`, `below`, and `less
+than`, and inclusive `<=` for `up to`, `maximum`, `max`, and `no more than`.
+Its numeric path iterates `rooms`, requires a non-null `cost_period`, excludes
+`advertised_rate`, and returns paired `qualifying_evidence`. Tests at the exact
+RAG SHA cover advertised-rate exclusion, missing/ambiguous room evidence,
+complete room context, source-order preservation without cheapest ranking,
+and both operator classes.
+
+Vacancy requests return `UNKNOWN` / insufficient evidence when any selected
+record lacks explicit `vacancy_status`; room rows, rates, page existence and
+application links are not treated as vacancy proof. Application actions are
+built only from model-validated stored `application_url` values and retain the
+record/source identity. URL presence does not establish vacancy, application
+opening, eligibility, or likely acceptance.
+
+The consumer evidence object retains `record_id`, `source_id`, domain and
+`canonical_url`; selected results retain canonical identity and source-backed
+actions. Final result: **15/15 paths checked, 0 shape mismatches, 0 semantic
+mismatches, no consumer field lacking producer evidence, and no material
+producer field left unconsumed for the Day 4 flows**.
+
+No scraper production code, canonical content, content hash, retrieval unit,
+source, schema or persistence behaviour changed as a result of this audit.
 
 ### Agreed price matrix
 
