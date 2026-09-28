@@ -1,0 +1,185 @@
+{
+  "contract_version": "v7-day5-courses-scholarships-evidence-v2",
+  "parent_scraper_sha": "79f939a7dfbd36e7321d4b20e31b3255eb9d6c46",
+  "network_calls_allowed": false,
+  "production_writes_allowed": false,
+  "course": {
+    "source_id": "courses_programs_and_courses",
+    "entity_type": "course",
+    "structured_paths": [
+      "metadata_json.career",
+      "metadata_json.units",
+      "metadata_json.delivery_mode",
+      "metadata_json.prerequisites",
+      "metadata_json.incompatibilities",
+      "metadata_json.assumed_knowledge",
+      "metadata_json.offerings"
+    ],
+    "content_only_facts": [
+      "description",
+      "learning_outcomes",
+      "corequisites"
+    ],
+    "unsupported_facts": [
+      "personal_eligibility",
+      "guaranteed_enrolment"
+    ],
+    "identity": {
+      "academic_year_is_part_of_entity_id": true,
+      "cross_year_collapse_allowed": false,
+      "audited_year": "2026",
+      "audited_course_records": 500,
+      "audited_all_course_family_records": 1256,
+      "duplicate_course_codes": 0,
+      "duplicate_record_ids": 0,
+      "duplicate_entity_ids": 0,
+      "duplicate_canonical_urls": 0,
+      "unexplained_losses": 0,
+      "evidence": "fixtures/v7/day3/courses-population-reconciliation-2026.json"
+    },
+    "comp2120_regression": {
+      "record_id": "courses:course:COMP2120_2026",
+      "prerequisites": "successfully completed or be currently studying COMP2100",
+      "incompatibilities": "COMP2130, COMP6120 and COMP6311",
+      "source_fixture": "fixtures/v7/day3/comp2120-requisite-sample.html"
+    }
+  },
+  "scholarship": {
+    "source_id": "scholarships_anu_finder",
+    "entity_type": "scholarship",
+    "structured_paths": [
+      "metadata_json.featured",
+      "metadata_json.status",
+      "metadata_json.application_required",
+      "metadata_json.study_stage",
+      "metadata_json.student_type",
+      "metadata_json.study_level",
+      "metadata_json.area_of_study",
+      "metadata_json.value",
+      "metadata_json.selection_basis",
+      "metadata_json.opening_date",
+      "metadata_json.closing_date",
+      "metadata_json.eligibility"
+    ],
+    "content_only_facts": [
+      "description",
+      "application_requirement_wording",
+      "application_period_wording",
+      "scholarship_type",
+      "study_type"
+    ],
+    "unsupported_facts": [
+      "personal_eligibility_decision",
+      "award_probability",
+      "best_scholarship_ranking"
+    ],
+    "filter_arrays": [
+      "metadata_json.study_stage",
+      "metadata_json.student_type",
+      "metadata_json.study_level",
+      "metadata_json.area_of_study"
+    ],
+    "missing_array_semantics": "unknown source evidence represented by an empty filter array, never a universal match",
+    "current_open_semantics": {
+      "status": "exact normalized source wording only",
+      "opening_date": "date-only source evidence; no invented time",
+      "closing_date": "date-only source evidence; no invented time",
+      "missing_status_or_date": "UNKNOWN for deterministic current/open claims",
+      "top_level_effective_dates": "remain null; an application period is not general record validity"
+    },
+    "matching_boundary": "structured dimensions may identify candidates; content may explain relevance; neither establishes personal eligibility"
+  },
+  "cross_repo": {
+    "carmen_day5_sha": "75c017ba7db3551e74a4326afd514bd26d898573",
+    "consumer_matrix_status": "FAIL_CONSUMER_ALIGNMENT",
+    "course_paths_checked": 17,
+    "scholarship_paths_checked": 21,
+    "structured_matches": 31,
+    "content_only_approved_matches": 2,
+    "shape_mismatches": 1,
+    "semantic_mismatches": 4,
+    "producer_paths_materially_unconsumed": 1,
+    "consumer_claims_without_producer_evidence": 0,
+    "identity_provenance": "FAIL",
+    "course_year": "PASS",
+    "comp2120": "FAIL",
+    "scholarship_missing_date": "PASS",
+    "scholarship_eligibility_boundary": "PASS",
+    "mismatches": [
+      {
+        "classification": "CONSUMER_SHAPE_DEFECT",
+        "producer_path": "canonical_url",
+        "producer_value": "https://programsandcourses.anu.edu.au/2026/course/COMP2120",
+        "consumer_path": "CourseProgramRecord canonical URL validator",
+        "expected_semantic": "Accept the source-preserved canonical path without lowercasing it.",
+        "actual_semantic": "The exact producer record is rejected because the consumer requires a lowercase metadata-code path.",
+        "owner": "askanu-rag",
+        "canonical_content_impact": "none",
+        "hash_impact": "none",
+        "retrieval_unit_impact": "none",
+        "index_embedding_impact": "none"
+      },
+      {
+        "classification": "CONSUMER_SEMANTIC_DEFECT",
+        "producer_path": "content.Description",
+        "producer_value": "Source-backed description remains content-only.",
+        "consumer_path": "items[].fields.description",
+        "expected_semantic": "Project only the source Description section, or leave the structured field not published.",
+        "actual_semantic": "When metadata_json.description is absent, the consumer labels the entire canonical record content as Description.",
+        "owner": "askanu-rag",
+        "canonical_content_impact": "none",
+        "hash_impact": "none",
+        "retrieval_unit_impact": "none",
+        "index_embedding_impact": "none"
+      },
+      {
+        "classification": "CONSUMER_SEMANTIC_DEFECT",
+        "producer_path": "content.Corequisites",
+        "producer_value": "Source-backed corequisites remain content-only.",
+        "consumer_path": "metadata_json.corequisites / items[].fields.corequisites",
+        "expected_semantic": "Preserve the content-only evidence boundary without reporting published evidence as not published.",
+        "actual_semantic": "The consumer reads a non-contract metadata field and reports not_published for real producer records.",
+        "owner": "askanu-rag",
+        "canonical_content_impact": "none",
+        "hash_impact": "none",
+        "retrieval_unit_impact": "none",
+        "index_embedding_impact": "none"
+      },
+      {
+        "classification": "CONSUMER_SEMANTIC_DEFECT",
+        "producer_path": "metadata_json.status",
+        "producer_value": "Open for applications / Application closed",
+        "consumer_path": "Scholarship status filter",
+        "expected_semantic": "Interpret the exact frozen producer/source wording for open and closed filtering.",
+        "actual_semantic": "The consumer compares only with synthetic open/closed values, so an exact producer open record does not match an open query.",
+        "owner": "askanu-rag",
+        "canonical_content_impact": "none",
+        "hash_impact": "none",
+        "retrieval_unit_impact": "none",
+        "index_embedding_impact": "none"
+      },
+      {
+        "classification": "CONSUMER_SEMANTIC_DEFECT",
+        "producer_path": "metadata_json.study_level",
+        "producer_value": "Undergraduate/Bachelor",
+        "consumer_path": "Scholarship study-level constraint extraction",
+        "expected_semantic": "Apply a Bachelor or undergraduate constraint to the exact compound source value, or disclose that the constraint cannot be applied.",
+        "actual_semantic": "The approved compound producer value is not recognized by the consumer aliases, so the requested dimension is silently omitted.",
+        "owner": "askanu-rag",
+        "canonical_content_impact": "none",
+        "hash_impact": "none",
+        "retrieval_unit_impact": "none",
+        "index_embedding_impact": "none"
+      }
+    ]
+  },
+  "change_impact": {
+    "canonical_content_changed": false,
+    "content_hashes_changed": 0,
+    "retrieval_units_changed": 0,
+    "reindex_required": false,
+    "reembedding_required": false,
+    "production_mutation": false,
+    "production_backfill_started": false
+  }
+}
