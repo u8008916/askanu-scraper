@@ -1,0 +1,326 @@
+{
+  "captured_at": "2026-09-25T12:59:11.798607+10:00",
+  "domain_health": {
+    "accommodation": {
+      "entity_coverage_percent": 100.0,
+      "entity_denominator": 19,
+      "entity_numerator": 19,
+      "reasons": [],
+      "source_present_fact_coverage_percent": 100.0,
+      "source_present_fact_denominator": 255,
+      "source_present_fact_numerator": 255,
+      "status": "GREEN"
+    }
+  },
+  "dry_run": true,
+  "entity_census": {
+    "accommodation": {
+      "advertised_total": 19,
+      "approved_unique": 19,
+      "discovered_total": 19,
+      "duplicate_count": 0,
+      "frozen_denominator": 19,
+      "reconciled": true,
+      "rejected_count": 0
+    }
+  },
+  "entity_classes": {
+    "residence": {
+      "approved_records": 19,
+      "canonical_mismatches": 0,
+      "consecutive_fetch_failures": 0,
+      "detail_pages_attempted": 19,
+      "detail_pages_fetched": 19,
+      "duplicate_canonical_url_count": 0,
+      "duplicate_identities": 0,
+      "duplicate_normalized_identity_count": 0,
+      "duplicate_record_id_count": 0,
+      "fields": {
+        "accessibility": {
+          "captured": 0,
+          "coverage_percent": null,
+          "missed": 0,
+          "representative_misses": [],
+          "source_present": 0
+        },
+        "advertised_rate": {
+          "captured": 18,
+          "coverage_percent": 100.0,
+          "missed": 0,
+          "representative_misses": [],
+          "source_present": 18
+        },
+        "application_text": {
+          "captured": 14,
+          "coverage_percent": 100.0,
+          "missed": 0,
+          "representative_misses": [],
+          "source_present": 14
+        },
+        "application_url": {
+          "captured": 14,
+          "coverage_percent": 100.0,
+          "missed": 0,
+          "representative_misses": [],
+          "source_present": 14
+        },
+        "audiences": {
+          "captured": 19,
+          "coverage_percent": 100.0,
+          "missed": 0,
+          "representative_misses": [],
+          "source_present": 19
+        },
+        "canonical_url": {
+          "captured": 19,
+          "coverage_percent": 100.0,
+          "missed": 0,
+          "representative_misses": [],
+          "source_present": 19
+        },
+        "category": {
+          "captured": 19,
+          "coverage_percent": 100.0,
+          "missed": 0,
+          "representative_misses": [],
+          "source_present": 19
+        },
+        "catering_options": {
+          "captured": 19,
+          "coverage_percent": 100.0,
+          "missed": 0,
+          "representative_misses": [],
+          "source_present": 19
+        },
+        "contact": {
+          "captured": 19,
+          "coverage_percent": 100.0,
+          "missed": 0,
+          "representative_misses": [],
+          "source_present": 19
+        },
+        "cost_period": {
+          "captured": 19,
+          "coverage_percent": 100.0,
+          "missed": 0,
+          "representative_misses": [],
+          "source_present": 19
+        },
+        "eligibility": {
+          "captured": 0,
+          "coverage_percent": null,
+          "missed": 0,
+          "representative_misses": [],
+          "source_present": 0
+        },
+        "features": {
+          "captured": 19,
+          "coverage_percent": 100.0,
+          "missed": 0,
+          "representative_misses": [],
+          "source_present": 19
+        },
+        "location": {
+          "captured": 0,
+          "coverage_percent": null,
+          "missed": 0,
+          "representative_misses": [],
+          "source_present": 0
+        },
+        "overview": {
+          "captured": 19,
+          "coverage_percent": 100.0,
+          "missed": 0,
+          "representative_misses": [],
+          "source_present": 19
+        },
+        "provenance": {
+          "captured": 19,
+          "coverage_percent": 100.0,
+          "missed": 0,
+          "representative_misses": [],
+          "source_present": 19
+        },
+        "rooms": {
+          "captured": 19,
+          "coverage_percent": 100.0,
+          "missed": 0,
+          "representative_misses": [],
+          "source_present": 19
+        },
+        "title": {
+          "captured": 19,
+          "coverage_percent": 100.0,
+          "missed": 0,
+          "representative_misses": [],
+          "source_present": 19
+        },
+        "vacancy_status": {
+          "captured": 0,
+          "coverage_percent": null,
+          "missed": 0,
+          "representative_misses": [],
+          "source_present": 0
+        }
+      },
+      "identity_manifest": [
+        {
+          "canonical_url": "https://study.anu.edu.au/accommodation/our-residences/bruce-hall-main-wing",
+          "content_hash": "02162d94e9ad3f8b6a23ac9a38849789820e8f480bcba1636c9c8758143e84d4",
+          "entity_id": "bruce-hall-main-wing",
+          "record_id": "accommodation:residence:bruce-hall-main-wing",
+          "source_id": "accommodation_anu_study"
+        },
+        {
+          "canonical_url": "https://study.anu.edu.au/accommodation/our-residences/bruce-hall-packard-wing",
+          "content_hash": "24650b3298189a8fd6e72971a065d6ba9790e0ba813d8c3e5bc6174297dde544",
+          "entity_id": "bruce-hall-packard-wing",
+          "record_id": "accommodation:residence:bruce-hall-packard-wing",
+          "source_id": "accommodation_anu_study"
+        },
+        {
+          "canonical_url": "https://study.anu.edu.au/accommodation/our-residences/burgmann-college",
+          "content_hash": "67088512ed9eda1e8495889fe48250fb018933fe16a99ff9e236919af6fc1979",
+          "entity_id": "burgmann-college",
+          "record_id": "accommodation:residence:burgmann-college",
+          "source_id": "accommodation_anu_study"
+        },
+        {
+          "canonical_url": "https://study.anu.edu.au/accommodation/our-residences/burgmann-undergraduate-and-postgraduate-village",
+          "content_hash": "4b03051c86df6a7afcdf1fe03313e0031434347dd4f4c9a71cbf57cb468fbd1c",
+          "entity_id": "burgmann-undergraduate-and-postgraduate-village",
+          "record_id": "accommodation:residence:burgmann-undergraduate-and-postgraduate-village",
+          "source_id": "accommodation_anu_study"
+        },
+        {
+          "canonical_url": "https://study.anu.edu.au/accommodation/our-residences/burton-garran-hall",
+          "content_hash": "3e684d7a35db115808043903c8a52b9f240bf48a2706e17daaf9d050455acc79",
+          "entity_id": "burton-garran-hall",
+          "record_id": "accommodation:residence:burton-garran-hall",
+          "source_id": "accommodation_anu_study"
+        },
+        {
+          "canonical_url": "https://study.anu.edu.au/accommodation/our-residences/davey-lodge",
+          "content_hash": "fc7ac5706305ab1d8c5d00b49e05d48a4c0376dcada0e70a6d7e47d6c79cb5ae",
+          "entity_id": "davey-lodge",
+          "record_id": "accommodation:residence:davey-lodge",
+          "source_id": "accommodation_anu_study"
+        },
+        {
+          "canonical_url": "https://study.anu.edu.au/accommodation/our-residences/fenner-hall",
+          "content_hash": "8bb3dc14c9f18eb58ce84cf19a462f73bcaf6c415217434c788d0eca505a63be",
+          "entity_id": "fenner-hall",
+          "record_id": "accommodation:residence:fenner-hall",
+          "source_id": "accommodation_anu_study"
+        },
+        {
+          "canonical_url": "https://study.anu.edu.au/accommodation/our-residences/graduate-house",
+          "content_hash": "cfc8858bde995a86da567abb0917ca893d960da57d0c8b29d94f0689e8d81484",
+          "entity_id": "graduate-house",
+          "record_id": "accommodation:residence:graduate-house",
+          "source_id": "accommodation_anu_study"
+        },
+        {
+          "canonical_url": "https://study.anu.edu.au/accommodation/our-residences/john-xxiii-college",
+          "content_hash": "e006d7488c0459b4b9f255234935e3cd1e55a169ff09b8a814df267487f1f319",
+          "entity_id": "john-xxiii-college",
+          "record_id": "accommodation:residence:john-xxiii-college",
+          "source_id": "accommodation_anu_study"
+        },
+        {
+          "canonical_url": "https://study.anu.edu.au/accommodation/our-residences/kinloch-lodge",
+          "content_hash": "4643dfd806541952074663ad319ac236720a19ed81e8bc4351f343b140f9b9dd",
+          "entity_id": "kinloch-lodge",
+          "record_id": "accommodation:residence:kinloch-lodge",
+          "source_id": "accommodation_anu_study"
+        },
+        {
+          "canonical_url": "https://study.anu.edu.au/accommodation/our-residences/lena-karmel-lodge",
+          "content_hash": "0d587b5ccacd0332a2b043d8246c3d89d1ec0d83a6df64f8bd4a3010b9c5e162",
+          "entity_id": "lena-karmel-lodge",
+          "record_id": "accommodation:residence:lena-karmel-lodge",
+          "source_id": "accommodation_anu_study"
+        },
+        {
+          "canonical_url": "https://study.anu.edu.au/accommodation/our-residences/toad-hall",
+          "content_hash": "1b23f4a89d3efbe30d51eda88d07a974d99ddc931ea603a12787666330b7f23d",
+          "entity_id": "toad-hall",
+          "record_id": "accommodation:residence:toad-hall",
+          "source_id": "accommodation_anu_study"
+        },
+        {
+          "canonical_url": "https://study.anu.edu.au/accommodation/our-residences/university-house",
+          "content_hash": "aa3b2467c348a4a80b0d8fefd3def65555b2972ee10382b6ac54bbc8f7bb42dd",
+          "entity_id": "university-house",
+          "record_id": "accommodation:residence:university-house",
+          "source_id": "accommodation_anu_study"
+        },
+        {
+          "canonical_url": "https://study.anu.edu.au/accommodation/our-residences/ursula-hall-laurus-wing",
+          "content_hash": "2c78187b3ab04377ee88ff99b7ddf7504678436d04b2493f2e24897a9d2b3bdd",
+          "entity_id": "ursula-hall-laurus-wing",
+          "record_id": "accommodation:residence:ursula-hall-laurus-wing",
+          "source_id": "accommodation_anu_study"
+        },
+        {
+          "canonical_url": "https://study.anu.edu.au/accommodation/our-residences/ursula-hall-main-wing",
+          "content_hash": "4c080e4259f5907685e62ddd3c964c23def59972b202d6e0f9a5adb5c41c6207",
+          "entity_id": "ursula-hall-main-wing",
+          "record_id": "accommodation:residence:ursula-hall-main-wing",
+          "source_id": "accommodation_anu_study"
+        },
+        {
+          "canonical_url": "https://study.anu.edu.au/accommodation/our-residences/wamburun-hall",
+          "content_hash": "7bd640c42e5bf446e6aa5b76998c395cc7fe2d8db2ac3463ea280e88e3acadd2",
+          "entity_id": "wamburun-hall",
+          "record_id": "accommodation:residence:wamburun-hall",
+          "source_id": "accommodation_anu_study"
+        },
+        {
+          "canonical_url": "https://study.anu.edu.au/accommodation/our-residences/warrumbul-lodge",
+          "content_hash": "66d5e78544e1ae8a8fa2fe47d46d310c85996fa87ee0bd06fd06709e0c72430d",
+          "entity_id": "warrumbul-lodge",
+          "record_id": "accommodation:residence:warrumbul-lodge",
+          "source_id": "accommodation_anu_study"
+        },
+        {
+          "canonical_url": "https://study.anu.edu.au/accommodation/our-residences/wright-hall",
+          "content_hash": "6e4b179f05f7b4ddcf758c52c0e50f16e5496adf9b5432900b4fe9809ff98955",
+          "entity_id": "wright-hall",
+          "record_id": "accommodation:residence:wright-hall",
+          "source_id": "accommodation_anu_study"
+        },
+        {
+          "canonical_url": "https://study.anu.edu.au/accommodation/our-residences/yukeembruk",
+          "content_hash": "bbc87d145a03e4cb20e076ea8bd531e00ca48a09e20a0d8c4907f0063abb57ed",
+          "entity_id": "yukeembruk",
+          "record_id": "accommodation:residence:yukeembruk",
+          "source_id": "accommodation_anu_study"
+        }
+      ],
+      "malformed_pages": 0,
+      "outside_window": 0,
+      "parsed_records": 19,
+      "parser_exceptions": 0,
+      "rejected_by_reason": {},
+      "rejected_records": 0,
+      "source_present_fact_coverage_percent": 100.0,
+      "source_present_fact_denominator": 255,
+      "source_present_fact_numerator": 255,
+      "source_shape_anomalies": [],
+      "stopped_early": false
+    }
+  },
+  "events_window_end_inclusive": "2026-10-31",
+  "events_window_start": "2026-09-19",
+  "full_detail_traversal": true,
+  "migrations_applied": 0,
+  "pd_documents_fetched": 0,
+  "production_records_written": 0,
+  "selected_detail_pages": 19,
+  "source_present_fact_coverage_percent": 100.0,
+  "source_present_fact_denominator": 255,
+  "source_present_fact_numerator": 255,
+  "status": "SUCCESS",
+  "subplans_persisted": 0
+}
