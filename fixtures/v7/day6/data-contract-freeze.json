@@ -1,8 +1,24 @@
 {
-  "contract_version": "v7-day6-data-contract-freeze-v1",
-  "parent_day5_sha": "9e50fa0996d1110524da678675f97e1ff8a4378c",
+  "contract_version": "v7-day6-data-contract-freeze-v2",
+  "parent_day5_sha": "b829ffcf943653e5e36496109f29f116bea015a8",
   "network_calls_allowed": false,
   "production_writes_allowed": false,
+  "restack": {
+    "old_head": "e9c6ce2817f12d190a07dbe85a297bab6e4c6deb",
+    "old_parent": "9e50fa0996d1110524da678675f97e1ff8a4378c",
+    "pure_replay_sha": "c379cadb631d97aeadc8acb828be4f62915ab9a5",
+    "conflicts": 0,
+    "manual_resolutions": [],
+    "day6_delta_patch_id_before": "10c0d890296294d984b484ad1da413cd8e6c07f8",
+    "day6_delta_patch_id_after": "10c0d890296294d984b484ad1da413cd8e6c07f8",
+    "old_tree_equals_replay_tree": false,
+    "tree_difference_reason": "The replay inherits only the finalized Day 5 producer-consumer ledger; the Day 6 delta itself is byte-equivalent by stable patch ID.",
+    "old_tree_vs_replay_changed_files": [
+      "docs/v7/DAY_05_HANDOFF.md",
+      "fixtures/v7/day5/courses-scholarships-evidence.json",
+      "tests/test_v7_day5_evidence_readiness.py"
+    ]
+  },
   "jobs": {
     "source_ids": [
       "jobs_anu_search"
@@ -29,6 +45,72 @@
     "exhaustive_query_semantics": "INCOMPLETE_POPULATION",
     "empty_result_semantics": "INCOMPLETE, never proof that no current jobs exist",
     "atomicity_weakened": false,
+    "capability_audit": {
+      "evidence": "day16-source-health.json",
+      "advertised_population": 56,
+      "audited_records_before_source_failure": 7,
+      "detail_traversal_complete": false,
+      "fields": {
+        "location": {
+          "producer_path": "metadata_json.location",
+          "representative_source_backed_value": "Canberra / ACT, ACT, Australia, 2601",
+          "representative_fixture": "fixtures/jobs/anu_job_open_dated_sample.html",
+          "latest_audit_source_present": 0,
+          "latest_audit_population": 7,
+          "normalized": "whitespace normalization only; source wording is preserved",
+          "reliable_hard_constraint": false,
+          "zero_match_semantics": "CANNOT_RELIABLY_APPLY_OR_VERIFY_FILTER"
+        },
+        "employment_type": {
+          "producer_path": "metadata_json.employment_types",
+          "representative_source_backed_value": ["Fixed Term"],
+          "representative_fixture": "fixtures/jobs/anu_job_open_dated_sample.html",
+          "latest_audit_source_present": 7,
+          "latest_audit_population": 7,
+          "normalized": "array shape plus whitespace normalization; source wording is preserved",
+          "reliable_hard_constraint": true,
+          "zero_match_semantics": "NO_SUPPORTED_MATCH_IN_STORED_INCOMPLETE_POPULATION"
+        },
+        "category": {
+          "producer_path": "metadata_json.category",
+          "representative_source_backed_value": "Professional",
+          "representative_fixture": "fixtures/jobs/anu_jobs_listing_sample.html",
+          "latest_audit_source_present": 7,
+          "latest_audit_population": 7,
+          "normalized": "whitespace normalization only; source wording is preserved",
+          "reliable_hard_constraint": true,
+          "zero_match_semantics": "NO_SUPPORTED_MATCH_IN_STORED_INCOMPLETE_POPULATION"
+        },
+        "classification": {
+          "producer_path": "metadata_json.classification",
+          "representative_source_backed_value": "ANU Officer 8 (Administration)",
+          "representative_fixture": "fixtures/jobs/anu_job_open_dated_sample.html",
+          "latest_audit_source_present": 7,
+          "latest_audit_population": 7,
+          "normalized": "whitespace normalization only; no ANU08 alias is produced",
+          "reliable_hard_constraint": true,
+          "zero_match_semantics": "NO_SUPPORTED_MATCH_IN_STORED_INCOMPLETE_POPULATION"
+        },
+        "remote_work_arrangement": {
+          "producer_path": null,
+          "representative_source_backed_value": null,
+          "latest_audit_source_present": 0,
+          "latest_audit_population": 7,
+          "normalized": false,
+          "reliable_hard_constraint": false,
+          "zero_match_semantics": "CANNOT_RELIABLY_APPLY_OR_VERIFY_FILTER"
+        },
+        "role_requirements": {
+          "producer_path": null,
+          "representative_source_backed_value": null,
+          "latest_audit_source_present": 0,
+          "latest_audit_population": 7,
+          "normalized": false,
+          "reliable_hard_constraint": false,
+          "zero_match_semantics": "NOT_IN_FROZEN_PRODUCER_CONTRACT"
+        }
+      }
+    },
     "evidence": [
       "docs/DAY_16_V6_OPERATIONAL_FREEZE_HANDOFF.md",
       "fixtures/v7/day3/carmen-benchmark-evidence-audit.json"
@@ -115,9 +197,57 @@
     "adjudication_supported": false
   },
   "cross_repo": {
-    "carmen_day6_sha": null,
-    "consumer_matrix_status": "BLOCKED_PENDING_CARMEN_DAY6_SHA",
-    "mismatch_count": null
+    "carmen_day6_sha": "1875a4be816eeec2aeeacc0cfb4ff6fd6228f881",
+    "consumer_matrix_status": "FAIL_CONSUMER_ALIGNMENT",
+    "mismatch_count": 4,
+    "domain_status": {"jobs": "FAIL", "events": "FAIL", "support": "PASS"},
+    "mismatches": [
+      {
+        "domain": "jobs",
+        "classification": "SHARED_CONTRACT_DECISION_REQUIRED",
+        "producer_path": null,
+        "consumer_path": "JobMetadata.role_requirements",
+        "producer_evidence": "Jobs v1 has exactly 12 metadata keys and rejects unknown keys; role_requirements is absent and the latest seven-record audit found no source evidence.",
+        "consumer_assumption": "The RAG JobMetadata v2 model requires the key and Day 6 journeys fabricate populated requirements.",
+        "owner": "shared-contract/RAG",
+        "code_change_required": true
+      },
+      {
+        "domain": "jobs",
+        "classification": "CONSUMER_SEMANTIC_DEFECT",
+        "producer_path": null,
+        "consumer_path": "Jobs remote/work-arrangement hard constraint",
+        "producer_evidence": "No frozen producer field or normalization represents remote/work arrangement.",
+        "consumer_assumption": "An unsupported work-arrangement request may be dropped or treated as an employment-type zero match.",
+        "owner": "askanu-rag",
+        "code_change_required": true
+      },
+      {
+        "domain": "jobs",
+        "classification": "CONSUMER_SEMANTIC_DEFECT",
+        "producer_path": "metadata_json.location",
+        "consumer_path": "Jobs location hard constraint",
+        "producer_evidence": "The field is contract-valid but was source-present for 0 of 7 records before the latest source failure, so population-wide applicability is unproved.",
+        "consumer_assumption": "A location constraint can be treated as fully applied and a zero result as a supported zero match.",
+        "owner": "askanu-rag",
+        "code_change_required": true
+      },
+      {
+        "domain": "events",
+        "classification": "CONSUMER_SOURCE_HEALTH_DEFECT",
+        "producer_path": "events source-health evidence",
+        "consumer_path": "Event ResultSet.population_complete",
+        "producer_evidence": "Official Events remains BLOCKED at 29 eligible unique records against the frozen denominator 30; Rubric has no frozen live denominator.",
+        "consumer_assumption": "Day 6 marks Event discovery ResultSets population_complete=true.",
+        "owner": "askanu-rag",
+        "code_change_required": true
+      }
+    ],
+    "events_shape_and_provenance": "PASS",
+    "events_source_health": "FAIL",
+    "support_shape_semantics_and_provenance": "PASS",
+    "support_external_referral_policy": "PASS",
+    "support_routing_boundary": "PASS"
   },
   "feature_freeze": {
     "status": "DATA_CONTRACT_FEATURE_FREEZE",
@@ -135,6 +265,8 @@
   "change_impact": {
     "canonical_retrieval_content_changed": false,
     "reindex_required": "none",
-    "production_backfill_started": false
+    "reembedding_required": false,
+    "production_backfill_started": false,
+    "production_actions": 0
   }
 }
