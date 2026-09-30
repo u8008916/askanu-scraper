@@ -1,108 +1,127 @@
-# V7 Day 7 — six-domain data/evidence release-candidate audit
+# V7 Day 7 — six-domain producer-consumer release audit
 
 Owner: Will  
 Lane: scraper/data  
-Prepared: 2026-09-28 (Australia/Sydney)
+Verified: 2026-09-30 (Australia/Sydney)
 
 ## Outcome
 
-The scraper/data release-candidate packet is ready for final PM review, with
-external gates called out rather than hidden. Day 7 adds only offline audit
-fixtures, tests, and this handoff; it does not change producer behaviour or
-canonical records.
+The Day 7 scraper packet was replayed cleanly onto audited Day 6 and inspected
+against Carmen’s exact current RAG RC
+`e88a0d7e6bde2f6135ef152dc1b90d211a56a83e` (parent
+`971e837c141908a147a4bf5a0bdedb5f0dccb730`). The six-domain producer-consumer
+result is **FAIL**. Accommodation and Support align; Courses, Scholarships,
+Jobs, and Events retain exact release-blocking mismatches listed below.
 
-The Day 4 consumer dependency is closed. Day 5 and Day 6 consumer SHAs and the
-final Day 7 RAG release-candidate SHA/journey manifest remain pending. The
-audit reuses the exact frozen 24-query Day 3 six-domain benchmark as fallback
-evidence and does not create or tune a competing benchmark.
+No producer field, source value, canonical content, hash, retrieval unit,
+source scope, database, index, or production environment was changed to make a
+consumer test pass.
 
-## Final Day 4 consumer cross-check
+## Restack proof
 
-Carmen's final reconciled Day 4 head is
-`d349e8870715709fa034d57d902da4bec6dd5d34`. Its exact merge-base with accepted
-Day 3 `68d5aa367ce7adc1051c714c88a2e7b63751dd90` is that accepted SHA; it is nine
-commits ahead and zero behind.
+- Old Day 7 head: `2714bccdf0c319dddeaa58db2e0111938244c2ee`
+- Old parent: `e9c6ce2817f12d190a07dbe85a297bab6e4c6deb`
+- New parent: `8bbe5c13ca406a745f12a0af71a966f79757f8b4`
+- Pure replay: `c65814549059a22d86fb07ca69eb7ad361974810`
+- Conflicts: **0**
+- Manual resolutions: **0**
+- Stable Day 7 patch ID before/after: identical,
+  `63f4d94642fd41b4c53d5ca35d1f875e45a0e638`
 
-The consumer model and implementation use all 15 frozen Accommodation
-metadata paths, including nested contact and paired room evidence. Final
-result:
-
-- paths checked: **15/15**;
-- shape mismatches: **0**;
-- semantic mismatches: **0**;
-- material producer paths left unconsumed: **0**; and
-- consumer paths lacking producer evidence: **0**.
-
-The reconciled consumer excludes `advertised_rate` from numeric proof, keeps
-named-room rate context intact, preserves missing vacancy as `UNKNOWN`, builds
-actions only from validated stored `application_url`, and retains record,
-source and canonical URL provenance. Day 4's producer/consumer dependency is
-therefore closed for final PM acceptance.
-
-## Cross-repository gates
-
-- Day 4 RAG consumer: **CLOSED**, exact SHA
-  `d349e8870715709fa034d57d902da4bec6dd5d34`.
-- Day 5 RAG consumer SHA: **PENDING**.
-- Day 6 RAG consumer SHA: **PENDING**.
-- Day 7 RAG RC SHA and journey manifest: **PENDING**.
+The old and replay trees differ only through the finalized Day 5 ledger and
+audited Day 6 packet inherited from the new parent. The genuine Day 7 delta is
+byte-equivalent.
 
 ## Six-domain result
 
-| Domain | Evidence state | Release interpretation |
-|---|---|---|
-| Courses | `GREEN` | 500 audited 2026 Courses and 1,256 Course-family records are fully accounted; year remains identity. |
-| Scholarships | `BLOCKED` | Do not claim a complete current population while the external-canonical redirect remains unresolved. |
-| Jobs | `FALLBACK_LAST_KNOWN_GOOD` | Known records remain usable, but exhaustive current-population queries are `INCOMPLETE_POPULATION`. |
-| Accommodation | `GREEN` | 19/19 residences and 273/273 source-present facts; vacancy remains missing source evidence. |
-| Support | `GREEN` | Last complete bounded audit is 6/6; service evidence does not adjudicate a student's case. |
-| Events | `BLOCKED` | Official snapshot has an unresolved 30-card/29-eligible discrepancy; Rubric request-contract and live denominator remain gated. |
+| Domain | Contract | Identity/provenance | Missing-field semantics | Source-health semantics |
+|---|---|---|---|---|
+| Courses | FAIL | FAIL | FAIL | PASS |
+| Scholarships | FAIL | PASS | FAIL | FAIL |
+| Accommodation | PASS | PASS | PASS | PASS |
+| Jobs | FAIL | PASS for known records | FAIL | PASS with `INCOMPLETE_POPULATION` caveat |
+| Events | FAIL | PASS | PASS | FAIL |
+| Support | PASS | PASS | PASS | PASS |
 
-No broad live crawl was performed merely to refresh timestamps. The release
-packet preserves the most recent bounded evidence and its limitations.
+Source health remains truthful: Courses, Accommodation, and Support are
+`GREEN`; Scholarships is `BLOCKED` by the external-canonical redirect; Jobs is
+`FALLBACK_LAST_KNOWN_GOOD` and `INCOMPLETE_POPULATION`; Events is `BLOCKED` by
+the official 30-versus-29 reconciliation and Rubric request-contract/live-
+denominator gates.
 
-## Ownership table
+## Unresolved mismatch ledger
 
-| Query | Classification | Owner | Reason |
-|---|---|---|---|
-| `holdout-scholarship-eligibility` | `AMBIGUOUS_SOURCE` | Source/product limitation | Candidate dimensions do not prove personal eligibility. |
-| `holdout-accommodation-vacancy` | `MISSING_SOURCE` | Source/product limitation | The approved source publishes no current vacancy fact. |
-| `holdout-jobs-incomplete` | `INCOMPLETE_POPULATION` | Source/product limitation | Current Jobs population completeness is not established. |
-| `holdout-events-rubric-organiser` | `MISSING_SOURCE` | Source/product limitation | Rubric does not publish the required organiser fact. |
+1. Course URL path case — **CONSUMER FIX REQUIRED**. The source-preserved
+   `/COMP2120` path is rejected by a lowercase-only RAG validator.
+2. Course Description — **CONSUMER FIX REQUIRED**. RAG labels the whole
+   canonical record as Description when no structured producer field exists.
+3. Course Corequisites — **CONSUMER FIX REQUIRED**. RAG reads a non-contract
+   metadata field and reports real content-only evidence as not published.
+4. Scholarship status — **CONSUMER FIX REQUIRED**. RAG expects synthetic
+   `open`/`closed`, while the producer preserves `Open for applications` and
+   `Application closed`.
+5. Scholarship study level — **CONSUMER FIX REQUIRED**. The RC normalizes only
+   exact `undergraduate` or `bachelor`, not the producer value
+   `Undergraduate/Bachelor`.
+6. Jobs `role_requirements` — **SHARED CONTRACT DECISION REQUIRED**. RAG
+   requires a v2 key and tests populated values; scraper Jobs v1 rejects that
+   extra key and the latest audit found no source evidence in 7 records.
+7. Jobs remote/work arrangement — **CONSUMER FIX REQUIRED**. No producer field
+   exists. The RC must report that it cannot reliably apply the filter, not
+   treat `remote` as an employment type with a genuine evaluated zero.
+8. Jobs location applicability — **CONSUMER FIX REQUIRED**. Location is a
+   valid optional field and Canberra exists in a representative captured
+   fixture, but the latest partial audit found it source-present for 0/7.
+   Population-wide hard filtering is therefore not reliable.
+9. Events population completeness — **CONSUMER FIX REQUIRED**. RAG still marks
+   Event discovery ResultSets population-complete while both source gates are
+   open.
+10. Jobs classification shorthand — **CONSUMER FIX REQUIRED**. The producer
+    value is shaped like `ANU Officer 8 (Administration)` and does not produce
+    `ANU08`; the RC’s exact comparison does not map the shorthand to that real
+    value.
 
-Approved evidence that exists correctly remains a RAG responsibility if it is
-not retrieved or used. An App rendering error remains Ben's responsibility.
+Carmen’s R6-B fix correctly stops `at ANU in Canberra` from becoming
+`anu in canberra`, and R6-C correctly stops ordinary words such as `any` and
+`about` becoming employment types. Those interpretation fixes pass, but they
+do not resolve producer capability: location is not reliably populated and
+remote/work arrangement is unsupported.
 
-## Torture checks
+## Jobs source-backed value audit
 
-- Provenance and identity are traceable for all frozen offline representative
-  records; official and Rubric Event identity/authority remain distinct.
-- Missing vacancy, eligibility, modality, status, location, and application
-  facts remain null/unknown rather than false.
-- Jobs incomplete population and Accommodation missing vacancy evidence cannot
-  collapse into empty/none claims.
-- Prompt-like source text remains inert data; executable markup is removed.
-- Unsupported cheapest, affordability, vacancy, eligibility, modality,
-  application-outcome, and recommendation inferences were not added.
+- Canberra: source-backed in the representative captured record, but not
+  reliable across the latest population evidence.
+- Fixed Term: source-backed and stored as source wording.
+- Casual and Full-time: not established by the committed source-capture
+  evidence. Casual appears only in a fixture explicitly labelled synthetic.
+- Classification: source-backed example is `ANU Officer 8 (Administration)`;
+  no `ANU08` alias is produced.
+- Remote/work arrangement: no producer field and no normalization.
 
-## Canonical-content and provider-cost impact
+Employment type, category, and classification were each source-present for 7/7
+successfully audited records before the Jobs source failure. A zero result for
+an exact source-backed value may mean “no supported matching result” only while
+retaining the incomplete-population caveat. Location, remote/work arrangement,
+and unverified aliases must instead use “cannot reliably apply/verify.”
 
-- Day 4–7 Course canonical content changed: **NO**
-- Other canonical retrieval content changed: **NO**
-- Content hashes changed by these checkpoints: **0**
-- Retrieval units changed: **0**
-- Reindex/re-embedding required: **NONE**
-- Production embedding backfill initiated: **NO**
+## Producer fields materially unconsumed
 
-## Final scope confirmation
+- `content.Corequisites`
+- `metadata_json.registration_url`
+- `metadata_json.latitude`
+- `metadata_json.longitude`
 
-No new production source, source-authority change, scheduler change,
-production ingestion, DB write, migration, live Rubric request path, StarRez
-inventory access, weakened Jobs atomicity, frontend/RAG reasoning in scraper,
-synthetic alias system, unrelated rewrite, or Course re-embedding was added.
+`content.Description` is not listed as unconsumed because RAG does project a
+value, but it projects the wrong boundary (the whole canonical record), which
+is already recorded as a semantic defect.
 
-All reported test results are local/isolated engineering evidence. No GitHub
-Actions run is attached to the Day 4–7 scraper heads at this checkpoint.
+## Safety and impact
 
-Status: **SCRAPER/DATA RC PACKET READY; DAY 4 CROSS-REPO DEPENDENCY CLOSED;
-DAY 5–7 CARMEN ARTIFACTS PENDING**.
+- Canonical data mutation: **NONE**
+- Content-hash changes: **0**
+- Retrieval-unit changes: **0**
+- Reindex/re-embedding required: **NO**
+- Crawls, DB writes, migrations, backfills, secret/IAM changes: **0**
+- Merge state: **MERGE HOLD / DAY 8 HOLD**
+
+Status: **SCRAPER DATA RC AUDITED; PRODUCER-CONSUMER ALIGNMENT FAIL; MERGE HOLD**.

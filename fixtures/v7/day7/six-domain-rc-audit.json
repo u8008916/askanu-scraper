@@ -1,11 +1,31 @@
 {
-  "schema_version": "v7-day7-six-domain-rc-audit-v1",
-  "parent_day6_sha": "e9c6ce2817f12d190a07dbe85a297bab6e4c6deb",
+  "schema_version": "v7-day7-six-domain-rc-audit-v2",
+  "parent_day6_sha": "8bbe5c13ca406a745f12a0af71a966f79757f8b4",
   "network_calls_allowed": false,
   "production_writes_allowed": false,
+  "restack": {
+    "old_head": "2714bccdf0c319dddeaa58db2e0111938244c2ee",
+    "old_parent": "e9c6ce2817f12d190a07dbe85a297bab6e4c6deb",
+    "pure_replay_sha": "c65814549059a22d86fb07ca69eb7ad361974810",
+    "conflicts": 0,
+    "manual_resolutions": [],
+    "day7_delta_patch_id_before": "63f4d94642fd41b4c53d5ca35d1f875e45a0e638",
+    "day7_delta_patch_id_after": "63f4d94642fd41b4c53d5ca35d1f875e45a0e638",
+    "old_tree_equals_replay_tree": false,
+    "tree_difference_reason": "The replay inherits the finalized Day 5 ledger and audited Day 6 contract packet; the Day 7 delta itself is byte-equivalent by stable patch ID.",
+    "old_tree_vs_replay_changed_files": [
+      "docs/v7/DAY_05_HANDOFF.md",
+      "docs/v7/DAY_06_HANDOFF.md",
+      "fixtures/v7/day5/courses-scholarships-evidence.json",
+      "fixtures/v7/day6/data-contract-freeze.json",
+      "tests/test_v7_day5_evidence_readiness.py",
+      "tests/test_v7_day6_data_contract_freeze.py"
+    ]
+  },
   "carmen_release_candidate": {
-    "day7_manifest_sha": null,
-    "status": "BLOCKED_PENDING_CARMEN_DAY7_MANIFEST",
+    "day7_sha": "e88a0d7e6bde2f6135ef152dc1b90d211a56a83e",
+    "parent_sha": "971e837c141908a147a4bf5a0bdedb5f0dccb730",
+    "status": "AUDITED_FAIL_PRODUCER_CONSUMER_ALIGNMENT",
     "benchmark_expectations_changed": false,
     "fallback_evidence_only": {
       "benchmark_id": "v7-day3-six-domain-holdout-v1",
@@ -23,18 +43,169 @@
       "status": "CLOSED_PRODUCER_CONSUMER_MATCH"
     },
     "day5": {
-      "rag_sha": null,
-      "status": "PENDING_CARMEN_DAY5_SHA"
+      "rag_sha": "75c017ba7db3551e74a4326afd514bd26d898573",
+      "status": "FAIL_FIVE_CONSUMER_MISMATCHES"
     },
     "day6": {
-      "rag_sha": null,
-      "status": "PENDING_CARMEN_DAY6_SHA"
+      "rag_sha": "1875a4be816eeec2aeeacc0cfb4ff6fd6228f881",
+      "status": "FAIL_JOBS_EVENTS_PASS_SUPPORT"
     },
     "day7": {
-      "rag_sha": null,
+      "rag_sha": "e88a0d7e6bde2f6135ef152dc1b90d211a56a83e",
       "journey_manifest_sha": null,
-      "status": "PENDING_CARMEN_DAY7_RC_AND_JOURNEY_MANIFEST"
+      "status": "FAIL_UNRESOLVED_PRODUCER_CONSUMER_MISMATCHES"
     }
+  },
+  "producer_consumer_summary": {
+    "status": "FAIL",
+    "exact_rag_sha": "e88a0d7e6bde2f6135ef152dc1b90d211a56a83e",
+    "unresolved_mismatch_count": 10,
+    "domain_status": {
+      "courses": {
+        "contract_matches_consumer": false,
+        "identity_provenance": "FAIL",
+        "missing_field_semantics": "FAIL",
+        "source_health_semantics": "PASS"
+      },
+      "scholarships": {
+        "contract_matches_consumer": false,
+        "identity_provenance": "PASS",
+        "missing_field_semantics": "FAIL",
+        "source_health_semantics": "FAIL"
+      },
+      "accommodation": {
+        "contract_matches_consumer": true,
+        "identity_provenance": "PASS",
+        "missing_field_semantics": "PASS",
+        "source_health_semantics": "PASS"
+      },
+      "jobs": {
+        "contract_matches_consumer": false,
+        "identity_provenance": "PASS_FOR_KNOWN_RECORDS",
+        "missing_field_semantics": "FAIL",
+        "source_health_semantics": "PASS_INCOMPLETE_POPULATION_CAVEAT"
+      },
+      "events": {
+        "contract_matches_consumer": false,
+        "identity_provenance": "PASS",
+        "missing_field_semantics": "PASS",
+        "source_health_semantics": "FAIL"
+      },
+      "support": {
+        "contract_matches_consumer": true,
+        "identity_provenance": "PASS",
+        "missing_field_semantics": "PASS",
+        "source_health_semantics": "PASS"
+      }
+    },
+    "unresolved_mismatches": [
+      {
+        "id": "course-url-path-case",
+        "domain": "courses",
+        "classification": "CONSUMER_SHAPE_DEFECT",
+        "producer_path": "canonical_url",
+        "consumer_path": "CourseProgramRecord canonical URL validator",
+        "owner": "askanu-rag"
+      },
+      {
+        "id": "course-description-semantics",
+        "domain": "courses",
+        "classification": "CONSUMER_SEMANTIC_DEFECT",
+        "producer_path": "content.Description",
+        "consumer_path": "items[].fields.description",
+        "owner": "askanu-rag"
+      },
+      {
+        "id": "course-corequisites-semantics",
+        "domain": "courses",
+        "classification": "CONSUMER_SEMANTIC_DEFECT",
+        "producer_path": "content.Corequisites",
+        "consumer_path": "metadata_json.corequisites / items[].fields.corequisites",
+        "owner": "askanu-rag"
+      },
+      {
+        "id": "scholarship-status-vocabulary",
+        "domain": "scholarships",
+        "classification": "CONSUMER_SEMANTIC_DEFECT",
+        "producer_path": "metadata_json.status",
+        "consumer_path": "Scholarship status filter",
+        "owner": "askanu-rag"
+      },
+      {
+        "id": "scholarship-study-level-compound",
+        "domain": "scholarships",
+        "classification": "CONSUMER_SEMANTIC_DEFECT",
+        "producer_path": "metadata_json.study_level",
+        "consumer_path": "Scholarship study-level aliases",
+        "owner": "askanu-rag"
+      },
+      {
+        "id": "jobs-role-requirements-shape",
+        "domain": "jobs",
+        "classification": "SHARED_CONTRACT_DECISION_REQUIRED",
+        "producer_path": null,
+        "consumer_path": "JobMetadata.role_requirements",
+        "owner": "shared-contract/RAG"
+      },
+      {
+        "id": "jobs-remote-work-arrangement",
+        "domain": "jobs",
+        "classification": "CONSUMER_SEMANTIC_DEFECT",
+        "producer_path": null,
+        "consumer_path": "employment_type constraint remote",
+        "owner": "askanu-rag"
+      },
+      {
+        "id": "jobs-location-applicability",
+        "domain": "jobs",
+        "classification": "CONSUMER_SEMANTIC_DEFECT",
+        "producer_path": "metadata_json.location",
+        "consumer_path": "location hard constraint",
+        "owner": "askanu-rag"
+      },
+      {
+        "id": "events-population-complete",
+        "domain": "events",
+        "classification": "CONSUMER_SOURCE_HEALTH_DEFECT",
+        "producer_path": "events source-health evidence",
+        "consumer_path": "Event ResultSet.population_complete",
+        "owner": "askanu-rag"
+      },
+      {
+        "id": "jobs-classification-shorthand",
+        "domain": "jobs",
+        "classification": "CONSUMER_SEMANTIC_DEFECT",
+        "producer_path": "metadata_json.classification",
+        "consumer_path": "ANU-number category constraint mapped to classification",
+        "owner": "askanu-rag"
+      }
+    ],
+    "unsupported_consumer_claims": [
+      "Jobs role_requirements exists in the producer contract",
+      "remote is a producer-supported employment type or work-arrangement field",
+      "Jobs location is reliably populated across the supported population",
+      "ANU08 is the exact producer classification shape",
+      "casual and full-time are established by committed source-backed producer examples",
+      "Events discovery population is complete",
+      "Scholarships population is complete while the canonical redirect blocker remains"
+    ],
+    "material_producer_fields_unconsumed": [
+      "content.Corequisites",
+      "metadata_json.registration_url",
+      "metadata_json.latitude",
+      "metadata_json.longitude"
+    ],
+    "jobs_value_evidence": {
+      "canberra": "SOURCE_BACKED_REPRESENTATIVE_ONLY_NOT_POPULATION_RELIABLE",
+      "fixed_term": "SOURCE_BACKED",
+      "casual": "NOT_ESTABLISHED_BY_COMMITTED_SOURCE_CAPTURE",
+      "full_time": "NOT_ESTABLISHED_BY_COMMITTED_SOURCE_CAPTURE",
+      "remote": "UNSUPPORTED_NO_PRODUCER_FIELD",
+      "classification_example": "ANU Officer 8 (Administration)",
+      "classification_alias_produced": false
+    },
+    "rag_r6_b_overcapture_fix": "PASS_INTERPRETATION_ONLY",
+    "rag_r6_c_query_word_fix": "PASS_INTERPRETATION_ONLY"
   },
   "day4_consumer_crosscheck": {
     "inspected_rag_sha": "d349e8870715709fa034d57d902da4bec6dd5d34",
@@ -173,7 +344,9 @@
     "content_hash_changes": 0,
     "retrieval_unit_changes": 0,
     "reindex_required": "none",
-    "production_embedding_backfill_started": false
+    "reembedding_required": false,
+    "production_embedding_backfill_started": false,
+    "production_actions": 0
   },
   "scope_confirmation": {
     "new_production_source": false,
@@ -190,5 +363,5 @@
     "unrelated_scraper_rewrite": false,
     "full_course_reembedding_initiated_by_scraper": false
   },
-  "release_status": "SCRAPER_DATA_RC_PACKET_READY_DAY4_CLOSED_DAY5_TO_DAY7_CROSS_REPO_PENDING"
+  "release_status": "SCRAPER_DATA_RC_AUDITED_CROSS_REPO_FAIL_MERGE_HOLD"
 }

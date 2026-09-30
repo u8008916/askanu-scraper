@@ -65,20 +65,40 @@ def _records():
     return [_record(case) for case in cases]
 
 
-def test_rc_packet_keeps_missing_carmen_manifest_as_an_explicit_gate() -> None:
+def test_rc_packet_pins_exact_carmen_release_candidate_and_restack() -> None:
     manifest = _manifest()
     carmen = manifest["carmen_release_candidate"]
 
-    assert manifest["schema_version"] == "v7-day7-six-domain-rc-audit-v1"
+    assert manifest["schema_version"] == "v7-day7-six-domain-rc-audit-v2"
     assert manifest["parent_day6_sha"] == (
-        "e9c6ce2817f12d190a07dbe85a297bab6e4c6deb"
+        "8bbe5c13ca406a745f12a0af71a966f79757f8b4"
     )
     assert manifest["network_calls_allowed"] is False
     assert manifest["production_writes_allowed"] is False
-    assert carmen["day7_manifest_sha"] is None
-    assert carmen["status"] == "BLOCKED_PENDING_CARMEN_DAY7_MANIFEST"
+    assert carmen["day7_sha"] == (
+        "e88a0d7e6bde2f6135ef152dc1b90d211a56a83e"
+    )
+    assert carmen["parent_sha"] == (
+        "971e837c141908a147a4bf5a0bdedb5f0dccb730"
+    )
+    assert carmen["status"] == "AUDITED_FAIL_PRODUCER_CONSUMER_ALIGNMENT"
     assert carmen["benchmark_expectations_changed"] is False
     assert carmen["fallback_evidence_only"]["query_count"] == 24
+
+    restack = manifest["restack"]
+    assert restack["old_head"] == (
+        "2714bccdf0c319dddeaa58db2e0111938244c2ee"
+    )
+    assert restack["pure_replay_sha"] == (
+        "c65814549059a22d86fb07ca69eb7ad361974810"
+    )
+    assert restack["conflicts"] == 0
+    assert restack["manual_resolutions"] == []
+    assert restack["day7_delta_patch_id_before"] == (
+        restack["day7_delta_patch_id_after"]
+    )
+    assert restack["old_tree_equals_replay_tree"] is False
+    assert len(restack["old_tree_vs_replay_changed_files"]) == 6
 
 
 def test_frozen_carmen_benchmark_is_reused_without_expectation_changes() -> None:
@@ -140,7 +160,7 @@ def test_day4_reconciled_consumer_uses_the_complete_frozen_field_shape() -> None
     assert crosscheck["status"] == "PASS_FINAL_RECONCILED_CONSUMER"
 
 
-def test_cross_repo_gates_distinguish_closed_day4_from_pending_days() -> None:
+def test_cross_repo_gates_distinguish_closed_day4_from_failed_audits() -> None:
     gates = _manifest()["cross_repo_gates"]
 
     assert gates["day4"] == {
@@ -150,15 +170,80 @@ def test_cross_repo_gates_distinguish_closed_day4_from_pending_days() -> None:
         ),
         "status": "CLOSED_PRODUCER_CONSUMER_MATCH",
     }
-    assert gates["day5"]["rag_sha"] is None
-    assert gates["day5"]["status"] == "PENDING_CARMEN_DAY5_SHA"
-    assert gates["day6"]["rag_sha"] is None
-    assert gates["day6"]["status"] == "PENDING_CARMEN_DAY6_SHA"
-    assert gates["day7"]["rag_sha"] is None
+    assert gates["day5"] == {
+        "rag_sha": "75c017ba7db3551e74a4326afd514bd26d898573",
+        "status": "FAIL_FIVE_CONSUMER_MISMATCHES",
+    }
+    assert gates["day6"] == {
+        "rag_sha": "1875a4be816eeec2aeeacc0cfb4ff6fd6228f881",
+        "status": "FAIL_JOBS_EVENTS_PASS_SUPPORT",
+    }
+    assert gates["day7"]["rag_sha"] == (
+        "e88a0d7e6bde2f6135ef152dc1b90d211a56a83e"
+    )
     assert gates["day7"]["journey_manifest_sha"] is None
     assert gates["day7"]["status"] == (
-        "PENDING_CARMEN_DAY7_RC_AND_JOURNEY_MANIFEST"
+        "FAIL_UNRESOLVED_PRODUCER_CONSUMER_MISMATCHES"
     )
+
+
+def test_six_domain_consumer_summary_has_exact_unresolved_ownership() -> None:
+    summary = _manifest()["producer_consumer_summary"]
+
+    assert summary["status"] == "FAIL"
+    assert summary["exact_rag_sha"] == (
+        "e88a0d7e6bde2f6135ef152dc1b90d211a56a83e"
+    )
+    assert summary["unresolved_mismatch_count"] == len(
+        summary["unresolved_mismatches"]
+    ) == 10
+    assert {item["id"] for item in summary["unresolved_mismatches"]} == {
+        "course-url-path-case",
+        "course-description-semantics",
+        "course-corequisites-semantics",
+        "scholarship-status-vocabulary",
+        "scholarship-study-level-compound",
+        "jobs-role-requirements-shape",
+        "jobs-remote-work-arrangement",
+        "jobs-location-applicability",
+        "events-population-complete",
+        "jobs-classification-shorthand",
+    }
+    assert summary["domain_status"]["accommodation"] == {
+        "contract_matches_consumer": True,
+        "identity_provenance": "PASS",
+        "missing_field_semantics": "PASS",
+        "source_health_semantics": "PASS",
+    }
+    assert summary["domain_status"]["support"] == {
+        "contract_matches_consumer": True,
+        "identity_provenance": "PASS",
+        "missing_field_semantics": "PASS",
+        "source_health_semantics": "PASS",
+    }
+    assert summary["domain_status"]["courses"]["contract_matches_consumer"] is False
+    assert summary["domain_status"]["scholarships"]["contract_matches_consumer"] is False
+    assert summary["domain_status"]["jobs"]["contract_matches_consumer"] is False
+    assert summary["domain_status"]["events"]["contract_matches_consumer"] is False
+    assert summary["rag_r6_b_overcapture_fix"] == "PASS_INTERPRETATION_ONLY"
+    assert summary["rag_r6_c_query_word_fix"] == "PASS_INTERPRETATION_ONLY"
+
+
+def test_jobs_values_do_not_exceed_committed_source_evidence() -> None:
+    evidence = _manifest()["producer_consumer_summary"]["jobs_value_evidence"]
+
+    assert evidence == {
+        "canberra": "SOURCE_BACKED_REPRESENTATIVE_ONLY_NOT_POPULATION_RELIABLE",
+        "fixed_term": "SOURCE_BACKED",
+        "casual": "NOT_ESTABLISHED_BY_COMMITTED_SOURCE_CAPTURE",
+        "full_time": "NOT_ESTABLISHED_BY_COMMITTED_SOURCE_CAPTURE",
+        "remote": "UNSUPPORTED_NO_PRODUCER_FIELD",
+        "classification_example": "ANU Officer 8 (Administration)",
+        "classification_alias_produced": False,
+    }
+    assert "metadata_json.registration_url" in _manifest()[
+        "producer_consumer_summary"
+    ]["material_producer_fields_unconsumed"]
 
 
 def test_six_domain_records_have_unique_traceable_identity_and_authority() -> None:
@@ -265,7 +350,9 @@ def test_no_canonical_content_churn_or_reindex_is_hidden() -> None:
         "content_hash_changes": 0,
         "retrieval_unit_changes": 0,
         "reindex_required": "none",
+        "reembedding_required": False,
         "production_embedding_backfill_started": False,
+        "production_actions": 0,
     }
 
 
@@ -274,5 +361,5 @@ def test_final_scope_confirmation_is_all_negative_and_release_is_gated() -> None
 
     assert set(manifest["scope_confirmation"].values()) == {False}
     assert manifest["release_status"] == (
-        "SCRAPER_DATA_RC_PACKET_READY_DAY4_CLOSED_DAY5_TO_DAY7_CROSS_REPO_PENDING"
+        "SCRAPER_DATA_RC_AUDITED_CROSS_REPO_FAIL_MERGE_HOLD"
     )
