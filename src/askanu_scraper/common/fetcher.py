@@ -15,6 +15,8 @@ import os
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
+from collections.abc import Callable
+from urllib.parse import urljoin
 
 import requests
 
@@ -60,12 +62,34 @@ class HttpFetcher(BaseFetcher):
         self._session = requests.Session()
         self._session.headers.update({"User-Agent": self._user_agent})
 
-    def fetch(self, url: str) -> str:
+    def fetch(
+        self, url: str, *,
+        validate_redirect: Callable[[str], None] | None = None,
+        before_redirect: Callable[[], None] | None = None,
+    ) -> str:
+        """Optionally validate each redirect before requesting its destination."""
         last_error: Exception | None = None
 
         for attempt in range(self.MAX_ATTEMPTS):
             try:
-                response = self._session.get(url, timeout=self._timeout)
+                if validate_redirect is None:
+                    response = self._session.get(url, timeout=self._timeout)
+                else:
+                    current_url = url
+                    for hop in range(self._session.max_redirects + 1):
+                        response = self._session.get(
+                            current_url, timeout=self._timeout, allow_redirects=False
+                        )
+                        if not response.is_redirect:
+                            break
+                        target = urljoin(current_url, response.headers["Location"])
+                        response.close()
+                        validate_redirect(target)
+                        if hop == self._session.max_redirects:
+                            raise requests.TooManyRedirects("Redirect limit exceeded")
+                        if before_redirect is not None:
+                            before_redirect()
+                        current_url = target
                 response.raise_for_status()
 
                 if not response.text or not response.text.strip():

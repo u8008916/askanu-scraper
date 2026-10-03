@@ -24,11 +24,17 @@ from askanu_scraper.sources.scholarships.discovery import (
     ScholarshipDiscoveryResult,
     ScholarshipsDiscovery,
 )
-from askanu_scraper.sources.scholarships.parser import ScholarshipsParser
+from askanu_scraper.sources.scholarships.parser import (
+    ScholarshipsParser, normalize_scholarship_url,
+)
 
 
 SOURCE_ID = "scholarships_anu_finder"
 LISTING_URL = "https://study.anu.edu.au/scholarships/find-scholarship"
+
+
+class _ExternalScholarshipRedirect(Exception):
+    """An approved listing candidate redirects to an external source."""
 
 
 class ScholarshipsCollector:
@@ -58,6 +64,7 @@ class ScholarshipsCollector:
         self._request_count = 0
         self._detail_request_count = 0
         self._listing_request_count = 0
+        self._external_redirect_count = 0
         self.last_run_sanity: dict[str, object] = self._empty_sanity()
 
     @staticmethod
@@ -113,6 +120,11 @@ class ScholarshipsCollector:
                     == discovery.headline_total_count
                 ),
             })
+        if self._external_redirect_count:
+            reasons = dict(sanity.get("rejected_by_reason", {}))
+            reasons["external-redirect"] = self._external_redirect_count
+            sanity["rejected_by_reason"] = reasons
+            sanity["external_redirect_count"] = self._external_redirect_count
         self.last_run_sanity = sanity
 
     def _fetch(self, url: str, *, detail: bool = False) -> str:
@@ -123,7 +135,21 @@ class ScholarshipsCollector:
             self._detail_request_count += 1
         else:
             self._listing_request_count += 1
+        if detail and isinstance(self._fetcher, HttpFetcher):
+            return self._fetcher.fetch(
+                url, validate_redirect=self._validate_detail_redirect,
+                before_redirect=lambda: self._sleep(self._min_request_interval_seconds),
+            )
         return self._fetcher.fetch(url)
+
+    @staticmethod
+    def _validate_detail_redirect(target: str) -> None:
+        try:
+            normalize_scholarship_url(target)
+        except ParseError as exc:
+            if urlparse(target).hostname != "study.anu.edu.au":
+                raise _ExternalScholarshipRedirect from exc
+            raise FetchError("Scholarship redirect leaves approved detail boundary") from exc
 
     @staticmethod
     def _is_listing_url(url: str) -> bool:
@@ -219,6 +245,7 @@ class ScholarshipsCollector:
         self._request_count = 0
         self._detail_request_count = 0
         self._listing_request_count = 0
+        self._external_redirect_count = 0
         self.last_run_sanity = self._empty_sanity()
 
         page_results: list[ScholarshipDiscoveryResult] = []
@@ -288,6 +315,7 @@ class ScholarshipsCollector:
         self._request_count = 0
         self._detail_request_count = 0
         self._listing_request_count = 0
+        self._external_redirect_count = 0
         self.last_run_sanity = self._empty_sanity()
         run = IngestionRun(
             run_id=f"run_{uuid.uuid4().hex[:12]}",
@@ -366,7 +394,11 @@ class ScholarshipsCollector:
         records: list[CommonRecord] = []
         try:
             for candidate in discovery.candidates:
-                detail_html = self._fetch(candidate.url, detail=True)
+                try:
+                    detail_html = self._fetch(candidate.url, detail=True)
+                except _ExternalScholarshipRedirect:
+                    self._external_redirect_count += 1
+                    continue
                 parsed = self._parser.parse(
                     detail_html,
                     candidate.url,
@@ -393,6 +425,10 @@ class ScholarshipsCollector:
             return fail(f"Detail parser failed: {exc}", discovery)
         except Exception:
             return fail("Unexpected scholarship detail parser failure", discovery)
+
+        if not records:
+            return fail("Scholarship details produced zero approved records", discovery,
+                        suspicious_zero=True)
 
         record_ids = [record.record_id for record in records]
         canonical_urls = [record.canonical_url for record in records]
