@@ -454,8 +454,8 @@ class CommonRecord(BaseModel):
                 raise ValueError("Job records require source_id 'jobs_anu_search'")
             if entity_type != "job":
                 raise ValueError("Jobs metadata_json.entity_type must be 'job'")
-            if re.fullmatch(r"[0-9]+", self.entity_id) is None:
-                raise ValueError("Job entity_id must be the numeric requisition ID")
+            if not self.entity_id.isdigit() and parsed_url.path != f"/jobs/{self.entity_id}":
+                raise ValueError("Job identity must match its canonical path")
             if self.record_id != f"jobs:job:{self.entity_id}":
                 raise ValueError("Job record_id does not match its requisition ID")
             try:
@@ -489,8 +489,11 @@ class CommonRecord(BaseModel):
                 "status",
                 "summary",
             }
-            if set(metadata) != expected_keys:
-                raise ValueError("Jobs metadata_json must match the approved v1 fields")
+            if set(metadata) - {"requisition_id", "role_requirements"} != expected_keys:
+                raise ValueError("Jobs metadata_json must match the approved fields")
+            requisition = metadata.get("requisition_id")
+            if requisition is not None and (not isinstance(requisition, str) or re.fullmatch(r"[0-9]+", requisition) is None):
+                raise ValueError("requisition_id must be numeric or null")
             if metadata["job_id"] != self.entity_id:
                 raise ValueError("metadata_json.job_id must match entity_id")
             employment_types = metadata["employment_types"]
@@ -847,9 +850,11 @@ class CommonRecord(BaseModel):
             if entity_type != "event":
                 raise ValueError("Events metadata_json.entity_type must be 'event'")
             if self.source_id == "events_anu_official":
-                if re.fullmatch(r"[0-9]+", self.entity_id) is None:
-                    raise ValueError("Official Event entity_id must be the numeric Drupal node ID")
-                expected_event_id = self.entity_id
+                if not self.entity_id.isdigit() and parsed_url.path != f"/events/{self.entity_id}":
+                    raise ValueError("Official Event identity must match its canonical path")
+                expected_event_id = self.entity_id if self.entity_id.isdigit() else metadata.get("source_event_id")
+                if expected_event_id is not None and (not isinstance(expected_event_id, str) or not expected_event_id.isdigit()):
+                    raise ValueError("Official Drupal ID must be numeric or null")
                 expected_record_id = f"events:event:{self.entity_id}"
             else:
                 rubric_match = re.fullmatch(r"rubric-([0-9]+)", self.entity_id)
@@ -892,8 +897,18 @@ class CommonRecord(BaseModel):
                 "category", "tags", "registration_url", "source_status",
                 "cancellation_status", "audience",
             }
-            if set(metadata) != expected_keys:
-                raise ValueError("Events metadata_json must match the approved v1 fields")
+            extra = {"start_date", "end_date", "date_precision"} if self.source_id == "events_anu_official" else set()
+            if set(metadata) - extra != expected_keys:
+                raise ValueError("Events metadata_json must match the approved fields")
+            if extra & set(metadata):
+                start_date = date.fromisoformat(metadata["start_date"])
+                end_date = date.fromisoformat(metadata["end_date"]) if metadata.get("end_date") else start_date
+                if end_date < start_date:
+                    raise ValueError("Event end_date precedes start_date")
+                if metadata.get("date_precision") != ("timestamp" if metadata["start_at"] else "date"):
+                    raise ValueError("Event date precision does not match timestamp evidence")
+                if metadata["start_at"] is None and metadata["end_at"] is not None:
+                    raise ValueError("Date-only Event cannot have an end timestamp")
             if metadata["source_event_id"] != expected_event_id:
                 raise ValueError(
                     "metadata_json.source_event_id must match the source event ID"

@@ -1,6 +1,7 @@
 """Safe collector for the approved public ANU Jobs source."""
 from __future__ import annotations
 
+from askanu_scraper.sources.population import listing_job, enrich
 import time
 import uuid
 from collections.abc import Callable
@@ -174,20 +175,23 @@ class JobsCollector:
         rejected: list[str] = []
         duplicate_links: list[str] = []
         seen: set[str] = set()
-        over_limit = 0
         for page in page_results:
             rejected.extend(page.rejected_links)
             duplicate_links.extend(page.duplicate_links)
-            over_limit += page.over_limit_count
             for candidate in page.candidates:
                 if candidate.url in seen:
                     duplicate_links.append(candidate.url)
                     continue
                 seen.add(candidate.url)
-                if max_details is not None and len(candidates) >= max_details:
-                    over_limit += 1
-                    continue
                 candidates.append(candidate)
+
+        # max_details bounds optional enrichment only. It must never truncate
+        # the listing-authoritative population.
+        over_limit = (
+            max(0, len(candidates) - max_details)
+            if max_details is not None
+            else 0
+        )
         rejected_by_reason: dict[str, int] = {}
         for reason in rejected:
             key = reason if "://" not in reason else "outside-approved-detail-boundary"
@@ -264,22 +268,21 @@ class JobsCollector:
             discovery = self.discover_full_listing(
                 listing_url=listing_url,
                 max_listing_pages=max_listing_pages,
-                max_details=max_details,
+                max_details=None,
             )
         except FetchError as exc:
             return fail(f"Listing fetch failed: {exc}")
         except Exception as exc:
             return fail(f"Listing discovery failed: {exc}")
         self._capture_sanity(discovery)
-        if max_listing_pages > 1 and discovery.advertised_total_count is None:
+        if discovery.advertised_total_count is None:
             return fail(
                 "Jobs advertised total is missing or malformed",
                 discovery,
                 suspicious_zero=discovery.discovered_candidate_count == 0,
             )
         if (
-            max_listing_pages > 1
-            and discovery.advertised_total_count is not None
+            discovery.advertised_total_count is not None
             and len(discovery.candidates) != discovery.advertised_total_count
         ):
             return fail(
@@ -298,33 +301,41 @@ class JobsCollector:
                 discovery,
             )
         if not discovery.candidates:
-            return fail("Jobs listing produced zero approved detail candidates", discovery, suspicious_zero=True)
+            return fail("Jobs listing produced zero approved listing candidates", discovery, suspicious_zero=True)
 
         records: list[CommonRecord] = []
+        enrichment_failures = []
+        enrichment_successes = 0
+        enrichment_skipped_count = 0
+
         try:
-            for candidate in discovery.candidates:
-                parsed = self._parser.parse(
-                    self._fetch(candidate.url, detail=True),
-                    candidate.url,
-                    listing_metadata=candidate.listing_metadata,
-                )
-                if len(parsed) != 1:
-                    return fail(f"Expected exactly one record from {candidate.url!r}", discovery)
-                record = parsed[0]
-                if (
-                    record.domain != Domain.JOBS
-                    or record.source_id != SOURCE_ID
-                    or record.record_id != f"jobs:job:{record.entity_id}"
-                    or record.canonical_url != candidate.url
-                ):
-                    return fail("Job detail failed identity/provenance validation", discovery)
+            for index, candidate in enumerate(discovery.candidates):
+                record = listing_job(candidate)
+
+                should_enrich = max_details is None or index < max_details
+
+                if should_enrich:
+                    try:
+                        parsed = self._parser.parse(
+                            self._fetch(candidate.url, detail=True),
+                            candidate.url,
+                            listing_metadata=candidate.listing_metadata,
+                        )
+                        if len(parsed) != 1:
+                            raise ParseError("Expected one detail record")
+                        record = enrich(record, parsed[0])
+                        enrichment_successes += 1
+                    except (FetchError, ParseError, ValidationError, ValueError) as exc:
+                        enrichment_failures.append(
+                            {"url": candidate.url, "error": str(exc)}
+                        )
+                else:
+                    enrichment_skipped_count += 1
+
                 records.append(record)
-        except FetchError as exc:
-            return fail(f"Detail fetch failed: {exc}", discovery)
+
         except (ParseError, ValidationError, ValueError) as exc:
-            return fail(f"Detail parser failed: {exc}", discovery)
-        except Exception:
-            return fail("Unexpected Jobs detail parser failure", discovery)
+            return fail(f"Listing evidence validation failed: {exc}", discovery)
 
         record_ids = [record.record_id for record in records]
         urls = [record.canonical_url for record in records]
@@ -342,10 +353,16 @@ class JobsCollector:
                 duplicate_record_ids=duplicate_record_ids,
                 duplicate_canonical_urls=duplicate_urls,
             )
+        self.last_run_sanity.update(
+            enrichment_successes=enrichment_successes,
+            enrichment_failures=enrichment_failures,
+            enrichment_skipped_count=enrichment_skipped_count,
+            over_limit_candidate_count=enrichment_skipped_count,
+        )
         run.status = IngestionRunStatus.SUCCESS
         run.completed_at = now_canberra()
         try:
-            results = self._store.save_records_and_run(records, run)
+            results = self._store.save_complete_snapshot(records, run)
         except Exception:
             run.status = IngestionRunStatus.FAILED
             run.records_added = run.records_changed = run.records_unchanged = 0
