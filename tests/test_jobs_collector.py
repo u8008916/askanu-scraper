@@ -25,7 +25,7 @@ DETAIL_URL = (
 def _fetcher(detail: Path | None = None) -> MockFetcher:
     return MockFetcher(
         {
-            LISTING_URL: FIXTURES / "anu_jobs_listing_sample.html",
+            LISTING_URL: FIXTURES / "anu_jobs_listing_complete_one_sample.html",
             DETAIL_URL: detail or FIXTURES / "anu_job_open_dated_sample.html",
         }
     )
@@ -105,20 +105,30 @@ def test_live_style_run_spaces_listing_and_detail_requests(tmp_path: Path) -> No
     assert sleeps == [1.0]
 
 
-def test_detail_failure_preserves_last_known_good(tmp_path: Path) -> None:
+def test_detail_failure_falls_back_to_listing_record(tmp_path: Path) -> None:
     store = LocalDataStore(tmp_path / "store")
-    success, records, _ = _collector(store).run_listing(max_details=1)
-    before = store.get_record(records[0].record_id)
-    failed, failed_records, _ = _collector(
-        store, FIXTURES / "anu_job_malformed_sample.html"
-    ).run_listing(max_details=1)
 
+    success, records, _ = _collector(store).run_listing(max_details=1)
     assert success.status == IngestionRunStatus.SUCCESS
-    assert failed.status == IngestionRunStatus.FAILED
-    assert failed_records == []
+
+    before = store.get_record(records[0].record_id)
+
+    fallback_collector = _collector(
+        store,
+        FIXTURES / "anu_job_malformed_sample.html",
+    )
+    fallback, fallback_records, _ = fallback_collector.run_listing(max_details=1)
+
+    assert fallback.status == IngestionRunStatus.SUCCESS
+    assert len(fallback_records) == 1
+    assert fallback.records_missing == 0
+    assert len(fallback_collector.last_run_sanity["enrichment_failures"]) == 1
+
     after = store.get_record(records[0].record_id)
     assert before is not None and after is not None
-    assert after.content_hash == before.content_hash
+    assert after.canonical_url == before.canonical_url
+    assert after.content_hash != before.content_hash
+    assert after.metadata_json["role_requirements"] is None
 
 
 class _AlwaysFailFetcher(BaseFetcher):
@@ -170,7 +180,7 @@ def test_drastic_advertised_count_mismatch_fails_before_detail_fetch(
     run, records, discovery = collector.run_listing(max_details=10)
 
     assert run.status == IngestionRunStatus.FAILED
-    assert "advertised page count" in (run.error or "")
+    assert "reconcile with advertised total" in (run.error or "")
     assert records == []
     assert discovery is not None
     assert collector.last_run_sanity["detail_request_count"] == 0
@@ -195,3 +205,131 @@ def test_direct_collect_rejects_an_unapproved_url_before_fetch(tmp_path: Path) -
         collector.collect("https://example.test/jobs/not-approved")
 
     assert fetcher.urls == []
+
+def test_detail_cap_does_not_truncate_jobs_population(tmp_path: Path) -> None:
+    source = (
+        FIXTURES / "anu_jobs_listing_complete_one_sample.html"
+    ).read_text(encoding="utf-8")
+
+    source = source.replace(
+        "Displaying 1 - 1 of 1 in total",
+        "Displaying 1 - 2 of 2 in total",
+        1,
+    )
+
+    second_url = (
+        "https://jobs.anu.edu.au/jobs/"
+        "second-population-role-canberra-act-australia"
+    )
+
+    second_card = f"""
+    <article class="job-result" data-job-id="999999">
+        <h2>
+            <a href="{second_url}">
+                Second Population Role
+            </a>
+        </h2>
+        <p class="category">Professional</p>
+        <p class="employment-type">Fixed Term</p>
+        <p class="location">Canberra / ACT</p>
+        <p class="closing-date">Closing at: Sep 27 2026 - 23:55 AEST</p>
+        <p class="summary">Listing-backed second role.</p>
+    </article>
+    """
+
+    source = source.replace(
+        "</main>",
+        second_card + "\n</main>",
+        1,
+    )
+
+    listing = tmp_path / "complete-two-jobs.html"
+    listing.write_text(source, encoding="utf-8")
+
+    fetcher = MockFetcher(
+        {
+            LISTING_URL: listing,
+            DETAIL_URL: FIXTURES / "anu_job_open_dated_sample.html",
+        }
+    )
+
+    collector = JobsCollector(
+        fetcher=fetcher,
+        store=LocalDataStore(tmp_path / "store"),
+        parser=JobsParser(
+            now_func=lambda: datetime(
+                2026,
+                9,
+                14,
+                12,
+                0,
+                tzinfo=CANBERRA_TZ,
+            )
+        ),
+        min_request_interval_seconds=0,
+    )
+
+    run, records, discovery = collector.run_listing(max_details=1)
+
+    assert run.status == IngestionRunStatus.SUCCESS
+    assert discovery is not None
+    assert len(discovery.candidates) == 2
+    assert len(records) == 2
+
+    assert collector.last_run_sanity["detail_request_count"] == 1
+    assert collector.last_run_sanity["enrichment_successes"] == 1
+    assert collector.last_run_sanity["enrichment_skipped_count"] == 1
+    assert collector.last_run_sanity["over_limit_candidate_count"] == 1
+
+    assert {
+        record.canonical_url
+        for record in records
+    } == {
+        DETAIL_URL,
+        second_url,
+    }
+
+
+def test_jobs_incomplete_reconciliation_preserves_previous_population(
+    tmp_path: Path,
+) -> None:
+    store = LocalDataStore(tmp_path / "store")
+
+    healthy, records, _ = _collector(store).run_listing(max_details=1)
+
+    assert healthy.status == IngestionRunStatus.SUCCESS
+    assert len(records) == 1
+
+    record_id = records[0].record_id
+    before = store.get_record(record_id)
+
+    source = (
+        FIXTURES / "anu_jobs_listing_complete_one_sample.html"
+    ).read_text(encoding="utf-8")
+
+    source = source.replace(
+        "Displaying 1 - 1 of 1 in total",
+        "Displaying 1 - 2 of 2 in total",
+        1,
+    )
+
+    incomplete_listing = tmp_path / "incomplete-jobs.html"
+    incomplete_listing.write_text(source, encoding="utf-8")
+
+    collector = JobsCollector(
+        fetcher=MockFetcher({LISTING_URL: incomplete_listing}),
+        store=store,
+        min_request_interval_seconds=0,
+    )
+
+    failed, failed_records, _ = collector.run_listing(max_details=1)
+
+    assert failed.status == IngestionRunStatus.FAILED
+    assert "reconcile with advertised total" in (failed.error or "")
+    assert failed_records == []
+
+    after = store.get_record(record_id)
+
+    assert before is not None and after is not None
+    assert after.content_hash == before.content_hash
+    assert after.canonical_url == before.canonical_url

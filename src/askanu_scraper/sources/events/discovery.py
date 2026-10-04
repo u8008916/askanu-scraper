@@ -1,7 +1,7 @@
 """Bounded listing discovery for Official ANU Events."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from urllib.parse import parse_qs, urljoin, urlsplit
 
 from bs4 import BeautifulSoup, Tag
@@ -14,6 +14,7 @@ from askanu_scraper.sources.events.parser import normalize_event_url
 @dataclass(frozen=True)
 class EventCandidate:
     url: str
+    listing_metadata: dict[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -43,7 +44,15 @@ class EventsDiscovery:
                 rejected["missing-detail-link"] = rejected.get("missing-detail-link", 0) + 1
                 continue
             try:
-                candidates.append(EventCandidate(normalize_event_url(urljoin(listing_url, str(link["href"])))))
+                title = card.select_one("h3, h2")
+                location = card.select_one(".text-unigrey, .event-location")
+                dates = card.select_one(".text-center.p-1, .event-date")
+                candidates.append(EventCandidate(
+                    normalize_event_url(urljoin(listing_url, str(link["href"]))),
+                    {"title": normalize_text(title.get_text(" ", strip=True)) if title else None,
+                     "date_text": normalize_text(dates.get_text(" ", strip=True)) if dates else None,
+                     "venue_name": normalize_text(location.get_text(" ", strip=True)) if location else None},
+                ))
             except ParseError:
                 rejected["outside-approved-detail-boundary"] = rejected.get(
                     "outside-approved-detail-boundary", 0

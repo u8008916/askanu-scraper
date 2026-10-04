@@ -88,7 +88,7 @@ def _healthy_fetcher(domain: str) -> MockFetcher:
             ),
         },
         "jobs": {
-            JOBS_LISTING_URL: FIXTURES / "jobs" / "anu_jobs_listing_sample.html",
+            JOBS_LISTING_URL: FIXTURES / "jobs" / "anu_jobs_listing_complete_one_sample.html",
             JOB_URL: FIXTURES / "jobs" / "anu_job_open_dated_sample.html",
         },
         "accommodation": {
@@ -252,17 +252,47 @@ def test_malformed_page_preserves_last_known_good_then_recovers_unchanged(
     tmp_path: Path,
 ) -> None:
     store = LocalDataStore(tmp_path / domain)
+
     healthy, records = _run(domain, store, _healthy_fetcher(domain))
     assert healthy.status == IngestionRunStatus.SUCCESS
+
     record_id = records[0].record_id
     before = store.get_record(record_id)
 
-    failed, failed_records = _run(domain, store, _malformed_fetcher(domain))
+    failed, failed_records = _run(
+        domain,
+        store,
+        _malformed_fetcher(domain),
+    )
+
+    if domain in {"jobs", "events"}:
+        # Listing-backed domains survive optional detail parse failure.
+        assert failed.status == IngestionRunStatus.SUCCESS
+        assert failed_records
+        assert failed.records_missing == 0
+
+        current = store.get_record(record_id)
+        assert before is not None and current is not None
+        assert current.canonical_url == before.canonical_url
+
+        recovered, _ = _run(
+            domain,
+            store,
+            _healthy_fetcher(domain),
+        )
+        assert recovered.status == IngestionRunStatus.SUCCESS
+        assert recovered.records_missing == 0
+        return
+
     assert failed.status == IngestionRunStatus.FAILED
     assert failed_records == []
     _assert_preserved(before, store.get_record(record_id))
 
-    recovered, _ = _run(domain, store, _healthy_fetcher(domain))
+    recovered, _ = _run(
+        domain,
+        store,
+        _healthy_fetcher(domain),
+    )
     assert recovered.status == IngestionRunStatus.SUCCESS
     assert recovered.records_unchanged == len(records)
 

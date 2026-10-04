@@ -301,7 +301,12 @@ def test_official_and_rubric_failures_are_source_isolated(tmp_path: Path) -> Non
         window_days=43,
         expected_event_count=2,
     )
-    assert official_failed.status == IngestionRunStatus.FAILED
+    assert official_failed.status == IngestionRunStatus.SUCCESS
+    official_after_fallback = {
+        item.name: item.read_bytes()
+        for item in record_dir.glob("events__event__*.json")
+        if not item.name.startswith("events__event__rubric-")
+    }
     assert rubric_before == {
         item.name: item.read_bytes()
         for item in record_dir.glob(rubric_pattern)
@@ -318,7 +323,7 @@ def test_official_and_rubric_failures_are_source_isolated(tmp_path: Path) -> Non
         )
     )
     assert rubric_failed.status == IngestionRunStatus.FAILED
-    assert official_before == {
+    assert official_after_fallback == {
         item.name: item.read_bytes()
         for item in record_dir.glob("events__event__*.json")
         if not item.name.startswith("events__event__rubric-")

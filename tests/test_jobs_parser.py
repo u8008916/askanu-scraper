@@ -102,7 +102,7 @@ def test_jobs_v1_metadata_rejects_non_array_employment_types_and_unknown_keys() 
 
     unknown = dict(serialized["metadata_json"])
     unknown["description"] = "Not part of Jobs v1"
-    with pytest.raises(ValidationError, match="approved v1 fields"):
+    with pytest.raises(ValidationError, match="approved fields"):
         CommonRecord.model_validate({**serialized, "metadata_json": unknown})
 
 

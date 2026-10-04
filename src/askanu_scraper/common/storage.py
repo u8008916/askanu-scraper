@@ -200,6 +200,30 @@ class LocalDataStore:
 
         return results
 
+    def save_complete_snapshot(self, records, run):
+        from askanu_scraper.common.snapshot import plan_snapshot
+        previous = [CommonRecord.model_validate_json(p.read_text(encoding="utf-8"))
+                    for p in self.records_dir.glob("*.json")]
+        previous = [r for r in previous if r.source_id == run.source_id]
+        records, missing = plan_snapshot(records, previous, run)
+        paths = [self._record_file_path(r.record_id) for r in records + missing] + [self._run_file_path(run.run_id)]
+        backups = {p: p.read_bytes() if p.exists() else None for p in paths}
+        run.records_missing = len(missing)
+        try:
+            results = self.save_records_and_run(records, run)
+            if not self.dry_run:
+                for record in missing:
+                    self._record_file_path(record.record_id).write_text(record.model_dump_json(indent=2), encoding="utf-8")
+            return results
+        except Exception:
+            if not self.dry_run:
+                for path, content in backups.items():
+                    if content is None:
+                        path.unlink(missing_ok=True)
+                    else:
+                        path.write_bytes(content)
+            raise
+
     def get_run(self, run_id: str) -> IngestionRun | None:
         file_path = self._run_file_path(run_id)
         if not file_path.exists():

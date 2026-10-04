@@ -275,6 +275,8 @@ class PostgresDataStore:
         self,
         records: list[CommonRecord],
         run: IngestionRun,
+        *,
+        complete_snapshot: bool = False,
     ) -> list[tuple[RecordStatus, CommonRecord]]:
         """Persist one preflighted bounded batch and its run atomically.
 
@@ -305,6 +307,20 @@ class PostgresDataStore:
         try:
             with self._connection_factory() as connection:
                 with connection.cursor() as cursor:
+                    missing = []
+                    if complete_snapshot:
+                        from askanu_scraper.common.snapshot import plan_snapshot
+                        if not self.dry_run:
+                            cursor.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (run.source_id,))
+                        cursor.execute(f"SELECT {', '.join(RECORD_COLUMNS)} FROM source_records WHERE source_id = %s" +
+                                       ("" if self.dry_run else " FOR UPDATE"), (run.source_id,))
+                        previous = [CommonRecord.model_validate(row) for row in cursor.fetchall()]
+                        validated, missing = plan_snapshot(
+                            validated,
+                            previous,
+                            run,
+                        )
+                        run.records_missing = len(missing)
                     for record in validated:
                         cursor.execute(select, (record.record_id,))
                         row = cursor.fetchone()
@@ -389,6 +405,9 @@ class PostgresDataStore:
                             run.records_unchanged += 1
 
                     if not self.dry_run:
+                        for record in missing:
+                            cursor.execute("UPDATE source_records SET status = 'MISSING' WHERE record_id = %s AND source_id = %s",
+                                           (record.record_id, run.source_id))
                         values = run.model_dump(mode="python")
                         values["status"] = run.status.value
                         placeholders = ", ".join(
@@ -412,3 +431,10 @@ class PostgresDataStore:
             raise PostgresPersistenceError() from None
 
         return results
+
+    def save_complete_snapshot(self, records, run):
+        return self.save_records_and_run(
+            records,
+            run,
+            complete_snapshot=True,
+        )

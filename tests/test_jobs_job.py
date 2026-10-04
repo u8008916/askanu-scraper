@@ -40,7 +40,7 @@ def _config(path: Path, *, dry_run: bool = False) -> JobConfig:
 def _fetcher() -> MockFetcher:
     return MockFetcher(
         {
-            LISTING_URL: FIXTURES / "anu_jobs_listing_sample.html",
+            LISTING_URL: FIXTURES / "anu_jobs_listing_complete_one_sample.html",
             DETAIL_URL: FIXTURES / "anu_job_open_dated_sample.html",
         }
     )

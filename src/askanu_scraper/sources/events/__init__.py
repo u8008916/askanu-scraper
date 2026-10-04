@@ -7,6 +7,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, timedelta
 import math
+from askanu_scraper.sources.population import listing_event, enrich
 import time
 import uuid
 from collections.abc import Callable
@@ -142,7 +143,6 @@ class EventsCollector:
         duplicates: list[str] = []
         seen: set[str] = set()
         rejected: dict[str, int] = {}
-        over_limit = 0
         for page in pages:
             for reason, count in page.rejected_by_reason.items():
                 rejected[reason] = rejected.get(reason, 0) + count
@@ -151,10 +151,14 @@ class EventsCollector:
                     duplicates.append(candidate.url)
                     continue
                 seen.add(candidate.url)
-                if max_details is not None and len(candidates) >= max_details:
-                    over_limit += 1
-                else:
-                    candidates.append(candidate)
+                candidates.append(candidate)
+
+        # max_details bounds optional detail enrichment only.
+        over_limit = (
+            max(0, len(candidates) - max_details)
+            if max_details is not None
+            else 0
+        )
         return EventsDiscoveryResult(
             candidates=candidates, raw_card_count=sum(page.raw_card_count for page in pages),
             unique_link_count=len(seen), duplicate_links=duplicates,
@@ -165,12 +169,9 @@ class EventsCollector:
 
     @staticmethod
     def _in_window(record: CommonRecord, start: date, end: date) -> bool:
-        if record.effective_from is None or record.effective_to is None:
-            raise ParseError(
-                "Official Event has date-only evidence requiring shared-contract review"
-            )
-        event_start = record.effective_from.date()
-        event_end = record.effective_to.date()
+        metadata = record.metadata_json
+        event_start = date.fromisoformat(metadata["start_date"])
+        event_end = date.fromisoformat(metadata.get("end_date") or metadata["start_date"])
         return event_start <= end and event_end >= start
 
     @staticmethod
@@ -314,48 +315,66 @@ class EventsCollector:
             return fail("Events pagination is incomplete at the configured hard cap", discovery)
         if discovery.raw_card_count == 0 or discovery.unique_link_count == 0:
             return fail("Events listing produced zero approved detail candidates", discovery, suspicious_zero=True)
-        if discovery.over_limit_count and expected_event_count is not None:
-            return fail("Events detail bound prevents denominator reconciliation", discovery)
 
         eligible: list[CommonRecord] = []
         parsed_records: list[CommonRecord] = []
         rejected = dict(discovery.rejected_by_reason)
+        enrichment_failures = []
+        enrichment_successes = 0
+        enrichment_skipped_count = 0
+
         try:
-            for candidate in discovery.candidates:
-                parsed = self._parser.parse(self._fetch(candidate.url, detail=True), candidate.url)
-                if len(parsed) != 1:
-                    return fail(f"Expected exactly one record from {candidate.url!r}", discovery)
-                record = parsed[0]
-                if (
-                    record.domain != Domain.EVENTS or record.source_id != SOURCE_ID
-                    or record.record_id != f"events:event:{record.entity_id}"
-                    or record.canonical_url != candidate.url
-                ):
-                    return fail("Event detail failed identity/provenance validation", discovery)
+            for index, candidate in enumerate(discovery.candidates):
+                record = listing_event(candidate)
+
+                should_enrich = max_details is None or index < max_details
+
+                if should_enrich:
+                    try:
+                        parsed = self._parser.parse(
+                            self._fetch(candidate.url, detail=True),
+                            candidate.url,
+                        )
+                        if len(parsed) != 1:
+                            raise ParseError("Expected one detail record")
+                        record = enrich(record, parsed[0])
+                        enrichment_successes += 1
+                    except (FetchError, ParseError, ValidationError, ValueError) as exc:
+                        enrichment_failures.append(
+                            {"url": candidate.url, "error": str(exc)}
+                        )
+                else:
+                    enrichment_skipped_count += 1
+
                 parsed_records.append(record)
-                if record.effective_from is None or record.effective_to is None:
-                    return fail(
-                        "Official Event has date-only evidence requiring shared-contract review",
-                        discovery,
-                        records=parsed_records,
-                        eligible_count=len(eligible),
-                        rejected=rejected,
-                    )
+
+                # Population persistence is listing-authoritative. The frozen
+                # window remains an acceptance/coverage gate, not the source
+                # population boundary.
                 if self._in_window(record, window_start, window_end):
                     eligible.append(record)
                 else:
-                    rejected["outside-frozen-window"] = rejected.get("outside-frozen-window", 0) + 1
-        except FetchError as exc:
-            return fail(f"Detail fetch failed: {exc}", discovery, rejected=rejected)
+                    rejected["outside-frozen-window"] = (
+                        rejected.get("outside-frozen-window", 0) + 1
+                    )
+
         except (ParseError, ValidationError, ValueError) as exc:
-            return fail(f"Detail parser failed: {exc}", discovery, rejected=rejected)
-        except Exception:
-            return fail("Unexpected Events detail parser failure", discovery, rejected=rejected)
+            return fail(f"Listing evidence validation failed: {exc}", discovery)
 
         event_ids = [record.entity_id for record in parsed_records]
         record_ids = [record.record_id for record in parsed_records]
         urls = [record.canonical_url for record in parsed_records]
+
+        legacy_aliases = [
+            str(record.metadata_json["source_event_id"])
+            for record in parsed_records
+            if record.metadata_json.get("source_event_id") is not None
+        ]
+
         duplicate_event_ids = len(event_ids) - len(set(event_ids))
+        duplicate_legacy_aliases = (
+            len(legacy_aliases) - len(set(legacy_aliases))
+        )
         duplicate_record_ids = len(record_ids) - len(set(record_ids))
         duplicate_urls = len(urls) - len(set(urls))
         self._capture_sanity(
@@ -363,8 +382,15 @@ class EventsCollector:
             duplicate_event_ids=duplicate_event_ids, duplicate_record_ids=duplicate_record_ids,
             duplicate_urls=duplicate_urls, rejected_by_reason=rejected,
         )
-        if duplicate_event_ids or duplicate_record_ids or duplicate_urls:
-            return fail("Duplicate Event identity or canonical URL detected", discovery,
+        if (
+            duplicate_event_ids
+            or duplicate_legacy_aliases
+            or duplicate_record_ids
+            or duplicate_urls
+        ):
+            return fail(
+                "Duplicate Event identity/legacy alias or canonical URL detected",
+                discovery,
                         records=eligible, eligible_count=len(eligible),
                         duplicate_event_ids=duplicate_event_ids,
                         duplicate_record_ids=duplicate_record_ids, duplicate_urls=duplicate_urls,
@@ -376,10 +402,15 @@ class EventsCollector:
             return fail("Events accepted count is below 99% of the frozen denominator", discovery,
                         records=eligible, eligible_count=len(eligible), rejected=rejected)
 
+        self.last_run_sanity.update(
+            enrichment_successes=enrichment_successes,
+            enrichment_failures=enrichment_failures,
+            enrichment_skipped_count=enrichment_skipped_count,
+        )
         run.status = IngestionRunStatus.SUCCESS
         run.completed_at = now_canberra()
         try:
-            results = self._store.save_records_and_run(eligible, run)
+            results = self._store.save_complete_snapshot(parsed_records, run)
         except Exception:
             run.status = IngestionRunStatus.FAILED
             run.records_added = run.records_changed = run.records_unchanged = 0

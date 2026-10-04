@@ -63,10 +63,10 @@ def test_first_write_unchanged_and_changed_hash(tmp_path: Path) -> None:
     store = LocalDataStore(tmp_path / "store")
     first, records, _ = run(EventsCollector(fetcher=EventsFixtureFetcher(), store=store))
     assert first.status == IngestionRunStatus.SUCCESS
-    assert first.records_added == 2
+    assert first.records_added == 3
     hashes = {record.record_id: record.content_hash for record in records}
     second, _, _ = run(EventsCollector(fetcher=EventsFixtureFetcher(), store=store))
-    assert second.records_unchanged == 2
+    assert second.records_unchanged == 3
     changed, changed_records, _ = run(
         EventsCollector(fetcher=EventsFixtureFetcher(changed=True), store=store)
     )
@@ -79,7 +79,7 @@ def test_dry_run_writes_nothing_and_reports_coverage(tmp_path: Path) -> None:
     collector = EventsCollector(fetcher=EventsFixtureFetcher(), store=LocalDataStore(path, dry_run=True))
     result, records, _ = run(collector)
     assert result.status == IngestionRunStatus.SUCCESS
-    assert len(records) == 2
+    assert len(records) == 3
     assert collector.last_run_sanity["entity_coverage_percent"] == 100.0
     assert collector.last_run_sanity["source_present_fact_coverage_percent"] == 100.0
     assert collector.last_run_sanity["rejected_by_reason"]["outside-frozen-window"] == 1
@@ -98,18 +98,29 @@ def test_incomplete_pagination_fails_before_detail_fetch(tmp_path: Path) -> None
     assert fetcher.requested == [LISTING_URL]
 
 
-def test_fetch_failure_preserves_last_known_good(tmp_path: Path) -> None:
+def test_detail_fetch_failure_keeps_listing_population(tmp_path: Path) -> None:
     path = tmp_path / "store"
     store = LocalDataStore(path)
-    good, _, _ = run(EventsCollector(fetcher=EventsFixtureFetcher(), store=store))
-    assert good.status == IngestionRunStatus.SUCCESS
-    before = {file.name: file.read_bytes() for file in (path / "records").glob("*.json")}
-    failed, _, _ = run(
-        EventsCollector(fetcher=EventsFixtureFetcher(fail_details=True), store=store)
+
+    good, _, _ = run(
+        EventsCollector(fetcher=EventsFixtureFetcher(), store=store)
     )
-    after = {file.name: file.read_bytes() for file in (path / "records").glob("*.json")}
-    assert failed.status == IngestionRunStatus.FAILED
-    assert before == after
+    assert good.status == IngestionRunStatus.SUCCESS
+
+    collector = EventsCollector(
+        fetcher=EventsFixtureFetcher(fail_details=True),
+        store=store,
+    )
+    fallback, records, _ = run(collector)
+
+    assert fallback.status == IngestionRunStatus.SUCCESS
+    assert len(records) == 3
+    assert fallback.records_missing == 0
+    assert len(collector.last_run_sanity["enrichment_failures"]) == 3
+    assert all(
+        record.metadata_json["source_event_id"] is None
+        for record in records
+    )
 
 
 def test_99_percent_gate_prevents_write(tmp_path: Path) -> None:
@@ -141,22 +152,31 @@ def test_duplicate_numeric_identity_fails_before_write(tmp_path: Path) -> None:
     assert list((path / "records").glob("*.json")) == []
 
 
-def test_detail_parser_failure_preserves_last_known_good(tmp_path: Path) -> None:
+def test_detail_parser_failure_falls_back_to_listing_record(tmp_path: Path) -> None:
     path = tmp_path / "store"
     store = LocalDataStore(path)
-    good, _, _ = run(EventsCollector(fetcher=EventsFixtureFetcher(), store=store))
+
+    good, _, _ = run(
+        EventsCollector(fetcher=EventsFixtureFetcher(), store=store)
+    )
     assert good.status == IngestionRunStatus.SUCCESS
-    before = {file.name: file.read_bytes() for file in (path / "records").glob("*.json")}
+
     fetcher = EventsFixtureFetcher()
     fetcher.responses[f"{LISTING_URL}/dst-event"] = "<html>malformed</html>"
-    failed, _, _ = run(EventsCollector(fetcher=fetcher, store=store))
-    after = {file.name: file.read_bytes() for file in (path / "records").glob("*.json")}
-    assert failed.status == IngestionRunStatus.FAILED
-    assert "Detail parser failed" in failed.error
-    assert before == after
+
+    collector = EventsCollector(fetcher=fetcher, store=store)
+    result, records, _ = run(collector)
+
+    assert result.status == IngestionRunStatus.SUCCESS
+    assert len(records) == 3
+    assert len(collector.last_run_sanity["enrichment_failures"]) == 1
+
+    dst = next(record for record in records if record.entity_id == "dst-event")
+    assert dst.metadata_json["source_event_id"] is None
+    assert dst.metadata_json["date_precision"] == "date"
 
 
-def test_date_only_detail_blocks_persistence_and_is_reported(tmp_path: Path) -> None:
+def test_date_only_detail_retains_listing_date_evidence(tmp_path: Path) -> None:
     fetcher = EventsFixtureFetcher()
     fetcher.responses[f"{LISTING_URL}/dst-event"] = (
         (FIXTURES / "date-only-cancelled.html").read_text(encoding="utf-8")
@@ -164,24 +184,28 @@ def test_date_only_detail_blocks_persistence_and_is_reported(tmp_path: Path) -> 
         .replace('"1004"', '"1002"')
         .replace('data-history-node-id="1004"', 'data-history-node-id="1002"')
     )
+
     path = tmp_path / "store"
-    collector = EventsCollector(fetcher=fetcher, store=LocalDataStore(path))
+    collector = EventsCollector(
+        fetcher=fetcher,
+        store=LocalDataStore(path),
+    )
+
     result, records, _ = run(collector)
 
-    assert result.status == IngestionRunStatus.FAILED
-    assert result.error == (
-        "Official Event has date-only evidence requiring shared-contract review"
-    )
-    assert records == []
+    assert result.status == IngestionRunStatus.SUCCESS
+    assert len(records) == 3
+
+    dst = next(record for record in records if record.entity_id == "dst-event")
+
+    assert dst.metadata_json["date_precision"] == "date"
+    assert dst.metadata_json["start_date"] == "2026-10-03"
+    assert dst.metadata_json["end_date"] == "2026-10-04"
+    assert dst.metadata_json["start_at"] is None
+    assert dst.metadata_json["end_at"] is None
+    assert dst.metadata_json["source_event_id"] is None
+
     assert collector.last_run_sanity["date_only_start_count"] == 1
-    assert collector.last_run_sanity["date_only_end_count"] == 1
-    assert collector.last_run_sanity["date_only_start_records"] == [
-        {
-            "record_id": "events:event:1002",
-            "canonical_url": "https://www.anu.edu.au/events/dst-event",
-        }
-    ]
-    assert list((path / "records").glob("*.json")) == []
 
 
 def test_atomic_persistence_failure_writes_no_event_records(tmp_path: Path) -> None:
@@ -198,3 +222,88 @@ def test_atomic_persistence_failure_writes_no_event_records(tmp_path: Path) -> N
     assert result.error == "Atomic persistence failed; records were not committed"
     assert records == []
     assert list((path / "records").glob("*.json")) == []
+
+def test_detail_cap_does_not_truncate_event_population(
+    tmp_path: Path,
+) -> None:
+    collector = EventsCollector(
+        fetcher=EventsFixtureFetcher(),
+        store=LocalDataStore(tmp_path / "store"),
+        min_request_interval_seconds=0,
+    )
+
+    result, records, discovery = collector.run_listing(
+        max_listing_pages=2,
+        max_details=1,
+        window_start=date(2026, 9, 19),
+        window_days=43,
+        expected_event_count=2,
+    )
+
+    assert result.status == IngestionRunStatus.SUCCESS
+    assert discovery is not None
+    assert len(discovery.candidates) == 3
+    assert len(records) == 3
+
+    assert collector.last_run_sanity["detail_request_count"] == 1
+    assert collector.last_run_sanity["enrichment_successes"] == 1
+    assert collector.last_run_sanity["enrichment_skipped_count"] == 2
+    assert collector.last_run_sanity["over_limit_candidate_count"] == 2
+
+    skipped = [
+        record
+        for record in records
+        if record.entity_id in {"dst-event", "outside-window"}
+    ]
+
+    assert len(skipped) == 2
+    assert all(
+        record.metadata_json["source_event_id"] is None
+        for record in skipped
+    )
+
+
+def test_incomplete_event_pagination_preserves_previous_population(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "store"
+    store = LocalDataStore(path)
+
+    healthy, records, _ = run(
+        EventsCollector(
+            fetcher=EventsFixtureFetcher(),
+            store=store,
+        )
+    )
+
+    assert healthy.status == IngestionRunStatus.SUCCESS
+    assert len(records) == 3
+
+    before = {
+        item.name: item.read_bytes()
+        for item in (path / "records").glob("*.json")
+    }
+
+    fetcher = EventsFixtureFetcher()
+
+    failed, failed_records, _ = EventsCollector(
+        fetcher=fetcher,
+        store=store,
+        min_request_interval_seconds=0,
+    ).run_listing(
+        max_listing_pages=1,
+        max_details=10,
+        window_start=date(2026, 9, 19),
+        window_days=43,
+        expected_event_count=2,
+    )
+
+    after = {
+        item.name: item.read_bytes()
+        for item in (path / "records").glob("*.json")
+    }
+
+    assert failed.status == IngestionRunStatus.FAILED
+    assert failed_records == []
+    assert before == after
+    assert fetcher.requested == [LISTING_URL]

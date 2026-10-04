@@ -107,7 +107,7 @@ class JobConfig:
     max_scholarship_listing_pages: int = 1
     max_scholarship_details: int = 10
     scholarship_postgres_approved: bool = False
-    max_jobs_listing_pages: int = 1
+    max_jobs_listing_pages: int = 100
     max_job_details: int = 10
     jobs_postgres_approved: bool = False
     max_accommodation_details: int = 10
@@ -296,7 +296,7 @@ def load_config(
     )
     max_jobs_listing_pages = _parse_int(
         args.max_jobs_listing_pages
-        or env.get("SCRAPER_MAX_JOBS_LISTING_PAGES", "1"),
+        or env.get("SCRAPER_MAX_JOBS_LISTING_PAGES", "100"),
         name="SCRAPER_MAX_JOBS_LISTING_PAGES/--max-jobs-listing-pages",
         minimum=1,
         maximum=100,
